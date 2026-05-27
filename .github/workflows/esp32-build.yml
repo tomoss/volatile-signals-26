@@ -9,7 +9,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "iot-esp32-bme688-fw-arduino/**"
+      - "iot-esp32-firmware-arduino/**"
       - ".github/workflows/esp32-build.yml"
 
 jobs:
@@ -27,8 +27,8 @@ jobs:
         with:
           path: |
             ~/.platformio/.cache
-            iot-esp32-bme688-fw-arduino/.pio
-          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-bme688-fw-arduino/platformio.ini') }}
+            iot-esp32-firmware-arduino/.pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-firmware-arduino/platformio.ini') }}
           restore-keys: |
             ${{ runner.os }}-pio-
 
@@ -42,5 +42,5 @@ jobs:
 
       # Compile the firmware for the board/environment defined in platformio.ini.
       - name: Build firmware
-        working-directory: iot-esp32-bme688-fw-arduino
+        working-directory: iot-esp32-firmware-arduino
         run: pio run
