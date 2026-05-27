@@ -1,0 +1,46 @@
+name: ESP32 PlatformIO (Arduino Framework) Build
+
+on:
+  push:
+    branches: [main, dev-esp32]
+    paths:
+      - "/**"
+      - ".github/workflows/esp32-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "iot-esp32-bme688-fw-arduino/**"
+      - ".github/workflows/esp32-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache the PlatformIO toolchain downloads and compiled output.
+      # Key is tied to platformio.ini so the cache is invalidated when
+      # dependencies change. restore-keys provides a stale fallback to
+      # avoid a fully cold build when only some libraries changed.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            iot-esp32-bme688-fw-arduino/.pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-bme688-fw-arduino/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
+      # PlatformIO requires Python to run.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      # Compile the firmware for the board/environment defined in platformio.ini.
+      - name: Build firmware
+        working-directory: iot-esp32-bme688-fw-arduino
+        run: pio run
