@@ -1,15 +1,15 @@
-name: ESP32 PlatformIO (Arduino Framework) Build
+﻿name: ESP32 PlatformIO (Arduino Framework) Build
 
 on:
   push:
-    branches: [main, dev-esp32]
+    branches: [main, "dev-esp32-*"]
     paths:
       - "/**"
       - ".github/workflows/esp32-build.yml"
   pull_request:
     branches: [main]
     paths:
-      - "iot-esp32-firmware-arduino/**"
+      - "iot-esp32-iaq-app/**"
       - ".github/workflows/esp32-build.yml"
 
 jobs:
@@ -27,8 +27,8 @@ jobs:
         with:
           path: |
             ~/.platformio/.cache
-            iot-esp32-firmware-arduino/.pio
-          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-firmware-arduino/platformio.ini') }}
+            iot-esp32-iaq-app/.pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}
           restore-keys: |
             ${{ runner.os }}-pio-
 
@@ -42,5 +42,5 @@ jobs:
 
       # Compile the firmware for the board/environment defined in platformio.ini.
       - name: Build firmware
-        working-directory: iot-esp32-firmware-arduino
+        working-directory: iot-esp32-iaq-app
         run: pio run
