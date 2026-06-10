@@ -42,7 +42,7 @@ static const uint8_t* modeToConfig(const SensorMode p_mode) {
     }
 }
 
-static const float modeToSampleRate(const SensorMode p_mode) {
+static float modeToSampleRate(const SensorMode p_mode) {
     switch (p_mode) {
     case SensorMode::UltraLowPower:
         return BSEC_SAMPLE_RATE_ULP;
@@ -307,9 +307,10 @@ void EnvSensor::maybeSaveStateToStorage() {
 
     if (l_shouldSave) {
         if (auto state = this->getBsecState()) {
-            if (m_storage.saveBsecState(MappingHandler::sensorModeToStorageKey(m_mode), *state))
+            if (m_storage.saveBsecState(MappingHandler::sensorModeToStorageKey(m_mode), *state)) {
                 Serial.println("BSEC state saved");
-            else
+                m_hasSavedStateForMode = true;
+            } else
                 Serial.println("BSEC state save failed");
         } else {
             Serial.println("getBsecState() returned nullopt, state not saved");
