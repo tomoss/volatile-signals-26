@@ -1,7 +1,7 @@
 #include "04_utils/mapping_handler.h"
 
-#include <arduino.h>
-#include <freertos.h>
+#include <Arduino.h>
+#include <freertos/FreeRTOS.h>
 
 Storage::StorageKey MappingHandler::sensorModeToStorageKey(const SensorMode p_sensorMode) {
     switch (p_sensorMode) {
