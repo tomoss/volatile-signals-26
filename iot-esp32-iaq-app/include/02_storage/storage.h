@@ -6,9 +6,8 @@
 #include <cstdint>
 #include <optional>
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-#include <Preferences.h>
+#include "00_vendor/freertos.h"
+#include "00_vendor/preferences.h"
 
 #include "01_sensor/sensor_types.h"
 

@@ -1,5 +1,5 @@
-#include <Arduino.h>
-#include <freertos/task.h>
+#include "00_vendor/arduino.h"
+#include "00_vendor/freertos.h"
 
 #include "01_sensor/env_sensor.h"
 #include "01_sensor/sensor_data.h"
