@@ -1,0 +1,13 @@
+#ifndef VENDOR_PREFERENCES_H
+#define VENDOR_PREFERENCES_H
+
+/* Preferences.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip our strict
+   -Wconversion/-Wsign-conversion/-Wattributes flags. Suppress at the source. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#pragma GCC diagnostic ignored "-Wattributes"
+#include <Preferences.h>
+#pragma GCC diagnostic pop
+
+#endif // VENDOR_PREFERENCES_H

@@ -3,8 +3,8 @@
 
 #include <optional>
 
-#include <bsec2.h>
-#include <freertos/queue.h>
+#include "00_vendor/bsec2.h"
+#include "00_vendor/freertos.h"
 
 #include "01_sensor/sensor_types.h"
 #include "02_storage/storage.h"
