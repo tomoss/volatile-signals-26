@@ -7,6 +7,6 @@
 
 using SensorState = std::array<uint8_t, BSEC_MAX_STATE_BLOB_SIZE>;
 
-enum class SensorMode : uint8_t { UltraLowPower, LowPower, Continuous };
+enum class SensorMode : uint8_t { Disabled, UltraLowPower, LowPower, Continuous };
 
 #endif // SENSOR_TYPES_H

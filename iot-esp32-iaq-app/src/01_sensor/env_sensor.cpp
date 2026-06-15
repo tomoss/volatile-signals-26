@@ -44,6 +44,8 @@ static const uint8_t* modeToConfig(const SensorMode p_mode) {
 
 static float modeToSampleRate(const SensorMode p_mode) {
     switch (p_mode) {
+    case SensorMode::Disabled:
+        return BSEC_SAMPLE_RATE_DISABLED;
     case SensorMode::UltraLowPower:
         return BSEC_SAMPLE_RATE_ULP;
     case SensorMode::LowPower:
@@ -136,6 +138,25 @@ void EnvSensor::checkBsecStatus() {
     }
 }
 
+void EnvSensor::printMode() {
+    Serial.println("==================================");
+    switch (m_mode) {
+    case SensorMode::Disabled:
+        Serial.println("Disabled mode");
+        break;
+    case SensorMode::UltraLowPower:
+        Serial.println("Ultra Low Power mode (~5m)");
+        break;
+    case SensorMode::LowPower:
+        Serial.println("Low Power mode (~3s)");
+        break;
+    case SensorMode::Continuous:
+        Serial.println("Continuous mode (~1s)");
+        break;
+    }
+    Serial.println("==================================");
+}
+
 bool EnvSensor::init(SensorMode p_mode) {
     m_mode = p_mode;
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorData));
@@ -167,15 +188,18 @@ bool EnvSensor::init(SensorMode p_mode) {
 
     Serial.println("BSEC subscription updated successfully");
 
-    if (auto state = m_storage.loadBsecState(MappingHandler::sensorModeToStorageKey(m_mode))) {
-        if (!setBsecState(*state))
-            Serial.println("Failed to restore BSEC state");
-        else {
-            Serial.println("BSEC state restored from storage");
-            m_hasSavedStateForMode = true;
+    /* Don't restore any state from storage if mode is (Disabled)*/
+    if (p_mode != SensorMode::Disabled) {
+        if (auto state = m_storage.loadBsecState(MappingHandler::sensorModeToStorageKey(m_mode))) {
+            if (!setBsecState(*state))
+                Serial.println("Failed to restore BSEC state");
+            else {
+                Serial.println("BSEC state restored from storage");
+                m_hasSavedStateForMode = true;
+            }
+        } else {
+            Serial.println("No saved BSEC state found");
         }
-    } else {
-        Serial.println("No saved BSEC state found");
     }
 
     m_bsec.attachCallback([](const bme68xData p_data, const bsecOutputs p_outputs, Bsec2 p_bsec) {
@@ -189,16 +213,7 @@ bool EnvSensor::init(SensorMode p_mode) {
         xQueueSend(s_sensorQueue, &l_data, TICKS_TO_WAIT);
     });
 
-    Serial.println("==================================");
-    Serial.println("BME688 Sensor started");
-    if (m_mode == SensorMode::Continuous) {
-        Serial.println("Continuous mode (~1s)");
-    } else if (m_mode == SensorMode::LowPower) {
-        Serial.println("Low Power mode (~3s)");
-    } else if (m_mode == SensorMode::UltraLowPower) {
-        Serial.println("Ultra Low Power mode (~300s)");
-    }
-    Serial.println("==================================");
+    printMode();
 
     return true;
 }
@@ -252,17 +267,6 @@ bool EnvSensor::setMode(SensorMode p_mode) {
         return false;
     }
 
-    if (auto state = m_storage.loadBsecState(MappingHandler::sensorModeToStorageKey(p_mode))) {
-        if (!this->setBsecState(*state)) {
-            Serial.println("Failed to restore BSEC state for new mode");
-        } else {
-            Serial.println("BSEC state restored from storage for new mode");
-            m_hasSavedStateForMode = true;
-        }
-    } else {
-        Serial.println("No saved BSEC state for this mode, starting fresh");
-    }
-
     if (!m_bsec.updateSubscription(s_sensorList, ARRAY_LEN(s_sensorList), modeToSampleRate(p_mode))) {
         Serial.println("Failed to update subscription");
         checkBsecStatus();
@@ -271,18 +275,22 @@ bool EnvSensor::setMode(SensorMode p_mode) {
 
     Serial.println("BSEC subscription updated successfully");
 
-    m_mode = p_mode;
-
-    Serial.println("==================================");
-    Serial.println("BME688 Sensor Mode changed");
-    if (m_mode == SensorMode::Continuous) {
-        Serial.println("Continuous mode (~1s)");
-    } else if (m_mode == SensorMode::LowPower) {
-        Serial.println("Low Power mode (~3s)");
-    } else if (m_mode == SensorMode::UltraLowPower) {
-        Serial.println("Ultra Low Power mode (~300s)");
+    /* Don't restore any state from storage if mode is (Disabled)*/
+    if (p_mode != SensorMode::Disabled) {
+        if (auto state = m_storage.loadBsecState(MappingHandler::sensorModeToStorageKey(p_mode))) {
+            if (!this->setBsecState(*state)) {
+                Serial.println("Failed to restore BSEC state for new mode");
+            } else {
+                Serial.println("BSEC state restored from storage for new mode");
+                m_hasSavedStateForMode = true;
+            }
+        } else {
+            Serial.println("No saved BSEC state for this mode, starting fresh");
+        }
     }
-    Serial.println("==================================");
+
+    m_mode = p_mode;
+    printMode();
 
     return true;
 }

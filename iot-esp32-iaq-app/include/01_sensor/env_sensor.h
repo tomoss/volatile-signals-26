@@ -35,6 +35,7 @@ public:
 
 private:
     void checkBsecStatus();
+    void printMode();
 
     Bsec2 m_bsec;
     SensorMode m_mode = SensorMode::LowPower;
