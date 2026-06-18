@@ -160,6 +160,7 @@ void EnvSensor::printMode() {
 bool EnvSensor::init(SensorMode p_mode) {
     m_mode = p_mode;
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorData));
+    m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
 
     if (!Wire.begin()) {
         Serial.println("Failed to initialize I2C");
@@ -219,6 +220,11 @@ bool EnvSensor::init(SensorMode p_mode) {
 }
 
 void EnvSensor::run() {
+    SensorMode l_requestedMode;
+    if (xQueueReceive(m_modeRequestQueue, &l_requestedMode, 0) == pdTRUE) {
+        setMode(l_requestedMode);
+    }
+
     if (!m_bsec.run()) {
         Serial.println("BSEC run failed");
         checkBsecStatus();
@@ -293,6 +299,13 @@ bool EnvSensor::setMode(SensorMode p_mode) {
     printMode();
 
     return true;
+}
+
+bool EnvSensor::requestModeChange(SensorMode p_mode) {
+    if (m_modeRequestQueue == nullptr) {
+        return false;
+    }
+    return xQueueOverwrite(m_modeRequestQueue, &p_mode) == pdPASS;
 }
 
 void EnvSensor::maybeSaveStateToStorage() {
