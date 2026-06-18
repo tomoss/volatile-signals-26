@@ -26,6 +26,11 @@ public:
     bool setMode(SensorMode p_mode);
     SensorMode getMode() const { return m_mode; }
 
+    // Thread-safe: queues a mode change to be applied on the next run() call (which always
+    // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
+    // MQTT message callback) never touch m_bsec/m_mode directly.
+    bool requestModeChange(SensorMode p_mode);
+
     QueueHandle_t getQueue() const;
 
     std::optional<SensorState> getBsecState();
@@ -42,6 +47,7 @@ private:
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
+    QueueHandle_t m_modeRequestQueue = nullptr;
 };
 
 #endif // ENV_SENSOR_H
