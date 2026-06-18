@@ -1,8 +1,7 @@
 #ifndef VENDOR_FREERTOS_H
 #define VENDOR_FREERTOS_H
 
-/* FreeRTOS's portmacro.h trips our strict -Wconversion/-Wsign-conversion/-Wattributes
-   flags. Suppress at the source. */
+// FreeRTOS's portmacro.h trips the strict -Wconversion/-Wsign-conversion/-Wattributes flags.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"

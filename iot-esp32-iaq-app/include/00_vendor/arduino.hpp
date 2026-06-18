@@ -1,8 +1,8 @@
 #ifndef VENDOR_ARDUINO_H
 #define VENDOR_ARDUINO_H
 
-/* Arduino.h pulls in FreeRTOS -> WString.h, which trip our strict
-   -Wconversion/-Wsign-conversion/-Wattributes flags. Suppress at the source. */
+// Arduino.h pulls in FreeRTOS -> WString.h, which trip the strict
+// -Wconversion/-Wsign-conversion/-Wattributes flags.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
