@@ -3,7 +3,7 @@
 
 #include <array>
 
-#include "00_vendor/bsec2.h"
+#include "00_vendor/bsec2.hpp"
 
 using SensorState = std::array<uint8_t, BSEC_MAX_STATE_BLOB_SIZE>;
 

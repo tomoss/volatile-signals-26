@@ -3,11 +3,11 @@
 
 #include <optional>
 
-#include "00_vendor/bsec2.h"
-#include "00_vendor/freertos.h"
+#include "00_vendor/bsec2.hpp"
+#include "00_vendor/freertos.hpp"
 
-#include "01_sensor/sensor_types.h"
-#include "02_storage/storage.h"
+#include "01_sensor/sensor_types.hpp"
+#include "02_storage/storage.hpp"
 
 class EnvSensor {
 public:
