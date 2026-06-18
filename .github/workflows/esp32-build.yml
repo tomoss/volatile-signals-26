@@ -26,6 +26,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
             ~/.platformio/.cache
             iot-esp32-iaq-app/.pio
           key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}

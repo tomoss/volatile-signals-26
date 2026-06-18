@@ -16,6 +16,10 @@ static QueueHandle_t s_sensorQueue = nullptr;
 constexpr const TickType_t TICKS_TO_WAIT = 0;
 constexpr const int QUEUE_SIZE = 10;
 
+constexpr uint32_t TASK_STACK_SIZE = 4096;
+constexpr UBaseType_t TASK_PRIORITY = 2;
+constexpr uint32_t TASK_LOOP_DELAY_MS = 100;
+
 /* AI configurations for BME688, one per supported sample rate. Each must match the rate
    requested via updateSubscription() below; otherwise BSEC runs on a mismatched config
    and reports BSEC_W_SU_SAMPLERATEMISMATCH (warning 14). */
@@ -157,6 +161,13 @@ void EnvSensor::printMode() {
     Serial.println("==================================");
 }
 
+EnvSensor::~EnvSensor() {
+    if (m_task != nullptr) {
+        vTaskDelete(m_task);
+        m_task = nullptr;
+    }
+}
+
 bool EnvSensor::init(SensorMode p_mode) {
     m_mode = p_mode;
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorData));
@@ -217,6 +228,22 @@ bool EnvSensor::init(SensorMode p_mode) {
     printMode();
 
     return true;
+}
+
+void EnvSensor::begin() {
+    xTaskCreate(taskEntry, "sensor", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task);
+}
+
+void EnvSensor::taskEntry(void* p_parameter) {
+    static_cast<EnvSensor*>(p_parameter)->taskLoop();
+}
+
+void EnvSensor::taskLoop() {
+    for (;;) {
+        run();
+        maybeSaveStateToStorage();
+        vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
+    }
 }
 
 void EnvSensor::run() {
