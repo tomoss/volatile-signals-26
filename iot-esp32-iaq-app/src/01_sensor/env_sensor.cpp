@@ -1,10 +1,10 @@
-#include "01_sensor/env_sensor.h"
+#include "01_sensor/env_sensor.hpp"
 
-#include "00_vendor/arduino.h"
+#include "00_vendor/arduino.hpp"
 
-#include "01_sensor/sensor_data.h"
-#include "02_storage/storage.h"
-#include "04_utils/mapping_handler.h"
+#include "01_sensor/sensor_data.hpp"
+#include "02_storage/storage.hpp"
+#include "06_utils/mapping_handler.hpp"
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 

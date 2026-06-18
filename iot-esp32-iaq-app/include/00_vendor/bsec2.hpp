@@ -1,8 +1,8 @@
 #ifndef VENDOR_BSEC2_H
 #define VENDOR_BSEC2_H
 
-/* bsec2.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip our strict
-   -Wconversion/-Wsign-conversion/-Wattributes flags. Suppress at the source. */
+// bsec2.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip the strict
+// -Wconversion/-Wsign-conversion/-Wattributes flags.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"

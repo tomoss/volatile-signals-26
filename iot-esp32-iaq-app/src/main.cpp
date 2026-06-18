@@ -1,9 +1,9 @@
-#include "00_vendor/arduino.h"
-#include "00_vendor/freertos.h"
+#include "00_vendor/arduino.hpp"
+#include "00_vendor/freertos.hpp"
 
-#include "01_sensor/env_sensor.h"
-#include "01_sensor/sensor_data.h"
-#include "02_storage/storage.h"
+#include "01_sensor/env_sensor.hpp"
+#include "01_sensor/sensor_data.hpp"
+#include "02_storage/storage.hpp"
 
 /*****************************************************************/
 /* Tasks                                                         */

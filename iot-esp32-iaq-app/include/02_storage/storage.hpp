@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <optional>
 
-#include "00_vendor/freertos.h"
-#include "00_vendor/preferences.h"
+#include "00_vendor/freertos.hpp"
+#include "00_vendor/preferences.hpp"
 
-#include "01_sensor/sensor_types.h"
+#include "01_sensor/sensor_types.hpp"
 
 class Storage {
 public:

@@ -1,4 +1,4 @@
-#include "02_storage/storage.h"
+#include "02_storage/storage.hpp"
 
 std::optional<SensorState> Storage::loadBsecState(StorageKey p_key) {
     SensorState l_state{};
