@@ -14,14 +14,16 @@ public:
     EnvSensor(Storage& p_storage)
         : m_storage(p_storage) {}
 
-    ~EnvSensor() = default;
+    ~EnvSensor();
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
 
     [[nodiscard]] bool init(SensorMode p_mode = SensorMode::LowPower);
-    void run();
+
+    // Starts the background task that owns run()/maybeSaveStateToStorage(), call once, after a successful init().
+    void begin();
 
     bool setMode(SensorMode p_mode);
     SensorMode getMode() const { return m_mode; }
@@ -36,11 +38,14 @@ public:
     std::optional<SensorState> getBsecState();
     bool setBsecState(const SensorState& p_state);
 
-    void maybeSaveStateToStorage();
-
 private:
+    void run();
+    void maybeSaveStateToStorage();
     void checkBsecStatus();
     void printMode();
+
+    static void taskEntry(void* p_parameter);
+    void taskLoop();
 
     Bsec2 m_bsec;
     SensorMode m_mode = SensorMode::LowPower;
@@ -48,6 +53,7 @@ private:
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
     QueueHandle_t m_modeRequestQueue = nullptr;
+    TaskHandle_t m_task = nullptr;
 };
 
 #endif // ENV_SENSOR_H

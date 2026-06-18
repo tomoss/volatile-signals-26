@@ -8,15 +8,6 @@
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
-static void sensorTask(void* pvParameters) {
-    auto* const l_envSensor = static_cast<EnvSensor*>(pvParameters);
-    for (;;) {
-        l_envSensor->run();
-        l_envSensor->maybeSaveStateToStorage();
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
-
 static void consumerTask(void* pvParameters) {
     auto* const l_envSensor = static_cast<EnvSensor*>(pvParameters);
 
@@ -53,7 +44,7 @@ static void consumerTask(void* pvParameters) {
 /*****************************************************************/
 void setup() {
     Serial.begin(115200);
-    delay(2000); // Wait for board to stabilize
+    delay(3000); // Wait for board to stabilize
 
     static Storage storage;
 
@@ -66,7 +57,8 @@ void setup() {
         esp_restart();
     }
 
-    xTaskCreate(sensorTask, "sensor", 4096, &envSensor, 2, nullptr);
+    envSensor.begin();
+
     xTaskCreate(consumerTask, "consumer", 4096, &envSensor, 1, nullptr);
 
     vTaskDelete(nullptr);
