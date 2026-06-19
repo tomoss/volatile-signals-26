@@ -1,5 +1,5 @@
-#ifndef ENV_SENSOR_H
-#define ENV_SENSOR_H
+#ifndef ENV_SENSOR_HPP
+#define ENV_SENSOR_HPP
 
 #include <optional>
 
@@ -65,4 +65,4 @@ private:
     TaskHandle_t m_task = nullptr;
 };
 
-#endif // ENV_SENSOR_H
+#endif // ENV_SENSOR_HPP

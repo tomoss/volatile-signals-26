@@ -1,5 +1,5 @@
-#ifndef STORAGE_H
-#define STORAGE_H
+#ifndef STORAGE_HPP
+#define STORAGE_HPP
 
 #include <array>
 #include <concepts>
@@ -91,4 +91,4 @@ private:
     }
 };
 
-#endif // STORAGE_H
+#endif // STORAGE_HPP

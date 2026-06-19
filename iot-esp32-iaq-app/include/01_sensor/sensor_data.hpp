@@ -1,5 +1,5 @@
-#ifndef SENSOR_DATA_H
-#define SENSOR_DATA_H
+#ifndef SENSOR_DATA_HPP
+#define SENSOR_DATA_HPP
 
 #include <cmath>
 
@@ -19,4 +19,4 @@ struct SensorData {
     unsigned long timestamp = 0;
 };
 
-#endif /* SENSOR_DATA_H */
+#endif // SENSOR_DATA_HPP

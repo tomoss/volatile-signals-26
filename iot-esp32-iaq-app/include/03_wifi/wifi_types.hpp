@@ -1,5 +1,5 @@
-#ifndef WIFI_TYPES_H
-#define WIFI_TYPES_H
+#ifndef WIFI_TYPES_HPP
+#define WIFI_TYPES_HPP
 
 #include <array>
 #include <cstddef>
@@ -19,4 +19,4 @@ using Rssi = int8_t;
 
 } // namespace WifiTypes
 
-#endif // WIFI_TYPES_H
+#endif // WIFI_TYPES_HPP

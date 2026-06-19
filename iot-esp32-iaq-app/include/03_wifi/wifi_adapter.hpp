@@ -1,5 +1,5 @@
-#ifndef WIFI_ADAPTER_H
-#define WIFI_ADAPTER_H
+#ifndef WIFI_ADAPTER_HPP
+#define WIFI_ADAPTER_HPP
 
 #include "00_vendor/arduino.hpp"
 #include "00_vendor/wifi.hpp"
@@ -12,10 +12,16 @@ class WifiAdapter {
 public:
     using WifiEventCallback = std::function<void(WiFiEvent_t, WiFiEventInfo_t)>;
 
-    bool init();
+    WifiAdapter() = default;
+    ~WifiAdapter() = default;
+    WifiAdapter(const WifiAdapter&) = delete;
+    WifiAdapter& operator=(const WifiAdapter&) = delete;
+    WifiAdapter(WifiAdapter&&) = delete;
+    WifiAdapter& operator=(WifiAdapter&&) = delete;
 
-    void setCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
+    [[nodiscard]] bool init();
     void setWifiCallback(WifiEventCallback p_callback);
+    void setCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
 
     bool connect();
     bool reconnect();
@@ -30,7 +36,8 @@ public:
 private:
     WifiTypes::Ssid m_ssid = {};
     WifiTypes::Password m_password = {};
+
     WifiEventCallback m_callback;
 };
 
-#endif // WIFI_ADAPTER_H
+#endif // WIFI_ADAPTER_HPP
