@@ -15,6 +15,7 @@ using Ssid = std::array<char, SSID_MAX_LEN>;
 using Password = std::array<char, PASSWORD_MAX_LEN>;
 using IpAddr = std::array<char, IP_ADDR_MAX_LEN>;
 using MacAddr = std::array<char, MAC_ADDR_MAX_LEN>;
+using Rssi = int8_t;
 
 } // namespace WifiTypes
 
