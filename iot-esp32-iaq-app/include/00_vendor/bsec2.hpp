@@ -1,5 +1,5 @@
-#ifndef VENDOR_BSEC2_H
-#define VENDOR_BSEC2_H
+#ifndef VENDOR_BSEC2_HPP
+#define VENDOR_BSEC2_HPP
 
 // bsec2.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip the strict
 // -Wconversion/-Wsign-conversion/-Wattributes flags.
@@ -10,4 +10,4 @@
 #include <bsec2.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_BSEC2_H
+#endif // VENDOR_BSEC2_HPP

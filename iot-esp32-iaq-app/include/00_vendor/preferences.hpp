@@ -1,5 +1,5 @@
-#ifndef VENDOR_PREFERENCES_H
-#define VENDOR_PREFERENCES_H
+#ifndef VENDOR_PREFERENCES_HPP
+#define VENDOR_PREFERENCES_HPP
 
 // Preferences.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip the strict
 // -Wconversion/-Wsign-conversion/-Wattributes flags.
@@ -10,4 +10,4 @@
 #include <Preferences.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_PREFERENCES_H
+#endif // VENDOR_PREFERENCES_HPP

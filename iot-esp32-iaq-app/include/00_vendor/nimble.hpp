@@ -1,5 +1,5 @@
-#ifndef VENDOR_NIMBLE_H
-#define VENDOR_NIMBLE_H
+#ifndef VENDOR_NIMBLE_HPP
+#define VENDOR_NIMBLE_HPP
 
 // NimBLEDevice.h pulls in Arduino.h -> FreeRTOS -> WString.h, which trip our strict
 // -Wconversion/-Wsign-conversion/-Wattributes flags.
@@ -10,4 +10,4 @@
 #include <NimBLEDevice.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_NIMBLE_H
+#endif // VENDOR_NIMBLE_HPP

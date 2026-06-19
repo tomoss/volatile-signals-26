@@ -1,5 +1,5 @@
-#ifndef VENDOR_MQTT_CLIENT_H
-#define VENDOR_MQTT_CLIENT_H
+#ifndef VENDOR_MQTT_CLIENT_HPP
+#define VENDOR_MQTT_CLIENT_HPP
 
 // esp-mqtt's mqtt_client.h pulls in esp_event.h -> FreeRTOS, which trip the strict
 // -Wconversion/-Wsign-conversion/-Wattributes flags.
@@ -10,4 +10,4 @@
 #include <mqtt_client.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_MQTT_CLIENT_H
+#endif // VENDOR_MQTT_CLIENT_HPP
