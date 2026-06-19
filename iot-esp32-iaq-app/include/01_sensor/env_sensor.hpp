@@ -5,7 +5,6 @@
 
 #include "00_vendor/bsec2.hpp"
 #include "00_vendor/freertos.hpp"
-
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
 
@@ -13,20 +12,18 @@ class EnvSensor {
 public:
     EnvSensor(Storage& p_storage)
         : m_storage(p_storage) {}
-
     ~EnvSensor();
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
 
+    // Default Sensor Mode is Low Power (3s)
     [[nodiscard]] bool init(SensorMode p_mode = SensorMode::LowPower);
 
-    // Starts the background task that owns run()/maybeSaveStateToStorage(), call once, after a successful init().
+    // Starts the background task that owns run()/maybeSaveStateToStorage()
+    // Called once, after a successful init().
     void begin();
-
-    bool setMode(SensorMode p_mode);
-    SensorMode getMode() const { return m_mode; }
 
     // Thread-safe: queues a mode change to be applied on the next run() call (which always
     // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
@@ -35,12 +32,24 @@ public:
 
     QueueHandle_t getQueue() const;
 
+private:
+    // Get the BME688 sensor state from BSEC lib
     std::optional<SensorState> getBsecState();
+    // set the BME688 sensor state to BSEC lib
     bool setBsecState(const SensorState& p_state);
 
-private:
+    bool setMode(SensorMode p_mode);
+    SensorMode getMode() const { return m_mode; }
+
+    // Applies config/subscription/state-restore for p_mode and updates m_mode. Shared by init() and setMode().
+    bool applyMode(SensorMode p_mode);
+
     void run();
+
+    // Save state to storage once accuracy first reaches High for this mode, then every STATE_SAVE_PERIOD_MS as long as
+    // accuracy remains High
     void maybeSaveStateToStorage();
+
     void checkBsecStatus();
     void printMode();
 
