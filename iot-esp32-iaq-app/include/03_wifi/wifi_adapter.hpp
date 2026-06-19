@@ -19,6 +19,7 @@ public:
 
     bool connect();
     bool reconnect();
+    // If p_wifiOff is true, the WiFi radio will be turned off. Otherwise, it will remain on.
     bool disconnect(bool p_wifiOff = false);
 
     WifiTypes::Rssi getRSSI() const;
