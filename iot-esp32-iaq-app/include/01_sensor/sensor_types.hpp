@@ -1,5 +1,5 @@
-#ifndef SENSOR_TYPES_H
-#define SENSOR_TYPES_H
+#ifndef SENSOR_TYPES_HPP
+#define SENSOR_TYPES_HPP
 
 #include <array>
 
@@ -9,4 +9,4 @@ using SensorState = std::array<uint8_t, BSEC_MAX_STATE_BLOB_SIZE>;
 
 enum class SensorMode : uint8_t { Disabled, UltraLowPower, LowPower, Continuous };
 
-#endif // SENSOR_TYPES_H
+#endif // SENSOR_TYPES_HPP

@@ -1,5 +1,5 @@
-#ifndef VENDOR_ARDUINO_H
-#define VENDOR_ARDUINO_H
+#ifndef VENDOR_ARDUINO_HPP
+#define VENDOR_ARDUINO_HPP
 
 // Arduino.h pulls in FreeRTOS -> WString.h, which trip the strict
 // -Wconversion/-Wsign-conversion/-Wattributes flags.
@@ -10,4 +10,4 @@
 #include <Arduino.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_ARDUINO_H
+#endif // VENDOR_ARDUINO_HPP

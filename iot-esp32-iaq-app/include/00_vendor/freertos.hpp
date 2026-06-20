@@ -1,5 +1,5 @@
-#ifndef VENDOR_FREERTOS_H
-#define VENDOR_FREERTOS_H
+#ifndef VENDOR_FREERTOS_HPP
+#define VENDOR_FREERTOS_HPP
 
 // FreeRTOS's portmacro.h trips the strict -Wconversion/-Wsign-conversion/-Wattributes flags.
 #pragma GCC diagnostic push
@@ -13,4 +13,4 @@
 #include <freertos/timers.h>
 #pragma GCC diagnostic pop
 
-#endif // VENDOR_FREERTOS_H
+#endif // VENDOR_FREERTOS_HPP

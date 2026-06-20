@@ -201,7 +201,7 @@ bool EnvSensor::init(SensorMode p_mode) {
     return true;
 }
 
-void EnvSensor::begin() {
+void EnvSensor::start() {
     xTaskCreate(taskEntry, "sensor", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task);
 }
 

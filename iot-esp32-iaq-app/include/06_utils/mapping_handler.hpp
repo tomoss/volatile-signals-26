@@ -1,5 +1,5 @@
-#ifndef MAPPING_HANDLER_H_
-#define MAPPING_HANDLER_H_
+#ifndef MAPPING_HANDLER_HPP
+#define MAPPING_HANDLER_HPP
 
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
@@ -9,4 +9,4 @@ public:
     static Storage::StorageKey sensorModeToStorageKey(const SensorMode p_sensorMode);
 };
 
-#endif /* MAPPING_HANDLER_H_ */
+#endif // MAPPING_HANDLER_HPP

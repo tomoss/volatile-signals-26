@@ -1,5 +1,5 @@
-#ifndef ENV_SENSOR_H
-#define ENV_SENSOR_H
+#ifndef ENV_SENSOR_HPP
+#define ENV_SENSOR_HPP
 
 #include <optional>
 
@@ -23,7 +23,7 @@ public:
 
     // Starts the background task that owns run()/maybeSaveStateToStorage()
     // Called once, after a successful init().
-    void begin();
+    void start();
 
     // Thread-safe: queues a mode change to be applied on the next run() call (which always
     // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
@@ -65,4 +65,4 @@ private:
     TaskHandle_t m_task = nullptr;
 };
 
-#endif // ENV_SENSOR_H
+#endif // ENV_SENSOR_HPP
