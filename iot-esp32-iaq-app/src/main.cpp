@@ -4,6 +4,11 @@
 #include "01_sensor/env_sensor.hpp"
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
+#include "03_wifi/wifi_adapter.hpp"
+#include "03_wifi/wifi_manager.hpp"
+
+// Delay duration to wait for board to stabilize & for reboot after failed init
+constexpr uint32_t DELAY_DURATION = 3000; // milliseconds
 
 /*****************************************************************/
 /* Tasks                                                         */
@@ -44,7 +49,7 @@ static void consumerTask(void* pvParameters) {
 /*****************************************************************/
 void setup() {
     Serial.begin(115200);
-    delay(3000); // Wait for board to stabilize
+    delay(DELAY_DURATION); // Wait for board to stabilize
 
     static Storage storage;
 
@@ -53,12 +58,34 @@ void setup() {
     if (!envSensor.init(SensorMode::LowPower)) {
         Serial.println("EnvSensor init failed, restarting...");
         Serial.flush();
-        delay(1000);
+        delay(DELAY_DURATION);
         esp_restart();
     }
 
-    envSensor.begin();
+    static WifiAdapter wifiAdapter(storage);
+    static WifiManager wifiManager(wifiAdapter);
 
+    wifiAdapter.setConnectedCallback([] {
+        Serial.println("WiFi connected callback called");
+    });
+
+    wifiAdapter.setDisconnectedCallback([] {
+        Serial.println("WiFi disconnected callback called");
+    });
+
+    wifiAdapter.setProvisioningCallback([] {
+        Serial.println("WiFi provisioning callback called");
+    });
+
+    if (!wifiManager.init()) {
+        Serial.println("WiFiManager init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_DURATION);
+        esp_restart();
+    }
+
+    envSensor.start();
+    wifiManager.start();
     xTaskCreate(consumerTask, "consumer", 4096, &envSensor, 1, nullptr);
 
     vTaskDelete(nullptr);

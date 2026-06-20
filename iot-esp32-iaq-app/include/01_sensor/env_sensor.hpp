@@ -23,7 +23,7 @@ public:
 
     // Starts the background task that owns run()/maybeSaveStateToStorage()
     // Called once, after a successful init().
-    void begin();
+    void start();
 
     // Thread-safe: queues a mode change to be applied on the next run() call (which always
     // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
