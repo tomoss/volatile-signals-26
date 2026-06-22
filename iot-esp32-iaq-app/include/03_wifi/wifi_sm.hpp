@@ -105,6 +105,7 @@ struct DoStartTimer {
 struct DoNotifyProvisioning {
     void operator()(WifiAdapter& p_wifi) const {
         Serial.println("[WiFi SM] Action: Notifying provisioning");
+        p_wifi.resetReconnectAttempts();
         p_wifi.notifyProvisioning();
     }
 };
