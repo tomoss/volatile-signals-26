@@ -12,7 +12,8 @@
 class WifiAdapter {
 public:
     using WifiEventCallback = std::function<void(WiFiEvent_t, WiFiEventInfo_t)>;
-    using ProvisioningCallback = std::function<void()>;
+    using StartProvisioningCallback = std::function<void()>;
+    using StopProvisioningCallback = std::function<void()>;
     using ConnectedCallback = std::function<void()>;
     using DisconnectedCallback = std::function<void()>;
     using ReconnectTimerCallback = std::function<void()>;
@@ -28,8 +29,11 @@ public:
     void setWifiCallback(WifiEventCallback p_callback);
     [[nodiscard]] bool loadCredentials();
 
-    void setProvisioningCallback(ProvisioningCallback p_callback);
-    void notifyProvisioning() const;
+    void setStartProvisioningCallback(StartProvisioningCallback p_callback);
+    void notifyStartProvisioning() const;
+
+    void setStopProvisioningCallback(StopProvisioningCallback p_callback);
+    void notifyStopProvisioning() const;
 
     void setConnectedCallback(ConnectedCallback p_callback);
     void notifyConnected() const;
@@ -66,7 +70,8 @@ private:
     WifiTypes::Password m_password = {};
 
     WifiEventCallback m_wifiApiCallback;
-    ProvisioningCallback m_provisioningCallback;
+    StartProvisioningCallback m_startProvisioningCallback;
+    StopProvisioningCallback m_stopProvisioningCallback;
     ConnectedCallback m_connectedCallback;
     DisconnectedCallback m_disconnectedCallback;
     ReconnectTimerCallback m_reconnectTimerCallback;

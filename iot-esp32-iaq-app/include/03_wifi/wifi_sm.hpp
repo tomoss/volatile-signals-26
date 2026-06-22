@@ -102,11 +102,18 @@ struct DoStartTimer {
     }
 };
 
-struct DoNotifyProvisioning {
+struct DoStartProvisioning {
     void operator()(WifiAdapter& p_wifi) const {
-        Serial.println("[WiFi SM] Action: Notifying provisioning");
+        Serial.println("[WiFi SM] Action: Notifying start provisioning");
         p_wifi.resetReconnectAttempts();
-        p_wifi.notifyProvisioning();
+        p_wifi.notifyStartProvisioning();
+    }
+};
+
+struct DoStopProvisioning {
+    void operator()(WifiAdapter& p_wifi) const {
+        Serial.println("[WiFi SM] Action: Notifying stop provisioning");
+        p_wifi.notifyStopProvisioning();
     }
 };
 
@@ -121,7 +128,8 @@ struct WifiSm {
         constexpr auto doNotifyConnect = DoNotifyConnect{};
         constexpr auto doNotifyDisconnect = DoNotifyDisconnect{};
         constexpr auto doStartTimer = DoStartTimer{};
-        constexpr auto doNotifyProvisioning = DoNotifyProvisioning{};
+        constexpr auto doStartProvisioning = DoStartProvisioning{};
+        constexpr auto doStopProvisioning = DoStopProvisioning{};
 
         // TRANSITION TABLE: src_state + event [ guard ] / action = dst_state
         return make_transition_table(
@@ -135,12 +143,12 @@ struct WifiSm {
             state<StConnected> + event<EvIsDisconnected> / doNotifyDisconnect = state<StDisconnected>,
 
             state<StDisconnected> + event<EvReqReconnect>[!guMaxAttemptsReached] / doStartTimer = state<StReconnectPending>,
-            state<StDisconnected> + event<EvReqReconnect>[guMaxAttemptsReached] / doNotifyProvisioning = state<StProvisioning>,
+            state<StDisconnected> + event<EvReqReconnect>[guMaxAttemptsReached] / doStartProvisioning = state<StProvisioning>,
 
             // Reconnect timer fired; actually attempt the connection now.
             state<StReconnectPending> + event<EvReqConnect> / doAttemptConnect = state<StConnecting>,
 
-            state<StProvisioning> + event<EvCredentialsUpdated>[guCredentialsLoad] / doAttemptConnect = state<StConnecting>,
+            state<StProvisioning> + event<EvCredentialsUpdated>[guCredentialsLoad] / (doStopProvisioning, doAttemptConnect) = state<StConnecting>,
             state<StProvisioning> + event<EvCredentialsUpdated>[!guCredentialsLoad] = state<StProvisioning>);
     }
 };
