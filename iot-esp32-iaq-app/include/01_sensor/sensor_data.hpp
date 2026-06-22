@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-enum class IAQAccuracy : int { Unreliable = 0, Low = 1, Medium = 2, High = 3 };
+enum class IAQAccuracy : uint8_t { Unreliable = 0, Low = 1, Medium = 2, High = 3 };
 
 struct SensorData {
     float iaq = NAN;
