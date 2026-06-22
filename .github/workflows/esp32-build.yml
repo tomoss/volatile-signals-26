@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [main, "dev-esp32-*"]
+    branches: [main]
     paths:
       - "/**"
       - ".github/workflows/esp32-build.yml"
@@ -19,20 +19,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache the PlatformIO toolchain downloads and compiled output.
-      # Key is tied to platformio.ini so the cache is invalidated when
-      # dependencies change. restore-keys provides a stale fallback to
-      # avoid a fully cold build when only some libraries changed.
+      # Toolchain/packages rarely change; a stable key is fine here.
       - uses: actions/cache@v4
         with:
           path: |
             ~/.platformio/packages
             ~/.platformio/platforms
             ~/.platformio/.cache
-            iot-esp32-iaq-app/.pio
-          key: ${{ runner.os }}-pio-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}
+          key: ${{ runner.os }}-pio-core-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}
           restore-keys: |
-            ${{ runner.os }}-pio-
+            ${{ runner.os }}-pio-core-
+
+      # Rolling key so the build dir re-saves every run (a static key never
+      # updates), letting restore-keys pull the last build for incremental compiles.
+      - uses: actions/cache@v4
+        with:
+          path: iot-esp32-iaq-app/.pio
+          key: ${{ runner.os }}-pio-build-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-pio-build-${{ hashFiles('iot-esp32-iaq-app/platformio.ini') }}-
+            ${{ runner.os }}-pio-build-
 
       # PlatformIO requires Python to run.
       - uses: actions/setup-python@v5
