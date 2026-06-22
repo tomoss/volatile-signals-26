@@ -63,15 +63,27 @@ void WifiAdapter::setWifiCallback(WifiEventCallback p_callback) {
     m_wifiApiCallback = std::move(p_callback);
 }
 
-void WifiAdapter::setProvisioningCallback(ProvisioningCallback p_callback) {
-    m_provisioningCallback = std::move(p_callback);
+void WifiAdapter::setStartProvisioningCallback(StartProvisioningCallback p_callback) {
+    m_startProvisioningCallback = std::move(p_callback);
 }
 
-void WifiAdapter::notifyProvisioning() const {
-    if (m_provisioningCallback) {
-        m_provisioningCallback();
+void WifiAdapter::notifyStartProvisioning() const {
+    if (m_startProvisioningCallback) {
+        m_startProvisioningCallback();
     } else {
-        Serial.println("No provisioning callback set");
+        Serial.println("No start provisioning callback set");
+    }
+}
+
+void WifiAdapter::setStopProvisioningCallback(StopProvisioningCallback p_callback) {
+    m_stopProvisioningCallback = std::move(p_callback);
+}
+
+void WifiAdapter::notifyStopProvisioning() const {
+    if (m_stopProvisioningCallback) {
+        m_stopProvisioningCallback();
+    } else {
+        Serial.println("No stop provisioning callback set");
     }
 }
 

@@ -6,6 +6,7 @@
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
+#include "05_ble/ble_provisioner.hpp"
 
 // Delay duration to wait for board to stabilize & for reboot after failed init
 constexpr uint32_t DELAY_DURATION = 3000; // milliseconds
@@ -52,8 +53,10 @@ void setup() {
     delay(DELAY_DURATION); // Wait for board to stabilize
 
     static Storage storage;
-
     static EnvSensor envSensor(storage);
+    static WifiAdapter wifiAdapter(storage);
+    static WifiManager wifiManager(wifiAdapter);
+    static BleProvisioner bleProvisioner;
 
     if (!envSensor.init(SensorMode::LowPower)) {
         Serial.println("EnvSensor init failed, restarting...");
@@ -62,8 +65,19 @@ void setup() {
         esp_restart();
     }
 
-    static WifiAdapter wifiAdapter(storage);
-    static WifiManager wifiManager(wifiAdapter);
+    if (!wifiManager.init()) {
+        Serial.println("WiFiManager init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_DURATION);
+        esp_restart();
+    }
+
+    if (!bleProvisioner.init()) {
+        Serial.println("BleProvisioner init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_DURATION);
+        esp_restart();
+    }
 
     wifiAdapter.setConnectedCallback([] {
         Serial.println("WiFi connected callback called");
@@ -73,19 +87,30 @@ void setup() {
         Serial.println("WiFi disconnected callback called");
     });
 
-    wifiAdapter.setProvisioningCallback([] {
-        Serial.println("WiFi provisioning callback called");
+    wifiAdapter.setStartProvisioningCallback([] {
+        bleProvisioner.start();
     });
 
-    if (!wifiManager.init()) {
-        Serial.println("WiFiManager init failed, restarting...");
-        Serial.flush();
-        delay(DELAY_DURATION);
-        esp_restart();
-    }
+    wifiAdapter.setStopProvisioningCallback([] {
+        bleProvisioner.stop();
+    });
+
+    bleProvisioner.setCredentialsCallback([](const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+        if (!storage.saveWifiSSID(p_ssid)) {
+            Serial.println("[BLE] Failed to save SSID");
+            return;
+        }
+        if (!storage.saveWifiPass(p_password)) {
+            Serial.println("[BLE] Failed to save password");
+            return;
+        }
+        Serial.println("[BLE] New credentials saved");
+        wifiManager.credentialsUpdated();
+    });
 
     envSensor.start();
     wifiManager.start();
+
     xTaskCreate(consumerTask, "consumer", 4096, &envSensor, 1, nullptr);
 
     vTaskDelete(nullptr);

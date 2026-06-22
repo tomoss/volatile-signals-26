@@ -13,13 +13,13 @@
 
 class Storage {
 public:
-    static constexpr const char* STORAGE_BSEC_NAMESPACE = "env-sensor";
-    static constexpr const char* STORAGE_KEY_BSEC_STATE_LP = "bsec-state-lp";
-    static constexpr const char* STORAGE_KEY_BSEC_STATE_ULP = "bsec-state-ulp";
+    static constexpr char STORAGE_BSEC_NAMESPACE[] = "env-sensor";
+    static constexpr char STORAGE_KEY_BSEC_STATE_LP[] = "bsec-state-lp";
+    static constexpr char STORAGE_KEY_BSEC_STATE_ULP[] = "bsec-state-ulp";
 
-    static constexpr const char* STORAGE_WIFI_NAMESPACE = "wifi";
-    static constexpr const char* STORAGE_KEY_WIFI_SSID = "wifi-ssid";
-    static constexpr const char* STORAGE_KEY_WIFI_PASS = "wifi-pass";
+    static constexpr char STORAGE_WIFI_NAMESPACE[] = "wifi";
+    static constexpr char STORAGE_KEY_WIFI_SSID[] = "wifi-ssid";
+    static constexpr char STORAGE_KEY_WIFI_PASS[] = "wifi-pass";
 
     using StorageKey = const char*;
 
