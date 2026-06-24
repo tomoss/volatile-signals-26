@@ -38,7 +38,6 @@ public:
     void start();
     void stop();
     void credentialsUpdated();
-    bool isConnected() const;
 
     int getRSSI() const;
     WifiTypes::IpAddr getIPAddress() const;

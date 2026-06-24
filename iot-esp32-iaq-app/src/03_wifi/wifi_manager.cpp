@@ -81,10 +81,6 @@ void WifiManager::stop() {
     postQueueEvent(WifiQueueEventType::Stop);
 }
 
-bool WifiManager::isConnected() const {
-    return m_connected.load();
-}
-
 int WifiManager::getRSSI() const {
     return m_adapter.getRSSI();
 }
@@ -129,9 +125,7 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
         break;
 
     case WifiQueueEventType::Connected:
-        m_adapter.resetReconnectAttempts();
         m_sm.process_event(EvIsConnected{});
-        m_connected.store(true);
         break;
 
     case WifiQueueEventType::Disconnect:
@@ -143,13 +137,11 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
         break;
 
     case WifiQueueEventType::Disconnected:
-        m_connected.store(false);
         m_sm.process_event(EvIsDisconnected{});
         m_sm.process_event(EvReqReconnect{});
         break;
 
     case WifiQueueEventType::Provisioning:
-        m_adapter.resetReconnectAttempts();
         m_sm.process_event(EvReqProvisioning{});
         break;
 
