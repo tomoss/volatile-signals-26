@@ -79,6 +79,7 @@ struct DoAttemptConnect {
 
 struct DoNotifyConnect {
     void operator()(WifiAdapter& p_wifi) const {
+        p_wifi.resetReconnectAttempts();
         Serial.printf("[WiFi SM] Action: WiFi connected, IP: %s\n", p_wifi.getIPAddress().data());
         p_wifi.notifyConnected();
     }
