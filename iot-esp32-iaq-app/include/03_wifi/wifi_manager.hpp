@@ -7,8 +7,6 @@
 #include "wifi_adapter.hpp"
 #include "wifi_sm.hpp"
 
-#include <atomic>
-
 enum class WifiQueueEventType : uint8_t {
     Start = 0,
     Stop = 1,
@@ -62,8 +60,6 @@ private:
 
     QueueHandle_t m_queue = nullptr;
     TaskHandle_t m_task = nullptr;
-
-    std::atomic<bool> m_connected{false};
 };
 
 #endif // WIFI_MANAGER_HPP
