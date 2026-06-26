@@ -7,19 +7,30 @@
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
 #include "05_ble/ble_provisioner.hpp"
+#include "06_display/display_controller.hpp"
 
-// Delay duration to wait for board to stabilize & for reboot after failed init
-constexpr uint32_t DELAY_DURATION = 3000; // milliseconds
+// Delay duration to wait for board to stabilize
+constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
+
+// Delay duration for reboot after failed init
+constexpr uint32_t DELAY_UNTIL_RESTART = 3000; // milliseconds
 
 // I2C Fast-mode clock for the bus shared by the display and sensor. 400 kHz keeps each
 // display refresh's bus-hold short so it barely perturbs sensor reads.
 constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
+struct ConsumerTaskParams {
+    EnvSensor* envSensor;
+    DisplayController* displayController;
+};
+
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
 static void consumerTask(void* pvParameters) {
-    auto* const l_envSensor = static_cast<EnvSensor*>(pvParameters);
+    auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
+    auto* const l_envSensor = l_params->envSensor;
+    auto* const l_displayController = l_params->displayController;
 
     for (;;) {
         SensorData l_data;
@@ -45,6 +56,14 @@ static void consumerTask(void* pvParameters) {
                           l_data.rawTemp,
                           l_data.rawHum,
                           l_data.pressure);
+
+            if (l_displayController != nullptr && !std::isnan(l_data.iaq) && !std::isnan(l_data.temp)) {
+                EnvDisplayState l_envState;
+                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
+                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
+                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
+                l_displayController->setEnvironment(l_envState);
+            }
         }
     }
 }
@@ -54,7 +73,7 @@ static void consumerTask(void* pvParameters) {
 /*****************************************************************/
 void setup() {
     Serial.begin(115200);
-    delay(DELAY_DURATION); // Wait for board to stabilize
+    delay(DELAY_UNTIL_STABLE); // Wait for board to stabilize
 
     // Own the shared I2C bus here, then inject it into every device on it (display + sensor)
     // so they share one consistently-clocked bus instead of each calling Wire.begin().
@@ -63,7 +82,7 @@ void setup() {
     if (!l_wire.begin()) {
         Serial.println("I2C bus init failed, restarting...");
         Serial.flush();
-        delay(DELAY_DURATION);
+        delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
 
@@ -74,42 +93,69 @@ void setup() {
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
+    static DisplayController displayController(l_wire);
 
     if (!envSensor.init(SensorMode::LowPower)) {
         Serial.println("EnvSensor init failed, restarting...");
         Serial.flush();
-        delay(DELAY_DURATION);
+        delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
 
     if (!wifiManager.init()) {
         Serial.println("WiFiManager init failed, restarting...");
         Serial.flush();
-        delay(DELAY_DURATION);
+        delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
 
     if (!bleProvisioner.init()) {
         Serial.println("BleProvisioner init failed, restarting...");
         Serial.flush();
-        delay(DELAY_DURATION);
+        delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
 
-    wifiAdapter.setConnectedCallback([] {
+    const bool l_hasDisplay = displayController.init();
+    if (!l_hasDisplay) {
+        Serial.println("Display init failed (continuing without display)");
+    } else {
+        displayController.enableDisplay();
+    }
+
+    wifiAdapter.setConnectedCallback([l_hasDisplay] {
         Serial.println("WiFi connected callback called");
+        if (l_hasDisplay) {
+            displayController.setWifiStatus(WifiDisplayState{true});
+        }
     });
 
-    wifiAdapter.setDisconnectedCallback([] {
+    wifiAdapter.setDisconnectedCallback([l_hasDisplay] {
         Serial.println("WiFi disconnected callback called");
+        if (l_hasDisplay) {
+            displayController.setWifiStatus(WifiDisplayState{false});
+        }
     });
 
-    wifiAdapter.setStartProvisioningCallback([] {
+    wifiAdapter.setStartProvisioningCallback([l_hasDisplay] {
         bleProvisioner.start();
+        if (l_hasDisplay) {
+            displayController.setProvisioningStatus(ProvisionDisplayState{true, 0});
+        }
     });
 
-    wifiAdapter.setStopProvisioningCallback([] {
+    wifiAdapter.setStopProvisioningCallback([l_hasDisplay] {
         bleProvisioner.stop();
+        if (l_hasDisplay) {
+            displayController.setProvisioningStatus(ProvisionDisplayState{false, 0});
+        }
+    });
+
+    bleProvisioner.setPasskeyDisplayCallback([l_hasDisplay](uint32_t p_passkey) {
+        Serial.printf("[BLE] Pairing passkey: %06lu\n", p_passkey);
+        if (l_hasDisplay) {
+            displayController.setProvisioningStatus(ProvisionDisplayState{true, p_passkey});
+        }
     });
 
     bleProvisioner.setCredentialsCallback([](const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
@@ -128,7 +174,8 @@ void setup() {
     envSensor.start();
     wifiManager.start();
 
-    xTaskCreate(consumerTask, "consumer", 4096, &envSensor, 1, nullptr);
+    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr};
+    xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
 
     vTaskDelete(nullptr);
 }
