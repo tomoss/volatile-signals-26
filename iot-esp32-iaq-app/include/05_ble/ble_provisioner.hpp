@@ -52,6 +52,10 @@ private:
     CredentialsCallback m_callback;
     PasskeyDisplayCallback m_passkeyDisplayCallback;
     bool m_running = false;
+    // Set by end() when a peer is still connected; deinit is deferred until onDisconnect
+    // confirms the link is actually down, instead of tearing down the host stack underneath
+    // an active connection.
+    bool m_stopPending = false;
 
     NimBLEServer* m_server = nullptr;
     NimBLECharacteristic* m_ssidChar = nullptr;

@@ -142,6 +142,16 @@ void BleProvisioner::end() {
         return;
 
     NimBLEDevice::getAdvertising()->stop();
+
+    if (m_server != nullptr && m_server->getConnectedCount() > 0) {
+        m_stopPending = true;
+        for (uint16_t l_connHandle : m_server->getPeerDevices()) {
+            m_server->disconnect(l_connHandle);
+        }
+        return;
+    }
+
+    m_stopPending = false;
     NimBLEDevice::deinit(true);
 
     m_server = nullptr;
@@ -156,8 +166,14 @@ void BleProvisioner::onConnect(NimBLEServer* /*p_server*/, NimBLEConnInfo& p_con
     Serial.printf("[BLE] Client connected: %s\n", p_connInfo.getAddress().toString().c_str());
 }
 
-void BleProvisioner::onDisconnect(NimBLEServer* /*p_server*/, NimBLEConnInfo& p_connInfo, int p_reason) {
+void BleProvisioner::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_connInfo, int p_reason) {
     Serial.printf("[BLE] Client disconnected: %s (reason=%d)\n", p_connInfo.getAddress().toString().c_str(), p_reason);
+
+    // The disconnect end() requested has now actually completed; re-enqueue Stop so
+    // taskLoop() finishes the teardown on our own task instead of from this NimBLE callback.
+    if (m_stopPending && p_server->getConnectedCount() == 0) {
+        enqueueAction(BleAction::Stop);
+    }
 }
 
 uint32_t BleProvisioner::onPassKeyDisplay() {
