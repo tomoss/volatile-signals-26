@@ -19,11 +19,18 @@ constexpr uint32_t DELAY_UNTIL_RESTART = 3000; // milliseconds
 // display refresh's bus-hold short so it barely perturbs sensor reads.
 constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
+struct ConsumerTaskParams {
+    EnvSensor* envSensor;
+    DisplayController* displayController;
+};
+
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
 static void consumerTask(void* pvParameters) {
-    auto* const l_envSensor = static_cast<EnvSensor*>(pvParameters);
+    auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
+    auto* const l_envSensor = l_params->envSensor;
+    auto* const l_displayController = l_params->displayController;
 
     for (;;) {
         SensorData l_data;
@@ -49,6 +56,14 @@ static void consumerTask(void* pvParameters) {
                           l_data.rawTemp,
                           l_data.rawHum,
                           l_data.pressure);
+
+            if (l_displayController != nullptr && !std::isnan(l_data.iaq) && !std::isnan(l_data.temp)) {
+                EnvDisplayState l_envState;
+                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
+                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
+                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
+                l_displayController->setEnvironment(l_envState);
+            }
         }
     }
 }
@@ -159,7 +174,8 @@ void setup() {
     envSensor.start();
     wifiManager.start();
 
-    xTaskCreate(consumerTask, "consumer", 4096, &envSensor, 1, nullptr);
+    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr};
+    xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
 
     vTaskDelete(nullptr);
 }
