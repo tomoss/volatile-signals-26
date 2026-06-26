@@ -3,7 +3,7 @@
 #include "00_vendor/arduino.hpp"
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
-#include "06_utils/mapping_handler.hpp"
+#include "07_utils/mapping_handler.hpp"
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -171,12 +171,7 @@ bool EnvSensor::init(SensorMode p_mode) {
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorData));
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
 
-    if (!Wire.begin()) {
-        Serial.println("Failed to initialize I2C");
-        return false;
-    }
-
-    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, Wire)) {
+    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus)) {
         Serial.println("BME688 initialization failed");
         checkBsecStatus();
         return false;

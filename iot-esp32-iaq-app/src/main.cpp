@@ -11,6 +11,10 @@
 // Delay duration to wait for board to stabilize & for reboot after failed init
 constexpr uint32_t DELAY_DURATION = 3000; // milliseconds
 
+// I2C Fast-mode clock for the bus shared by the display and sensor. 400 kHz keeps each
+// display refresh's bus-hold short so it barely perturbs sensor reads.
+constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
+
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
@@ -52,8 +56,21 @@ void setup() {
     Serial.begin(115200);
     delay(DELAY_DURATION); // Wait for board to stabilize
 
+    // Own the shared I2C bus here, then inject it into every device on it (display + sensor)
+    // so they share one consistently-clocked bus instead of each calling Wire.begin().
+    TwoWire& l_wire = Wire;
+
+    if (!l_wire.begin()) {
+        Serial.println("I2C bus init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_DURATION);
+        esp_restart();
+    }
+
+    l_wire.setClock(I2C_BUS_CLOCK_HZ);
+
     static Storage storage;
-    static EnvSensor envSensor(storage);
+    static EnvSensor envSensor(storage, l_wire);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
