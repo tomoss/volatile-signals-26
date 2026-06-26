@@ -3,8 +3,7 @@
 constexpr uint32_t MAX_RECONNECT_ATTEMPTS = 5;     // Max number of reconnect before provisioning is triggered
 constexpr uint32_t RECONNECT_DELAY_MS = 30 * 1000; // 30 seconds
 
-WifiAdapter::WifiAdapter(Storage& p_storage)
-    : m_storage(p_storage) {}
+WifiAdapter::WifiAdapter(Storage& p_storage) : m_storage(p_storage) {}
 
 WifiAdapter::~WifiAdapter() {
     if (m_reconnectTimer != nullptr) {

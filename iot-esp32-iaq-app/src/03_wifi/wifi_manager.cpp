@@ -6,9 +6,7 @@ constexpr uint32_t QUEUE_LENGTH = 10;
 constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 1;
 
-WifiManager::WifiManager(WifiAdapter& p_adapter)
-    : m_adapter(p_adapter)
-    , m_sm(m_adapter, m_logger) {}
+WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
 WifiManager::~WifiManager() {
     if (m_task != nullptr) {
