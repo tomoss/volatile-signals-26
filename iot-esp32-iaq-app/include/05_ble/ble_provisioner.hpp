@@ -11,6 +11,7 @@
 class BleProvisioner : private NimBLECharacteristicCallbacks, private NimBLEServerCallbacks {
 public:
     using CredentialsCallback = std::function<void(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password)>;
+    using PasskeyDisplayCallback = std::function<void(uint32_t p_passkey)>;
 
     BleProvisioner() = default;
     ~BleProvisioner();
@@ -20,6 +21,7 @@ public:
     BleProvisioner& operator=(BleProvisioner&&) = delete;
 
     void setCredentialsCallback(CredentialsCallback p_callback);
+    void setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback);
 
     [[nodiscard]] bool init();
 
@@ -48,6 +50,7 @@ private:
     void onAuthenticationComplete(NimBLEConnInfo& p_connInfo) override;
 
     CredentialsCallback m_callback;
+    PasskeyDisplayCallback m_passkeyDisplayCallback;
     bool m_running = false;
 
     NimBLEServer* m_server = nullptr;

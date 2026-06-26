@@ -45,6 +45,10 @@ void BleProvisioner::setCredentialsCallback(CredentialsCallback p_callback) {
     m_callback = std::move(p_callback);
 }
 
+void BleProvisioner::setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback) {
+    m_passkeyDisplayCallback = std::move(p_callback);
+}
+
 bool BleProvisioner::init() {
     m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(BleAction));
 
@@ -161,8 +165,9 @@ uint32_t BleProvisioner::onPassKeyDisplay() {
     // constant could be read straight out of the firmware image, letting an attacker pass the
     // passkey check and defeat the MITM protection.
     uint32_t l_passkey = esp_random() % 1000000;
-    // TODO: also render on the OLED once the display driver is wired in.
-    Serial.printf("[BLE] Pairing passkey: %06lu\n", l_passkey);
+    if (m_passkeyDisplayCallback) {
+        m_passkeyDisplayCallback(l_passkey);
+    }
     return l_passkey;
 }
 
