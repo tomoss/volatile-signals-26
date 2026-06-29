@@ -22,6 +22,9 @@ public:
     bool disconnect();
 
 private:
+    static void eventHandler(void* p_arg, esp_event_base_t p_base, int32_t p_eventId, void* p_eventData);
+    void onEvent(esp_mqtt_event_handle_t p_event);
+
     esp_mqtt_client_handle_t m_client = nullptr;
     Storage& m_storage;
     bool m_started = false;

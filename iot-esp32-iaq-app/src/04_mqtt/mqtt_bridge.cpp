@@ -46,6 +46,8 @@ bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
 
     // *** SESSION CONFIGURATION ***
     l_config.session.protocol_ver = MQTT_PROTOCOL_V_3_1_1;
+    // Disable clean session to allow the broker to store subscriptions and undelivered messages for the client
+    l_config.session.disable_clean_session = true;
 
     // *** CREDENTIALS CONFIGURATION ***
     l_config.credentials.username = l_username.value().data();
@@ -75,6 +77,11 @@ bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
         return false;
     }
 
+    if (esp_mqtt_client_register_event(m_client, MQTT_EVENT_ANY, eventHandler, this) != ESP_OK) {
+        Serial.println("[MQTT] esp_mqtt_client_register_event failed");
+        return false;
+    }
+
     return true;
 }
 
@@ -90,7 +97,6 @@ bool MqttBridge::connect() {
             return false;
         }
         m_started = true;
-        Serial.println("[MQTT] Client started");
         return true;
     }
 
@@ -99,11 +105,52 @@ bool MqttBridge::connect() {
             Serial.println("[MQTT] esp_mqtt_client_reconnect failed");
             return false;
         }
-        Serial.println("[MQTT] Client reconnected");
         return true;
     }
 
     return false;
+}
+
+void MqttBridge::eventHandler(void* p_arg, esp_event_base_t /*p_base*/, int32_t /*p_eventId*/, void* p_eventData) {
+    static_cast<MqttBridge*>(p_arg)->onEvent(static_cast<esp_mqtt_event_handle_t>(p_eventData));
+}
+
+void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
+    switch (p_event->event_id) {
+
+    case MQTT_EVENT_CONNECTED:
+        Serial.printf("[MQTT] Connected (session_present=%d)\n", p_event->session_present);
+        break;
+
+    case MQTT_EVENT_DISCONNECTED:
+        Serial.println("[MQTT] Disconnected");
+        break;
+
+    case MQTT_EVENT_ERROR:
+
+        if (p_event->error_handle == nullptr) {
+            Serial.println("[MQTT] Error event (no error_handle)");
+            break;
+        }
+
+        switch (p_event->error_handle->error_type) {
+
+        case MQTT_ERROR_TYPE_CONNECTION_REFUSED:
+            Serial.printf("[MQTT] Connection refused, return_code=%d\n", static_cast<int>(p_event->error_handle->connect_return_code));
+            break;
+
+        case MQTT_ERROR_TYPE_SUBSCRIBE_FAILED:
+            Serial.printf("[MQTT] Subscribe failed, msg_id=%d\n", p_event->msg_id);
+            break;
+
+        default:
+            break;
+        }
+        break;
+
+    default:
+        break;
+    }
 }
 
 bool MqttBridge::disconnect() {
