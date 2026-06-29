@@ -94,6 +94,7 @@ void setup() {
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
     static DisplayController displayController(l_wire);
+    static MqttBridge mqttBridge(storage);
 
     if (!envSensor.init(SensorMode::LowPower)) {
         Serial.println("EnvSensor init failed, restarting...");

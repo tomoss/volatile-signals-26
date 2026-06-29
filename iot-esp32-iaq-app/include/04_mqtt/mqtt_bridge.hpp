@@ -15,7 +15,7 @@ public:
     MqttBridge(MqttBridge&&) = delete;
     MqttBridge& operator=(MqttBridge&&) = delete;
 
-    [[nodiscard]] bool init(const char* p_host = nullptr, uint16_t p_port = 0, bool p_useTls = false);
+    [[nodiscard]] bool init(bool p_enableTls = false);
 
 private:
     esp_mqtt_client_handle_t m_client = nullptr;
