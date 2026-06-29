@@ -6,6 +6,7 @@
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
+#include "04_mqtt/mqtt_bridge.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
 
@@ -94,6 +95,7 @@ void setup() {
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
     static DisplayController displayController(l_wire);
+    static MqttBridge mqttBridge(storage);
 
     if (!envSensor.init(SensorMode::LowPower)) {
         Serial.println("EnvSensor init failed, restarting...");
