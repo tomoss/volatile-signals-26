@@ -10,16 +10,12 @@
 #include "00_vendor/preferences.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
+#include "04_mqtt/mqtt_types.hpp"
 
 class Storage {
 public:
-    static constexpr char STORAGE_BSEC_NAMESPACE[] = "env-sensor";
     static constexpr char STORAGE_KEY_BSEC_STATE_LP[] = "bsec-state-lp";
     static constexpr char STORAGE_KEY_BSEC_STATE_ULP[] = "bsec-state-ulp";
-
-    static constexpr char STORAGE_WIFI_NAMESPACE[] = "wifi";
-    static constexpr char STORAGE_KEY_WIFI_SSID[] = "wifi-ssid";
-    static constexpr char STORAGE_KEY_WIFI_PASS[] = "wifi-pass";
 
     using StorageKey = const char*;
 
@@ -38,6 +34,12 @@ public:
 
     std::optional<WifiTypes::Password> loadWifiPass();
     bool saveWifiPass(const WifiTypes::Password& p_password);
+
+    std::optional<MqttTypes::Username> loadMqttUsername();
+    bool saveMqttUsername(const MqttTypes::Username& p_username);
+
+    std::optional<MqttTypes::Password> loadMqttPassword();
+    bool saveMqttPassword(const MqttTypes::Password& p_password);
 
 private:
     static SemaphoreHandle_t mutex() {
