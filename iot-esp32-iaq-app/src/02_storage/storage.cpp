@@ -1,25 +1,43 @@
 #include "02_storage/storage.hpp"
+#include "00_vendor/arduino.hpp"
 
 constexpr char STORAGE_BSEC_NAMESPACE[] = "env-sensor";
+constexpr char STORAGE_KEY_BSEC_STATE_LP[] = "bsec-state-lp";
+constexpr char STORAGE_KEY_BSEC_STATE_ULP[] = "bsec-state-ulp";
 
 constexpr char STORAGE_WIFI_NAMESPACE[] = "wifi";
 constexpr char STORAGE_KEY_WIFI_SSID[] = "wifi-ssid";
 constexpr char STORAGE_KEY_WIFI_PASS[] = "wifi-pass";
 
 constexpr char STORAGE_MQTT_NAMESPACE[] = "mqtt";
+constexpr char STORAGE_KEY_MQTT_HOST[] = "mqtt-host";
+constexpr char STORAGE_KEY_MQTT_PORT[] = "mqtt-port";
 constexpr char STORAGE_KEY_MQTT_USER[] = "mqtt-user";
 constexpr char STORAGE_KEY_MQTT_PASS[] = "mqtt-pass";
 
-std::optional<SensorState> Storage::loadBsecState(StorageKey p_key) {
+static const char* sensorModeToKey(SensorMode p_mode) {
+    switch (p_mode) {
+    case SensorMode::LowPower:
+        return STORAGE_KEY_BSEC_STATE_LP;
+    case SensorMode::UltraLowPower:
+        return STORAGE_KEY_BSEC_STATE_ULP;
+    default:
+        Serial.println("sensorModeToKey: unhandled SensorMode, defaulting to LP key");
+        configASSERT(false);
+        return STORAGE_KEY_BSEC_STATE_LP;
+    }
+}
+
+std::optional<SensorState> Storage::loadBsecState(SensorMode p_mode) {
     SensorState l_state{};
-    size_t l_len = get(STORAGE_BSEC_NAMESPACE, p_key, l_state.data(), l_state.size());
+    size_t l_len = get(STORAGE_BSEC_NAMESPACE, sensorModeToKey(p_mode), l_state.data(), l_state.size());
     if (l_len != l_state.size())
         return std::nullopt;
     return l_state;
 }
 
-bool Storage::saveBsecState(StorageKey p_key, const SensorState& p_state) {
-    return put(STORAGE_BSEC_NAMESPACE, p_key, p_state.data(), p_state.size());
+bool Storage::saveBsecState(SensorMode p_mode, const SensorState& p_state) {
+    return put(STORAGE_BSEC_NAMESPACE, sensorModeToKey(p_mode), p_state.data(), p_state.size());
 }
 
 std::optional<WifiTypes::Ssid> Storage::loadWifiSSID() {
@@ -44,6 +62,29 @@ std::optional<WifiTypes::Password> Storage::loadWifiPass() {
 
 bool Storage::saveWifiPass(const WifiTypes::Password& p_password) {
     return put(STORAGE_WIFI_NAMESPACE, STORAGE_KEY_WIFI_PASS, p_password.data());
+}
+
+std::optional<MqttTypes::Host> Storage::loadMqttHost() {
+    MqttTypes::Host l_host{};
+    size_t l_len = get(STORAGE_MQTT_NAMESPACE, STORAGE_KEY_MQTT_HOST, l_host.data(), l_host.size());
+    if (l_len == 0)
+        return std::nullopt;
+    return l_host;
+}
+
+bool Storage::saveMqttHost(const MqttTypes::Host& p_host) {
+    return put(STORAGE_MQTT_NAMESPACE, STORAGE_KEY_MQTT_HOST, p_host.data());
+}
+
+std::optional<MqttTypes::Port> Storage::loadMqttPort() {
+    MqttTypes::Port l_port = get(STORAGE_MQTT_NAMESPACE, STORAGE_KEY_MQTT_PORT);
+    if (l_port == 0)
+        return std::nullopt;
+    return l_port;
+}
+
+bool Storage::saveMqttPort(MqttTypes::Port p_port) {
+    return put(STORAGE_MQTT_NAMESPACE, STORAGE_KEY_MQTT_PORT, p_port);
 }
 
 std::optional<MqttTypes::Username> Storage::loadMqttUsername() {
