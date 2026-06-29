@@ -45,7 +45,7 @@ bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
     esp_mqtt_client_config_t l_config{};
 
     // *** SESSION CONFIGURATION ***
-    l_config.session.protocol_ver = MQTT_PROTOCOL_V_5;
+    l_config.session.protocol_ver = MQTT_PROTOCOL_V_3_1_1;
 
     // *** CREDENTIALS CONFIGURATION ***
     l_config.credentials.username = l_username.value().data();
@@ -80,7 +80,7 @@ bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
 
 bool MqttBridge::connect() {
     if (m_client == nullptr) {
-        Serial.println("MQTT connect failed: call init() first");
+        Serial.println("[MQTT] connect failed: call init() first");
         return false;
     }
 
@@ -90,6 +90,7 @@ bool MqttBridge::connect() {
             return false;
         }
         m_started = true;
+        Serial.println("[MQTT] Client started");
         return true;
     }
 
@@ -98,6 +99,7 @@ bool MqttBridge::connect() {
             Serial.println("[MQTT] esp_mqtt_client_reconnect failed");
             return false;
         }
+        Serial.println("[MQTT] Client reconnected");
         return true;
     }
 
@@ -106,7 +108,7 @@ bool MqttBridge::connect() {
 
 bool MqttBridge::disconnect() {
     if (m_client == nullptr) {
-        Serial.println("MQTT disconnect failed: call init() first");
+        Serial.println("[MQTT] disconnect failed: call init() first");
         return false;
     }
 

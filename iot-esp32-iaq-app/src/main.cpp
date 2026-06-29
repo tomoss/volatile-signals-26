@@ -14,7 +14,7 @@
 constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 
 // Delay duration for reboot after failed init
-constexpr uint32_t DELAY_UNTIL_RESTART = 3000; // milliseconds
+constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 
 // I2C Fast-mode clock for the bus shared by the display and sensor. 400 kHz keeps each
 // display refresh's bus-hold short so it barely perturbs sensor reads.
@@ -118,6 +118,13 @@ void setup() {
         esp_restart();
     }
 
+    if (!mqttBridge.init(true)) {
+        Serial.println("MqttBridge init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_UNTIL_RESTART);
+        esp_restart();
+    }
+
     const bool l_hasDisplay = displayController.init();
     if (!l_hasDisplay) {
         Serial.println("Display init failed (continuing without display)");
@@ -130,6 +137,7 @@ void setup() {
         if (l_hasDisplay) {
             displayController.setWifiStatus(WifiDisplayState{true});
         }
+        mqttBridge.connect();
     });
 
     wifiAdapter.setDisconnectedCallback([l_hasDisplay] {
