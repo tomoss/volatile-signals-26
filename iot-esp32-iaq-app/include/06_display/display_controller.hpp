@@ -23,6 +23,7 @@ public:
     void enableDisplay();
     void disableDisplay();
     void setWifiStatus(WifiDisplayState p_wifiState);
+    void setMqttStatus(MqttDisplayState p_mqttState);
     void setEnvironment(EnvDisplayState p_envState);
     void setProvisioningStatus(ProvisionDisplayState p_provisionState);
 
