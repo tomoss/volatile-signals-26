@@ -120,10 +120,12 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
 
     case MQTT_EVENT_CONNECTED:
         Serial.printf("[MQTT] Connected (session_present=%d)\n", p_event->session_present);
+        handleConnected();
         break;
 
     case MQTT_EVENT_DISCONNECTED:
         Serial.println("[MQTT] Disconnected");
+        handleDisconnected();
         break;
 
     case MQTT_EVENT_ERROR:
@@ -164,4 +166,16 @@ bool MqttBridge::disconnect() {
         return false;
     }
     return true;
+}
+
+void MqttBridge::handleConnected() {
+    if (m_onConnectedCallback) {
+        m_onConnectedCallback();
+    }
+}
+
+void MqttBridge::handleDisconnected() {
+    if (m_onDisconnectedCallback) {
+        m_onDisconnectedCallback();
+    }
 }

@@ -66,6 +66,16 @@ void DisplayController::setWifiStatus(WifiDisplayState p_wifiState) {
     });
 }
 
+void DisplayController::setMqttStatus(MqttDisplayState p_mqttState) {
+    updateState([p_mqttState](DisplayState& p_outState) {
+        if (p_outState.mqtt == p_mqttState) {
+            return false; // No change.
+        }
+        p_outState.mqtt = p_mqttState;
+        return true;
+    });
+}
+
 void DisplayController::setEnvironment(EnvDisplayState p_envState) {
     updateState([p_envState](DisplayState& p_outState) {
         if (p_outState.env == p_envState) {
@@ -124,10 +134,13 @@ void DisplayController::render() {
     char l_firstHalfDisplay[FIRST_HALF_TEXT_SIZE];
     char l_secondHalfDisplay[SECOND_HALF_TEXT_SIZE];
 
-    // If provisioning is not active, display the WiFi and environment status.
+    // If provisioning is not active, display the WiFi status.
     // If WiFi is not connected, display "WiFi connecting" on the first half and the IAQ on the second half.
+    // If WiFi is connected, display "MQTT connecting" on the first half and the IAQ on the second half.
     if (!m_state.wifi.connected) {
         snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "WiFi connecting");
+    } else if (!m_state.mqtt.connected) {
+        snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "MQTT connecting");
     } else {
         snprintf(l_firstHalfDisplay,
                  sizeof(l_firstHalfDisplay),
@@ -136,6 +149,7 @@ void DisplayController::render() {
                  m_state.env.temperatureC,
                  m_state.env.accuracy);
     }
+
     snprintf(l_secondHalfDisplay, sizeof(l_secondHalfDisplay), "IAQ: %u", m_state.env.iaq);
     m_display.renderHalves(l_firstHalfDisplay, l_secondHalfDisplay);
 }

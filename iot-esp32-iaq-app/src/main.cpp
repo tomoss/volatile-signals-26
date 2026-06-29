@@ -181,6 +181,18 @@ void setup() {
         wifiManager.credentialsUpdated();
     });
 
+    mqttBridge.setOnConnectedCallback([l_hasDisplay] {
+        if (l_hasDisplay) {
+            displayController.setMqttStatus(MqttDisplayState{true});
+        }
+    });
+
+    mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
+        if (l_hasDisplay) {
+            displayController.setMqttStatus(MqttDisplayState{false});
+        }
+    });
+
     envSensor.start();
     wifiManager.start();
 
