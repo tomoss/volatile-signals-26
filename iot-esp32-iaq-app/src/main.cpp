@@ -97,8 +97,8 @@ void setup() {
     static DisplayController displayController(l_wire);
     static MqttBridge mqttBridge(storage);
 
-    if (!envSensor.init(SensorMode::LowPower)) {
-        Serial.println("EnvSensor init failed, restarting...");
+    if (storage.init() == false) {
+        Serial.println("Storage init failed, restarting...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
