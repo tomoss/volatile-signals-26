@@ -2,23 +2,17 @@
 #define STORAGE_HPP
 
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <optional>
 
-#include "00_vendor/freertos.hpp"
 #include "00_vendor/preferences.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
 #include "04_mqtt/mqtt_types.hpp"
+#include "07_utils/mutex.hpp"
 
 class Storage {
 public:
-    static constexpr char STORAGE_KEY_BSEC_STATE_LP[] = "bsec-state-lp";
-    static constexpr char STORAGE_KEY_BSEC_STATE_ULP[] = "bsec-state-ulp";
-
-    using StorageKey = const char*;
-
     Storage() = default;
     ~Storage() = default;
     Storage(const Storage&) = delete;
@@ -26,14 +20,27 @@ public:
     Storage(Storage&&) = delete;
     Storage& operator=(Storage&&) = delete;
 
-    std::optional<SensorState> loadBsecState(StorageKey p_key);
-    bool saveBsecState(StorageKey p_key, const SensorState& p_state);
+    [[nodiscard]] bool init() {
+        if (!m_mutex.init()) {
+            return false;
+        }
+        return true;
+    }
+
+    std::optional<SensorState> loadBsecState(SensorMode p_mode);
+    bool saveBsecState(SensorMode p_mode, const SensorState& p_state);
 
     std::optional<WifiTypes::Ssid> loadWifiSSID();
     bool saveWifiSSID(const WifiTypes::Ssid& p_ssid);
 
     std::optional<WifiTypes::Password> loadWifiPass();
     bool saveWifiPass(const WifiTypes::Password& p_password);
+
+    std::optional<MqttTypes::Host> loadMqttHost();
+    bool saveMqttHost(const MqttTypes::Host& p_host);
+
+    std::optional<MqttTypes::Port> loadMqttPort();
+    bool saveMqttPort(MqttTypes::Port p_port);
 
     std::optional<MqttTypes::Username> loadMqttUsername();
     bool saveMqttUsername(const MqttTypes::Username& p_username);
@@ -42,55 +49,57 @@ public:
     bool saveMqttPassword(const MqttTypes::Password& p_password);
 
 private:
-    static SemaphoreHandle_t mutex() {
-        static SemaphoreHandle_t s_mutex = xSemaphoreCreateMutex();
-        return s_mutex;
-    }
-
-    template<typename T>
-        requires(std::same_as<T, char> || std::same_as<T, uint8_t>)
-    size_t get(const char* p_namespace, const char* p_key, T* p_buf, size_t p_size) {
-
-        xSemaphoreTake(mutex(), portMAX_DELAY);
+    template<typename Func>
+    auto withPreferences(const char* p_namespace, bool p_readOnly, Func&& p_func) {
+        const MutexGuard l_guard(m_mutex);
 
         Preferences l_preferences;
-        l_preferences.begin(p_namespace, true);
+        l_preferences.begin(p_namespace, p_readOnly);
 
-        size_t l_len;
-
-        if constexpr (std::same_as<T, char>) {
-            l_len = l_preferences.getString(p_key, p_buf, p_size);
-        } else {
-            l_len = l_preferences.getBytes(p_key, p_buf, p_size);
-        }
+        auto l_result = p_func(l_preferences);
 
         l_preferences.end();
-        xSemaphoreGive(mutex());
 
-        return l_len;
+        return l_result;
     }
 
-    template<typename T>
-        requires(std::same_as<T, char> || std::same_as<T, uint8_t>)
-    bool put(const char* p_namespace, const char* p_key, const T* p_buf, size_t p_size = 0) {
-        xSemaphoreTake(mutex(), portMAX_DELAY);
-
-        Preferences l_preferences;
-        l_preferences.begin(p_namespace, false);
-
-        bool l_status;
-
-        if constexpr (std::same_as<T, char>) {
-            l_status = l_preferences.putString(p_key, p_buf) > 0;
-        } else {
-            l_status = l_preferences.putBytes(p_key, p_buf, p_size) == p_size;
-        }
-
-        l_preferences.end();
-        xSemaphoreGive(mutex());
-
-        return l_status;
+    size_t get(const char* p_namespace, const char* p_key, char* p_buf, size_t p_size) {
+        return withPreferences(p_namespace, true, [&](Preferences& p_preferences) {
+            return p_preferences.getString(p_key, p_buf, p_size);
+        });
     }
+
+    size_t get(const char* p_namespace, const char* p_key, uint8_t* p_buf, size_t p_size) {
+        return withPreferences(p_namespace, true, [&](Preferences& p_preferences) {
+            return p_preferences.getBytes(p_key, p_buf, p_size);
+        });
+    }
+
+    uint16_t get(const char* p_namespace, const char* p_key) {
+        return withPreferences(p_namespace, true, [&](Preferences& p_preferences) {
+            return p_preferences.getUShort(p_key, 0);
+        });
+    }
+
+    bool put(const char* p_namespace, const char* p_key, const char* p_buf) {
+        return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
+            return p_preferences.putString(p_key, p_buf) > 0;
+        });
+    }
+
+    bool put(const char* p_namespace, const char* p_key, const uint8_t* p_buf, size_t p_size) {
+        return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
+            return p_preferences.putBytes(p_key, p_buf, p_size) == p_size;
+        });
+    }
+
+    bool put(const char* p_namespace, const char* p_key, uint16_t p_value) {
+        return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
+            return p_preferences.putUShort(p_key, p_value) > 0;
+        });
+    }
+
+    Mutex m_mutex;
 };
 
 #endif // STORAGE_HPP

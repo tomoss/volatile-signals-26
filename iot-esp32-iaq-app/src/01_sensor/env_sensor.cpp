@@ -3,7 +3,6 @@
 #include "00_vendor/arduino.hpp"
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
-#include "07_utils/mapping_handler.hpp"
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -280,7 +279,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
 
     // Don't restore any state from storage if mode is Disabled
     if (p_mode != SensorMode::Disabled) {
-        if (auto state = m_storage.loadBsecState(MappingHandler::sensorModeToStorageKey(p_mode))) {
+        if (auto state = m_storage.loadBsecState(p_mode)) {
             if (!setBsecState(*state))
                 Serial.println("Failed to restore BME688 state from storage");
             else {
@@ -325,7 +324,7 @@ void EnvSensor::maybeSaveStateToStorage() {
 
     if (l_shouldSave) {
         if (auto state = this->getBsecState()) {
-            if (m_storage.saveBsecState(MappingHandler::sensorModeToStorageKey(m_mode), *state)) {
+            if (m_storage.saveBsecState(m_mode, *state)) {
                 Serial.println("BME688 state saved in storage");
                 m_hasSavedStateForMode = true;
             } else
