@@ -9,6 +9,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
+#include "07_utils/device_health.hpp"
 #include "07_utils/time_sync.hpp"
 
 // Delay duration to wait for board to stabilize
@@ -21,18 +22,45 @@ constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 // display refresh's bus-hold short so it barely perturbs sensor reads.
 constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
+// How often to publish device health (RSSI/heap/uptime) - diagnostic data
+constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
+
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
+    MqttBridge* mqttBridge;
+};
+
+struct HealthTaskParams {
+    MqttBridge* mqttBridge;
+    WifiAdapter* wifiAdapter;
 };
 
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
+static void healthTask(void* pvParameters) {
+    auto* const l_params = static_cast<HealthTaskParams*>(pvParameters);
+    auto* const l_mqttBridge = l_params->mqttBridge;
+    auto* const l_wifiAdapter = l_params->wifiAdapter;
+
+    for (;;) {
+        DeviceHealth l_health;
+        l_health.rssi = l_wifiAdapter->getRSSI();
+        l_health.heap = ESP.getFreeHeap();
+        l_health.minHeap = ESP.getMinFreeHeap();
+        l_health.uptime = millis() / 1000;
+
+        l_mqttBridge->sendDeviceHealth(l_health);
+        vTaskDelay(pdMS_TO_TICKS(HEALTH_PUBLISH_INTERVAL_MS));
+    }
+}
+
 static void consumerTask(void* pvParameters) {
     auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_displayController = l_params->displayController;
+    auto* const l_mqttBridge = l_params->mqttBridge;
 
     for (;;) {
         SensorData l_data;
@@ -59,12 +87,17 @@ static void consumerTask(void* pvParameters) {
                           l_data.rawHum,
                           l_data.pressure);
 
-            if (l_displayController != nullptr && !std::isnan(l_data.iaq) && !std::isnan(l_data.temp)) {
-                EnvDisplayState l_envState;
-                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
-                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
-                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
-                l_displayController->setEnvironment(l_envState);
+            if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
+                !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
+                l_mqttBridge->sendSensorData(l_data);
+
+                if (l_displayController != nullptr) {
+                    EnvDisplayState l_envState;
+                    l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
+                    l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
+                    l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
+                    l_displayController->setEnvironment(l_envState);
+                }
             }
         }
     }
@@ -206,8 +239,11 @@ void setup() {
     envSensor.start();
     wifiManager.start();
 
-    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr};
+    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr, &mqttBridge};
     xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
+
+    static HealthTaskParams healthTaskParams{&mqttBridge, &wifiAdapter};
+    xTaskCreate(healthTask, "health", 4096, &healthTaskParams, 1, nullptr);
 
     vTaskDelete(nullptr);
 }

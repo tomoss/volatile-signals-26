@@ -5,9 +5,10 @@
 
 #include <mqtt_client.h>
 
+#include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
-
-constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
+#include "04_mqtt/mqtt_types.hpp"
+#include "07_utils/device_health.hpp"
 
 class MqttBridge {
 public:
@@ -22,14 +23,19 @@ public:
     MqttBridge(MqttBridge&&) = delete;
     MqttBridge& operator=(MqttBridge&&) = delete;
 
-    [[nodiscard]] bool init(bool p_enableTls = false, int p_reconnectTimeoutMs = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS);
+    [[nodiscard]] bool init(bool p_enableTls = false);
     bool connect();
     bool disconnect();
 
     void setOnConnectedCallback(OnConnectedCallback p_callback) { m_onConnectedCallback = std::move(p_callback); }
     void setOnDisconnectedCallback(OnDisconnectedCallback p_callback) { m_onDisconnectedCallback = std::move(p_callback); }
 
+    void sendSensorData(const SensorData& p_data);
+    void sendDeviceHealth(const DeviceHealth& p_health);
+
 private:
+    void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len);
+
     static void eventHandler(void* p_arg, esp_event_base_t p_base, int32_t p_eventId, void* p_eventData);
     void onEvent(esp_mqtt_event_handle_t p_event);
 
@@ -38,6 +44,8 @@ private:
 
     esp_mqtt_client_handle_t m_client = nullptr;
     Storage& m_storage;
+    MqttTypes::Topic m_sensorPubtopic{};
+    MqttTypes::Topic m_healthPubTopic{};
     bool m_started = false;
     OnConnectedCallback m_onConnectedCallback;
     OnDisconnectedCallback m_onDisconnectedCallback;
