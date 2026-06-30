@@ -3,12 +3,14 @@
 #include "04_mqtt/mqtt_types.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 
 #include <esp_crt_bundle.h>
+#include <esp_mac.h>
 
 constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
-constexpr int DEFAULT_MQTT_QOS = 1;                      // QoS level 1
+constexpr int DEFAULT_MQTT_PUB_QOS = 1;                  // QoS level 1
 constexpr int DEFAULT_MQTT_RETAIN = 0;                   // Retain flag
 
 MqttBridge::~MqttBridge() {
@@ -78,6 +80,21 @@ bool MqttBridge::init(bool p_enableTls) {
     // *** NETWORK CONFIGURATION ***
     l_config.network.reconnect_timeout_ms = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS;
 
+    // *** TOPICS CREATION ***
+    // esp_read_mac() reads the factory-burned MAC from eFuse directly, so it's valid
+    // immediately at boot - unlike WiFi.macAddress(), it doesn't need the STA netif to be up.
+    std::array<uint8_t, 6> l_mac{};
+    esp_read_mac(l_mac.data(), ESP_MAC_WIFI_STA);
+    snprintf(m_sensorPubtopic.data(),
+             m_sensorPubtopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
     m_client = esp_mqtt_client_init(&l_config);
 
     if (!m_client) {
@@ -143,7 +160,8 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
     // actually fits in the buffer (size() - 1, since one byte is reserved for the null terminator).
     const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
 
-    int l_result = esp_mqtt_client_publish(m_client, "TEST", l_payload.data(), static_cast<int>(l_payloadLen), DEFAULT_MQTT_QOS, DEFAULT_MQTT_RETAIN);
+    int l_result = esp_mqtt_client_publish(
+        m_client, m_sensorPubtopic.data(), l_payload.data(), static_cast<int>(l_payloadLen), DEFAULT_MQTT_PUB_QOS, DEFAULT_MQTT_RETAIN);
 
     if (l_result >= 0) {
         Serial.printf("[MQTT] Published sensor data of size: %zu\n", l_payloadLen);

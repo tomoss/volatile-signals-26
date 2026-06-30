@@ -7,6 +7,7 @@
 
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
+#include "04_mqtt/mqtt_types.hpp"
 
 class MqttBridge {
 public:
@@ -39,6 +40,7 @@ private:
 
     esp_mqtt_client_handle_t m_client = nullptr;
     Storage& m_storage;
+    MqttTypes::Topic m_sensorPubtopic{};
     bool m_started = false;
     OnConnectedCallback m_onConnectedCallback;
     OnDisconnectedCallback m_onDisconnectedCallback;
