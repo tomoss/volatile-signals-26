@@ -9,6 +9,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
+#include "07_utils/time_sync.hpp"
 
 // Delay duration to wait for board to stabilize
 constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
@@ -36,7 +37,7 @@ static void consumerTask(void* pvParameters) {
     for (;;) {
         SensorData l_data;
         if (xQueueReceive(l_envSensor->getQueue(), &l_data, pdMS_TO_TICKS(100))) {
-            Serial.printf("[%lu] "
+            Serial.printf("[%lld] "
                           "IAQ=%.1f(acc:%d) "
                           "CO2eq=%.0fppm "
                           "VOCeq=%.2fppm "
@@ -46,7 +47,7 @@ static void consumerTask(void* pvParameters) {
                           "RawT=%.2fC "
                           "RawRH=%.2f%% "
                           "P=%.2fhPa\n",
-                          millis(),
+                          l_data.timestamp,
                           l_data.iaq,
                           static_cast<int>(l_data.iaqAccuracy),
                           l_data.co2,
@@ -96,9 +97,17 @@ void setup() {
     static BleProvisioner bleProvisioner;
     static DisplayController displayController(l_wire);
     static MqttBridge mqttBridge(storage);
+    static TimeSync timeSync;
 
     if (storage.init() == false) {
         Serial.println("Storage init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_UNTIL_RESTART);
+        esp_restart();
+    }
+
+    if (!envSensor.init(SensorMode::LowPower)) {
+        Serial.println("EnvSensor init failed, restarting...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
@@ -137,6 +146,7 @@ void setup() {
         if (l_hasDisplay) {
             displayController.setWifiStatus(WifiDisplayState{true});
         }
+        timeSync.sync();
         mqttBridge.connect();
     });
 

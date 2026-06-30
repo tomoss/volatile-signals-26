@@ -78,6 +78,8 @@ static bsecSensor s_sensorList[] = {BSEC_OUTPUT_IAQ,
 
 static const SensorData convertOutputs(const bsecOutputs& p_outputs) {
     SensorData l_data;
+    l_data.timestamp = time(nullptr);
+
     for (uint8_t i = 0; i < p_outputs.nOutputs; i++) {
         const bsecData& o = p_outputs.output[i];
 
