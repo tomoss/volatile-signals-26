@@ -1,7 +1,15 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "00_vendor/arduino.hpp"
+#include "04_mqtt/mqtt_types.hpp"
+
+#include <algorithm>
+#include <cstdio>
 
 #include <esp_crt_bundle.h>
+
+constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
+constexpr int DEFAULT_MQTT_QOS = 1;                      // QoS level 1
+constexpr int DEFAULT_MQTT_RETAIN = 0;                   // Retain flag
 
 MqttBridge::~MqttBridge() {
     if (m_client) {
@@ -11,7 +19,7 @@ MqttBridge::~MqttBridge() {
     }
 }
 
-bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
+bool MqttBridge::init(bool p_enableTls) {
 
     if (m_client) {
         Serial.println("[MQTT] Client already initialized");
@@ -68,7 +76,7 @@ bool MqttBridge::init(bool p_enableTls, int p_reconnectTimeoutMs) {
     }
 
     // *** NETWORK CONFIGURATION ***
-    l_config.network.reconnect_timeout_ms = p_reconnectTimeoutMs;
+    l_config.network.reconnect_timeout_ms = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS;
 
     m_client = esp_mqtt_client_init(&l_config);
 
@@ -109,6 +117,48 @@ bool MqttBridge::connect() {
     }
 
     return false;
+}
+
+void MqttBridge::sendSensorData(const SensorData& p_data) {
+    MqttTypes::Payload l_payload{};
+    const int l_len =
+        snprintf(l_payload.data(),
+                 l_payload.size(),
+                 "{\"iaq\":%.2f,\"iaqAccuracy\":%d,\"co2\":%.2f,\"voc\":%.2f,\"temp\":%.2f,\"hum\":%.2f,\"pressure\":%.2f,\"timestamp\":%lld}",
+                 p_data.iaq,
+                 static_cast<int>(p_data.iaqAccuracy),
+                 p_data.co2,
+                 p_data.voc,
+                 p_data.temp,
+                 p_data.hum,
+                 p_data.pressure,
+                 static_cast<long long>(p_data.timestamp));
+
+    if (l_len < 0) {
+        Serial.println("[MQTT] Failed to serialize sensor data");
+        return;
+    }
+
+    // snprintf returns the length it would have written even if truncated, so clamp to what
+    // actually fits in the buffer (size() - 1, since one byte is reserved for the null terminator).
+    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+
+    int l_result = esp_mqtt_client_publish(m_client, "TEST", l_payload.data(), static_cast<int>(l_payloadLen), DEFAULT_MQTT_QOS, DEFAULT_MQTT_RETAIN);
+
+    if (l_result >= 0) {
+        Serial.printf("[MQTT] Published sensor data of size: %zu\n", l_payloadLen);
+        return;
+    }
+
+    if (l_result == -1) {
+        Serial.println("[MQTT] Failed to publish sensor data");
+        return;
+    }
+
+    if (l_result == -2) {
+        Serial.println("[MQTT] Failed to publish sensor data: Full outbox");
+        return;
+    }
 }
 
 void MqttBridge::eventHandler(void* p_arg, esp_event_base_t /*p_base*/, int32_t /*p_eventId*/, void* p_eventData) {

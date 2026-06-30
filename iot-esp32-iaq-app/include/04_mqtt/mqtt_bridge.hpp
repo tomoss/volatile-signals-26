@@ -5,9 +5,8 @@
 
 #include <mqtt_client.h>
 
+#include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
-
-constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
 
 class MqttBridge {
 public:
@@ -22,12 +21,14 @@ public:
     MqttBridge(MqttBridge&&) = delete;
     MqttBridge& operator=(MqttBridge&&) = delete;
 
-    [[nodiscard]] bool init(bool p_enableTls = false, int p_reconnectTimeoutMs = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS);
+    [[nodiscard]] bool init(bool p_enableTls = false);
     bool connect();
     bool disconnect();
 
     void setOnConnectedCallback(OnConnectedCallback p_callback) { m_onConnectedCallback = std::move(p_callback); }
     void setOnDisconnectedCallback(OnDisconnectedCallback p_callback) { m_onDisconnectedCallback = std::move(p_callback); }
+
+    void sendSensorData(const SensorData& p_data);
 
 private:
     static void eventHandler(void* p_arg, esp_event_base_t p_base, int32_t p_eventId, void* p_eventData);

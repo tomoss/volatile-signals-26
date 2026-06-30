@@ -10,11 +10,14 @@ namespace MqttTypes {
 constexpr size_t HOST_MAX_LEN = 64;
 constexpr size_t USERNAME_MAX_LEN = 64;
 constexpr size_t PASSWORD_MAX_LEN = 64;
+// Sized for the SensorData fields the JSON payload emits, plus headroom
+constexpr size_t PAYLOAD_MAX_LEN = 192;
 
 using Host = std::array<char, HOST_MAX_LEN>;
 using Port = uint16_t;
 using Username = std::array<char, USERNAME_MAX_LEN>;
 using Password = std::array<char, PASSWORD_MAX_LEN>;
+using Payload = std::array<char, PAYLOAD_MAX_LEN>;
 
 } // namespace MqttTypes
 

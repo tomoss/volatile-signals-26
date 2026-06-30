@@ -24,6 +24,7 @@ constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
+    MqttBridge* mqttBridge;
 };
 
 /*****************************************************************/
@@ -33,6 +34,7 @@ static void consumerTask(void* pvParameters) {
     auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_displayController = l_params->displayController;
+    auto* const l_mqttBridge = l_params->mqttBridge;
 
     for (;;) {
         SensorData l_data;
@@ -59,12 +61,17 @@ static void consumerTask(void* pvParameters) {
                           l_data.rawHum,
                           l_data.pressure);
 
-            if (l_displayController != nullptr && !std::isnan(l_data.iaq) && !std::isnan(l_data.temp)) {
-                EnvDisplayState l_envState;
-                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
-                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
-                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
-                l_displayController->setEnvironment(l_envState);
+            if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
+                !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
+                l_mqttBridge->sendSensorData(l_data);
+
+                if (l_displayController != nullptr) {
+                    EnvDisplayState l_envState;
+                    l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
+                    l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
+                    l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
+                    l_displayController->setEnvironment(l_envState);
+                }
             }
         }
     }
@@ -206,7 +213,7 @@ void setup() {
     envSensor.start();
     wifiManager.start();
 
-    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr};
+    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr, &mqttBridge};
     xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
 
     vTaskDelete(nullptr);
