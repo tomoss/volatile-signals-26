@@ -94,6 +94,15 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[3],
              l_mac[4],
              l_mac[5]);
+    snprintf(m_healthPubTopic.data(),
+             m_healthPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/health",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
 
     m_client = esp_mqtt_client_init(&l_config);
 
@@ -159,22 +168,43 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
     // snprintf returns the length it would have written even if truncated, so clamp to what
     // actually fits in the buffer (size() - 1, since one byte is reserved for the null terminator).
     const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    publish(m_sensorPubtopic, l_payload.data(), static_cast<int>(l_payloadLen));
+}
 
-    int l_result = esp_mqtt_client_publish(
-        m_client, m_sensorPubtopic.data(), l_payload.data(), static_cast<int>(l_payloadLen), DEFAULT_MQTT_PUB_QOS, DEFAULT_MQTT_RETAIN);
+void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
+    MqttTypes::Payload l_payload{};
+    const int l_len = snprintf(l_payload.data(),
+                                l_payload.size(),
+                                "{\"rssi\":%d,\"heap\":%lu,\"minHeap\":%lu,\"uptime\":%lu}",
+                                p_health.rssi,
+                                static_cast<unsigned long>(p_health.heap),
+                                static_cast<unsigned long>(p_health.minHeap),
+                                static_cast<unsigned long>(p_health.uptime));
+
+    if (l_len < 0) {
+        Serial.println("[MQTT] Failed to serialize device health");
+        return;
+    }
+
+    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    publish(m_healthPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
+}
+
+void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len) {
+    int l_result = esp_mqtt_client_publish(m_client, p_topic.data(), p_data, p_len, DEFAULT_MQTT_PUB_QOS, DEFAULT_MQTT_RETAIN);
 
     if (l_result >= 0) {
-        Serial.printf("[MQTT] Published sensor data of size: %zu\n", l_payloadLen);
+        Serial.printf("[MQTT] Published to %s, size: %d\n", p_topic.data(), p_len);
         return;
     }
 
     if (l_result == -1) {
-        Serial.println("[MQTT] Failed to publish sensor data");
+        Serial.printf("[MQTT] Failed to publish to %s\n", p_topic.data());
         return;
     }
 
     if (l_result == -2) {
-        Serial.println("[MQTT] Failed to publish sensor data: Full outbox");
+        Serial.printf("[MQTT] Failed to publish to %s: Full outbox\n", p_topic.data());
         return;
     }
 }

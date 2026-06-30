@@ -9,6 +9,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
+#include "07_utils/device_health.hpp"
 #include "07_utils/time_sync.hpp"
 
 // Delay duration to wait for board to stabilize
@@ -21,15 +22,40 @@ constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 // display refresh's bus-hold short so it barely perturbs sensor reads.
 constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
+// How often to publish device health (RSSI/heap/uptime) - diagnostic data
+constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
+
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
     MqttBridge* mqttBridge;
 };
 
+struct HealthTaskParams {
+    MqttBridge* mqttBridge;
+    WifiAdapter* wifiAdapter;
+};
+
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
+static void healthTask(void* pvParameters) {
+    auto* const l_params = static_cast<HealthTaskParams*>(pvParameters);
+    auto* const l_mqttBridge = l_params->mqttBridge;
+    auto* const l_wifiAdapter = l_params->wifiAdapter;
+
+    for (;;) {
+        DeviceHealth l_health;
+        l_health.rssi = l_wifiAdapter->getRSSI();
+        l_health.heap = ESP.getFreeHeap();
+        l_health.minHeap = ESP.getMinFreeHeap();
+        l_health.uptime = millis() / 1000;
+
+        l_mqttBridge->sendDeviceHealth(l_health);
+        vTaskDelay(pdMS_TO_TICKS(HEALTH_PUBLISH_INTERVAL_MS));
+    }
+}
+
 static void consumerTask(void* pvParameters) {
     auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
@@ -215,6 +241,9 @@ void setup() {
 
     static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr, &mqttBridge};
     xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
+
+    static HealthTaskParams healthTaskParams{&mqttBridge, &wifiAdapter};
+    xTaskCreate(healthTask, "health", 4096, &healthTaskParams, 1, nullptr);
 
     vTaskDelete(nullptr);
 }
