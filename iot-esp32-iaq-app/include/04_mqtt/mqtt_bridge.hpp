@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <functional>
+#include <string_view>
 
 #include <mqtt_client.h>
 
@@ -15,6 +16,7 @@ class MqttBridge {
 public:
     using OnConnectedCallback = std::function<void()>;
     using OnDisconnectedCallback = std::function<void()>;
+    using OnCommandCallback = std::function<void(std::string_view p_data)>;
 
     MqttBridge(Storage& p_storage) : m_storage(p_storage) {}
     ~MqttBridge();
@@ -32,6 +34,7 @@ public:
 
     void setOnConnectedCallback(OnConnectedCallback p_callback) { m_onConnectedCallback = std::move(p_callback); }
     void setOnDisconnectedCallback(OnDisconnectedCallback p_callback) { m_onDisconnectedCallback = std::move(p_callback); }
+    void setOnCommandCallback(OnCommandCallback p_callback) { m_onCommandCallback = std::move(p_callback); }
 
     // Will be sent also if not connected, messages will be queued into the outbox and sent when connected.
     void sendSensorData(const SensorData& p_data);
@@ -57,6 +60,7 @@ private:
     std::atomic<bool> m_connected{false};
     OnConnectedCallback m_onConnectedCallback;
     OnDisconnectedCallback m_onDisconnectedCallback;
+    OnCommandCallback m_onCommandCallback;
 };
 
 #endif // MQTT_BRIDGE_HPP

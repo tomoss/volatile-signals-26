@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <string_view>
 
 #include <esp_crt_bundle.h>
 #include <esp_mac.h>
@@ -264,6 +265,15 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
         Serial.printf("[MQTT] Connected (session_present=%d)\n", p_event->session_present);
         handleConnected(p_event->session_present);
         break;
+
+    case MQTT_EVENT_DATA: {
+        const std::string_view l_topic{p_event->topic, static_cast<size_t>(p_event->topic_len)};
+        if (l_topic == m_commandSubTopic.data() && m_onCommandCallback) {
+            const std::string_view l_command{p_event->data, static_cast<size_t>(p_event->data_len)};
+            m_onCommandCallback(l_command);
+        }
+        break;
+    }
 
     case MQTT_EVENT_DISCONNECTED:
         Serial.println("[MQTT] Disconnected");
