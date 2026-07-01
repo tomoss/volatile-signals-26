@@ -5,12 +5,12 @@ on:
     branches: [main]
     paths:
       - "/**"
-      - ".github/workflows/esp32-build.yml"
+      - ".github/workflows/esp32-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "iot-esp32-iaq-app/**"
-      - ".github/workflows/esp32-build.yml"
+      - ".github/workflows/esp32-ci.yml"
 
 jobs:
   build:
