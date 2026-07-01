@@ -9,6 +9,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
+#include "07_utils/command.hpp"
 #include "07_utils/device_health.hpp"
 #include "07_utils/time_sync.hpp"
 
@@ -233,6 +234,26 @@ void setup() {
     mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
             displayController.setMqttStatus(MqttDisplayState{false});
+        }
+    });
+
+    mqttBridge.setOnCommandCallback([](std::string_view p_data) {
+        switch (parseCommand(p_data)) {
+        case Command::Reboot:
+            Serial.println("[CMD] Rebooting...");
+            esp_restart();
+            return;
+        case Command::SensorLowPower:
+            Serial.println("[CMD] Switching sensor to Low Power mode");
+            envSensor.requestModeChange(SensorMode::LowPower);
+            return;
+        case Command::SensorUltraLowPower:
+            Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
+            envSensor.requestModeChange(SensorMode::UltraLowPower);
+            return;
+        case Command::Unknown:
+            Serial.printf("[CMD] Unknown command received");
+            return;
         }
     });
 

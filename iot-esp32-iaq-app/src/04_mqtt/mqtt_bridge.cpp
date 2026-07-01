@@ -5,12 +5,14 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <string_view>
 
 #include <esp_crt_bundle.h>
 #include <esp_mac.h>
 
 constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
 constexpr int DEFAULT_MQTT_PUB_QOS = 1;                  // QoS level 1
+constexpr int DEFAULT_MQTT_SUB_QOS = 1;                  // QoS level 1
 constexpr int DEFAULT_MQTT_RETAIN = 0;                   // Retain flag
 
 MqttBridge::~MqttBridge() {
@@ -81,10 +83,12 @@ bool MqttBridge::init(bool p_enableTls) {
     l_config.network.reconnect_timeout_ms = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS;
 
     // *** TOPICS CREATION ***
+
     // esp_read_mac() reads the factory-burned MAC from eFuse directly, so it's valid
     // immediately at boot - unlike WiFi.macAddress(), it doesn't need the STA netif to be up.
     std::array<uint8_t, 6> l_mac{};
     esp_read_mac(l_mac.data(), ESP_MAC_WIFI_STA);
+
     snprintf(m_sensorPubtopic.data(),
              m_sensorPubtopic.size(),
              "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor",
@@ -94,9 +98,20 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[3],
              l_mac[4],
              l_mac[5]);
+
     snprintf(m_healthPubTopic.data(),
              m_healthPubTopic.size(),
              "iaq/%02X:%02X:%02X:%02X:%02X:%02X/health",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
+    snprintf(m_commandSubTopic.data(),
+             m_commandSubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/command",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -172,14 +187,19 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
 }
 
 void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
+    // If not connected, no need to send device health data
+    if (!m_connected.load()) {
+        return;
+    }
+
     MqttTypes::Payload l_payload{};
     const int l_len = snprintf(l_payload.data(),
-                                l_payload.size(),
-                                "{\"rssi\":%d,\"heap\":%lu,\"minHeap\":%lu,\"uptime\":%lu}",
-                                p_health.rssi,
-                                static_cast<unsigned long>(p_health.heap),
-                                static_cast<unsigned long>(p_health.minHeap),
-                                static_cast<unsigned long>(p_health.uptime));
+                               l_payload.size(),
+                               "{\"rssi\":%d,\"heap\":%lu,\"minHeap\":%lu,\"uptime\":%lu}",
+                               p_health.rssi,
+                               static_cast<unsigned long>(p_health.heap),
+                               static_cast<unsigned long>(p_health.minHeap),
+                               static_cast<unsigned long>(p_health.uptime));
 
     if (l_len < 0) {
         Serial.println("[MQTT] Failed to serialize device health");
@@ -191,6 +211,11 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
 }
 
 void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len) {
+    if (m_client == nullptr) {
+        Serial.println("[MQTT] Publish failed: call init() first");
+        return;
+    }
+
     int l_result = esp_mqtt_client_publish(m_client, p_topic.data(), p_data, p_len, DEFAULT_MQTT_PUB_QOS, DEFAULT_MQTT_RETAIN);
 
     if (l_result >= 0) {
@@ -209,6 +234,26 @@ void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, in
     }
 }
 
+void MqttBridge::subscribe(const char* p_topic, int p_qos) {
+    if (m_client == nullptr) {
+        Serial.println("[MQTT] Subscribe failed: call init() first");
+        return;
+    }
+
+    if (p_topic == nullptr) {
+        Serial.println("[MQTT] Subscribe failed: topic is null");
+        return;
+    }
+
+    int l_result = esp_mqtt_client_subscribe(m_client, p_topic, p_qos);
+
+    if (l_result < 0) {
+        Serial.printf("[MQTT] Failed to subscribe to %s\n", p_topic);
+    } else {
+        Serial.printf("[MQTT] Subscribed to %s, msg_id=%d\n", p_topic, l_result);
+    }
+}
+
 void MqttBridge::eventHandler(void* p_arg, esp_event_base_t /*p_base*/, int32_t /*p_eventId*/, void* p_eventData) {
     static_cast<MqttBridge*>(p_arg)->onEvent(static_cast<esp_mqtt_event_handle_t>(p_eventData));
 }
@@ -218,8 +263,17 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
 
     case MQTT_EVENT_CONNECTED:
         Serial.printf("[MQTT] Connected (session_present=%d)\n", p_event->session_present);
-        handleConnected();
+        handleConnected(p_event->session_present);
         break;
+
+    case MQTT_EVENT_DATA: {
+        const std::string_view l_topic{p_event->topic, static_cast<size_t>(p_event->topic_len)};
+        if (l_topic == m_commandSubTopic.data() && m_onCommandCallback) {
+            const std::string_view l_command{p_event->data, static_cast<size_t>(p_event->data_len)};
+            m_onCommandCallback(l_command);
+        }
+        break;
+    }
 
     case MQTT_EVENT_DISCONNECTED:
         Serial.println("[MQTT] Disconnected");
@@ -266,13 +320,16 @@ bool MqttBridge::disconnect() {
     return true;
 }
 
-void MqttBridge::handleConnected() {
+void MqttBridge::handleConnected(bool /*p_sessionPresent*/) {
+    m_connected.store(true);
+    subscribe(m_commandSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
     if (m_onConnectedCallback) {
         m_onConnectedCallback();
     }
 }
 
 void MqttBridge::handleDisconnected() {
+    m_connected.store(false);
     if (m_onDisconnectedCallback) {
         m_onDisconnectedCallback();
     }
