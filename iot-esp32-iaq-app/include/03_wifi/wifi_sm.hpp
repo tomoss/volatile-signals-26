@@ -1,11 +1,35 @@
 #ifndef WIFI_SM_HPP
 #define WIFI_SM_HPP
 
+#include <concepts>
+#include <cstdint>
+
+#include "00_vendor/arduino.hpp"
 #include "00_vendor/sml.hpp"
-#include "02_storage/storage.hpp"
-#include "wifi_adapter.hpp"
+#include "wifi_types.hpp"
 
 namespace sml = boost::sml;
+
+// Interface WifiSm's guards/actions need from an adapter — the shape WifiAdapter
+// implements for hardware and FakeWifiAdapter implements for tests. Constraining
+// TAdapter on this turns a mismatch into a readable "which method is missing/wrong"
+// error at the call site, instead of a wall of errors from deep inside boost::sml.
+template<typename T>
+concept WifiAdaptable = requires(T& adapter) {
+    { adapter.loadCredentials() } -> std::convertible_to<bool>;
+    { adapter.maxReconnectAttemptsReached() } -> std::convertible_to<bool>;
+    { adapter.connect() } -> std::convertible_to<bool>;
+    { adapter.getSSID() } -> std::convertible_to<WifiTypes::Ssid>;
+    { adapter.getIPAddress() } -> std::convertible_to<WifiTypes::IpAddr>;
+    { adapter.resetReconnectAttempts() };
+    { adapter.notifyConnected() };
+    { adapter.notifyDisconnected() };
+    { adapter.recordReconnectAttempt() };
+    { adapter.startReconnectTimer() } -> std::convertible_to<bool>;
+    { adapter.getReconnectAttempts() } -> std::convertible_to<uint8_t>;
+    { adapter.notifyStartProvisioning() };
+    { adapter.notifyStopProvisioning() };
+};
 
 // Logger for the WiFi state machine
 struct WifiSmLogger {
@@ -33,6 +57,7 @@ struct WifiSmLogger {
 };
 
 // ****** EVENTS ******
+
 struct EvReqStart {};
 struct EvReqStop {};
 
@@ -48,6 +73,7 @@ struct EvReconnectScheduled {};
 struct EvReconnectTimeout {};
 
 // ****** STATES ******
+
 struct StIdle {};
 struct StDisconnected {};
 struct StConnecting {};
@@ -57,18 +83,25 @@ struct StProvisioning {};
 
 // ****** GUARDS ******
 // Named function objects (not lambdas) so WifiSmLogger::log_guard can print a
-// readable type name instead of an anonymous <lambda(...)> signature.
+// readable type name instead of an anonymous <lambda(...)> signature. Templated on
+// WifiAdaptable so the SM can run against a test double without needing the real
+// WifiAdaptable (and the Arduino/Preferences dependencies it drags in).
+
+template<WifiAdaptable TAdapter>
 struct GuCredentialsLoad {
-    bool operator()(WifiAdapter& p_wifi) const { return p_wifi.loadCredentials(); }
+    bool operator()(TAdapter& p_wifi) const { return p_wifi.loadCredentials(); }
 };
 
+template<WifiAdaptable TAdapter>
 struct GuMaxAttemptsReached {
-    bool operator()(WifiAdapter& p_wifi) const { return p_wifi.maxReconnectAttemptsReached(); }
+    bool operator()(TAdapter& p_wifi) const { return p_wifi.maxReconnectAttemptsReached(); }
 };
 
 // ****** ACTIONS ******
+
+template<WifiAdaptable TAdapter>
 struct DoAttemptConnect {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         if (!p_wifi.connect()) {
             Serial.println("[WiFi SM] Action: Failed to start WiFi connection attempt!");
             return;
@@ -77,23 +110,26 @@ struct DoAttemptConnect {
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct DoNotifyConnect {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         p_wifi.resetReconnectAttempts();
         Serial.printf("[WiFi SM] Action: WiFi connected, IP: %s\n", p_wifi.getIPAddress().data());
         p_wifi.notifyConnected();
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct DoNotifyDisconnect {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         Serial.println("[WiFi SM] Action: WiFi disconnected");
         p_wifi.notifyDisconnected();
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct DoStartTimer {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         p_wifi.recordReconnectAttempt();
         if (p_wifi.startReconnectTimer()) {
             Serial.printf("[WiFi SM] Action: Start timer for reconnecting (Attempt %d)\n", p_wifi.getReconnectAttempts());
@@ -103,34 +139,37 @@ struct DoStartTimer {
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct DoStartProvisioning {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         Serial.println("[WiFi SM] Action: Notifying start provisioning");
         p_wifi.resetReconnectAttempts();
         p_wifi.notifyStartProvisioning();
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct DoStopProvisioning {
-    void operator()(WifiAdapter& p_wifi) const {
+    void operator()(TAdapter& p_wifi) const {
         Serial.println("[WiFi SM] Action: Notifying stop provisioning");
         p_wifi.notifyStopProvisioning();
     }
 };
 
+template<WifiAdaptable TAdapter>
 struct WifiSm {
     auto operator()() const {
         using namespace sml;
 
-        constexpr auto guCredentialsLoad = GuCredentialsLoad{};
-        constexpr auto guMaxAttemptsReached = GuMaxAttemptsReached{};
+        constexpr auto guCredentialsLoad = GuCredentialsLoad<TAdapter>{};
+        constexpr auto guMaxAttemptsReached = GuMaxAttemptsReached<TAdapter>{};
 
-        constexpr auto doAttemptConnect = DoAttemptConnect{};
-        constexpr auto doNotifyConnect = DoNotifyConnect{};
-        constexpr auto doNotifyDisconnect = DoNotifyDisconnect{};
-        constexpr auto doStartTimer = DoStartTimer{};
-        constexpr auto doStartProvisioning = DoStartProvisioning{};
-        constexpr auto doStopProvisioning = DoStopProvisioning{};
+        constexpr auto doAttemptConnect = DoAttemptConnect<TAdapter>{};
+        constexpr auto doNotifyConnect = DoNotifyConnect<TAdapter>{};
+        constexpr auto doNotifyDisconnect = DoNotifyDisconnect<TAdapter>{};
+        constexpr auto doStartTimer = DoStartTimer<TAdapter>{};
+        constexpr auto doStartProvisioning = DoStartProvisioning<TAdapter>{};
+        constexpr auto doStopProvisioning = DoStopProvisioning<TAdapter>{};
 
         // TRANSITION TABLE: src_state + event [ guard ] / action = dst_state
         return make_transition_table(

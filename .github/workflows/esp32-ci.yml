@@ -52,3 +52,8 @@ jobs:
       - name: Build firmware
         working-directory: iot-esp32-iaq-app
         run: pio run
+
+      # Native unit tests
+      - name: Run unit tests
+        working-directory: iot-esp32-iaq-app
+        run: pio test -e native
