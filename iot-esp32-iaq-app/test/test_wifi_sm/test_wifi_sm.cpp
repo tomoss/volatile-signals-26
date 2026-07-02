@@ -70,6 +70,11 @@ TEST_F(WifiSmTest, IdleStartWithoutCredentialsProvisions) {
 
     EXPECT_TRUE(sm.is(sml::state<StProvisioning>));
     EXPECT_EQ(0, adapter.connectCallCount);
+    // Regression check: this is the cold-boot path (StIdle straight into StProvisioning),
+    // distinct from the StDisconnected -> StProvisioning path after max reconnect attempts.
+    // Both must actually notify - it's easy to wire the action onto only one of the two
+    // transitions in the table and have this one silently do nothing.
+    EXPECT_EQ(1, adapter.notifyStartProvisioningCallCount);
 }
 
 TEST_F(WifiSmTest, ConnectingIsConnectedNotifies) {

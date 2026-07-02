@@ -175,7 +175,7 @@ struct WifiSm {
         return make_transition_table(
             // Initial state -> StIdle
             *state<StIdle> + event<EvReqStart>[guCredentialsLoad] / doAttemptConnect = state<StConnecting>,
-            state<StIdle> + event<EvReqStart>[!guCredentialsLoad] = state<StProvisioning>,
+            state<StIdle> + event<EvReqStart>[!guCredentialsLoad] / doStartProvisioning = state<StProvisioning>,
 
             state<StConnecting> + event<EvIsConnected> / doNotifyConnect = state<StConnected>,
             state<StConnecting> + event<EvIsDisconnected> / doNotifyDisconnect = state<StDisconnected>,
