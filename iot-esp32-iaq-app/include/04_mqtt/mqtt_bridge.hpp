@@ -5,7 +5,7 @@
 #include <functional>
 #include <string_view>
 
-#include <mqtt_client.h>
+#include "00_vendor/mqtt_client.hpp"
 
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
