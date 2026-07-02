@@ -43,13 +43,12 @@ public:
     WifiTypes::Ssid getSSID() const;
 
 private:
-    using StateMachine = boost::sml::sm<WifiSm, boost::sml::logger<WifiSmLogger>>;
+    using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
 
     static void taskEntry(void* parameter);
     void taskLoop();
 
     void handleQueueEvent(const WifiQueueEvent& event);
-
     void postQueueEvent(WifiQueueEventType type);
     void postQueueEvent(const WifiQueueEvent& event);
 
