@@ -12,13 +12,41 @@ on:
       - "iot-backend-iaq/**"
       - ".github/workflows/django-ci.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: iot-backend-iaq
+
     env:
-      DJANGO_SECRET_KEY: ci-test-secret-key
-      DJANGO_DEBUG: "False"
+      SECRET_KEY: ci-test-secret-key
+      DEBUG: "False"
+      POSTGRES_DB: volatile_signals_26
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -30,17 +58,13 @@ jobs:
           cache-dependency-path: iot-backend-iaq/requirements.txt
 
       - name: Install dependencies
-        working-directory: iot-backend-iaq
         run: pip install -r requirements.txt
 
       - name: Check for missing migrations
-        working-directory: iot-backend-iaq
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run Django system checks
-        working-directory: iot-backend-iaq
         run: python manage.py check
 
       - name: Run tests
-        working-directory: iot-backend-iaq
         run: python manage.py test
