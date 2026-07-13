@@ -23,6 +23,7 @@ staticfiles/
 env/
 venv/
 ENV/
+!.env.example
 
 # Testing / coverage
 htmlcov/
