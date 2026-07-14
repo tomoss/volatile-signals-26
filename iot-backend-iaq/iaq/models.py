@@ -1,4 +1,18 @@
 from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+
+from iaq.managers import IaqUserManager
+
+class IaqUser(AbstractBaseUser, PermissionsMixin):
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=40, default="")
+    last_name = models.CharField(max_length=40, default="")
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
+    objects = IaqUserManager()
 
 class Device(models.Model):
     mac = models.CharField(max_length=17, unique=True)
