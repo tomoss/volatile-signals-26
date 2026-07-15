@@ -1,9 +1,10 @@
-from django.shortcuts import render
-from django.views.generic import ListView, TemplateView
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, ListView, TemplateView
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from iaq.models import Device
+from .forms import IaqUserCreationForm
 
 class IaqHomeView(ListView):
     template_name = "iaq/home.html"
@@ -20,6 +21,9 @@ class IaqLoginView(LoginView):
 class IaqAccountView(LoginRequiredMixin, TemplateView):
     template_name = "iaq/account.html"
 
-class IaqRegisterView(TemplateView):
+class IaqRegisterView(CreateView):
     template_name = "iaq/register.html"
+    form_class = IaqUserCreationForm
+    success_url = reverse_lazy("login")
+
 
