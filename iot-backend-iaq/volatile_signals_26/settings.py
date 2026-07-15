@@ -117,6 +117,8 @@ USE_I18N = True
 USE_TZ = True
 
 AUTH_USER_MODEL = 'iaq.IaqUser'
+LOGIN_URL = "account/login/"
+LOGIN_REDIRECT_URL = "account"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
