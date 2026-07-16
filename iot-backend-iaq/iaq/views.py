@@ -78,3 +78,6 @@ class IaqDevicesView(LoginRequiredMixin, ListView):
                 latest.values("pressure")[:1]
             ),
         )
+
+class IaqProfileView(LoginRequiredMixin, TemplateView):
+    template_name = "iaq/profile.html"
