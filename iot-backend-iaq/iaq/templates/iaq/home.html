@@ -5,9 +5,19 @@
 {% block content %}
     <p>Hello, you are at the home page.</p>
     <hr>
-    {% for device in object_list %}
+    {% for device in device_list %}
       <p>Device id: {{device.id}}</p>
       <p>Device name: {{ device.name }}</p>
+      {% if device.latest_timestamp %}
+        <p>Temperature: {{ device.latest_temperature }} °C<br></p>
+        <p>Humidity: {{ device.latest_humidity }} %<br></p>
+        <p>IAQ: {{ device.latest_iaq }}<br></p>
+        <p>Last updated: {{ device.latest_timestamp }}</p>
+    {% else %}
+        <p>No readings yet.</p>
+    {% endif %}
+      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'dashboard' device.id %}'">Dashboard</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'history' device.id %}'">History</button>
       <hr>
     {% endfor %}
 {% endblock %}
