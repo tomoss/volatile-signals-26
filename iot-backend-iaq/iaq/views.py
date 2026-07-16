@@ -16,7 +16,7 @@ class IaqHomeView(ListView):
     def get_queryset(self):
         latest = SensorReading.objects.filter(device=OuterRef("pk")).order_by("-timestamp")
 
-        return Device.objects.annotate(
+        return Device.objects.filter(is_public=True).annotate(
             latest_iaq=Subquery(
                 latest.values("iaq")[:1]
             ),
@@ -52,3 +52,29 @@ class IaqDeviceDashboardView(TemplateView):
 
 class IaqDeviceHistoryView(TemplateView):
     template_name = "iaq/history.html"
+
+class IaqDevicesView(LoginRequiredMixin, ListView):
+    template_name = "iaq/devices.html"
+    model = Device
+    context_object_name = "device_list"
+
+    def get_queryset(self):
+        latest = SensorReading.objects.filter(device=OuterRef("pk")).order_by("-timestamp")
+
+        return Device.objects.filter(user=self.request.user).annotate(
+            latest_iaq=Subquery(
+                latest.values("iaq")[:1]
+            ),
+            latest_timestamp=Subquery(
+                latest.values("timestamp")[:1]
+            ),
+            latest_temperature=Subquery(
+                latest.values("temperature")[:1]
+            ),
+            latest_humidity=Subquery(
+                latest.values("humidity")[:1]
+            ),
+            latest_pressure=Subquery(
+                latest.values("pressure")[:1]
+            ),
+        )

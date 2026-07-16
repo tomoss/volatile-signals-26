@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     path("account/login/", views.IaqLoginView.as_view(), name="login"),
     path("account/register/", views.IaqRegisterView.as_view(), name="register"),
+    path("account/devices/", views.IaqDevicesView.as_view(), name="devices"),
     path("account/", views.IaqAccountView.as_view(), name="account"),
     path("device/<int:device_id>/dashboard/", views.IaqDeviceDashboardView.as_view(), name="dashboard"),
     path("device/<int:device_id>/history/", views.IaqDeviceHistoryView.as_view(), name="history"),
