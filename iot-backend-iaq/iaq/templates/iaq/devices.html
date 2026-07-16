@@ -8,11 +8,11 @@
     {% for device in device_list %}
       <p>Device id: {{device.id}}</p>
       <p>Device name: {{ device.name }}</p>
-      {% if device.latest_timestamp %}
-        <p>Temperature: {{ device.latest_temperature }} °C<br></p>
-        <p>Humidity: {{ device.latest_humidity }} %<br></p>
-        <p>IAQ: {{ device.latest_iaq }}<br></p>
-        <p>Last updated: {{ device.latest_timestamp }}</p>
+      {% if device.latest_reading %}
+        <p>Temperature: {{ device.latest_reading.temperature }} °C<br></p>
+        <p>Humidity: {{ device.latest_reading.humidity }} %<br></p>
+        <p>IAQ: {{ device.latest_reading.iaq }}<br></p>
+        <p>Last updated: {{ device.latest_reading.timestamp }}</p>
     {% else %}
         <p>No readings yet.</p>
     {% endif %}

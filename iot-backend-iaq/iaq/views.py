@@ -6,33 +6,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from iaq.models import Device, SensorReading
 from .forms import IaqUserCreationForm
 
-from django.db.models import OuterRef, Subquery
-
 class IaqHomeView(ListView):
     template_name = "iaq/home.html"
     model = Device
     context_object_name = "device_list"
 
     def get_queryset(self):
-        latest = SensorReading.objects.filter(device=OuterRef("pk")).order_by("-timestamp")
-
-        return Device.objects.filter(is_public=True).annotate(
-            latest_iaq=Subquery(
-                latest.values("iaq")[:1]
-            ),
-            latest_timestamp=Subquery(
-                latest.values("timestamp")[:1]
-            ),
-            latest_temperature=Subquery(
-                latest.values("temperature")[:1]
-            ),
-            latest_humidity=Subquery(
-                latest.values("humidity")[:1]
-            ),
-            latest_pressure=Subquery(
-                latest.values("pressure")[:1]
-            ),
-        )
+        return (Device.objects.filter(is_public=True).select_related("latest_reading"))
 
 class IaqLoginView(LoginView):
     template_name = "iaq/login.html"
@@ -59,25 +39,7 @@ class IaqDevicesView(LoginRequiredMixin, ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        latest = SensorReading.objects.filter(device=OuterRef("pk")).order_by("-timestamp")
-
-        return Device.objects.filter(user=self.request.user).annotate(
-            latest_iaq=Subquery(
-                latest.values("iaq")[:1]
-            ),
-            latest_timestamp=Subquery(
-                latest.values("timestamp")[:1]
-            ),
-            latest_temperature=Subquery(
-                latest.values("temperature")[:1]
-            ),
-            latest_humidity=Subquery(
-                latest.values("humidity")[:1]
-            ),
-            latest_pressure=Subquery(
-                latest.values("pressure")[:1]
-            ),
-        )
+        return (Device.objects.filter(user=self.request.user).select_related("latest_reading"))
 
 class IaqProfileView(LoginRequiredMixin, TemplateView):
     template_name = "iaq/profile.html"
