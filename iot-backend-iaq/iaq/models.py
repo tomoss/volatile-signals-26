@@ -15,9 +15,11 @@ class IaqUser(AbstractBaseUser, PermissionsMixin):
     objects = IaqUserManager()
 
 class Device(models.Model):
+    user = models.ForeignKey(IaqUser, on_delete=models.CASCADE, related_name="devices")
     mac = models.CharField(max_length=17, unique=True)
     name = models.CharField(max_length=100, default="")
     is_public = models.BooleanField(default=False)
+    latest_reading = models.ForeignKey("SensorReading", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
 
 class SensorReading(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="sensor_readings")

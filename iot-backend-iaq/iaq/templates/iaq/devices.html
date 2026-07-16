@@ -1,9 +1,9 @@
 {% extends "iaq/base.html" %}
 
-{% block title %}IAQ - Home{% endblock %}
+{% block title %}IAQ - Your devices{% endblock %}
 
 {% block content %}
-    <p>Hello, you are at the home page.</p>
+    <p>Hello, these are your devices.</p>
     <hr>
     {% for device in device_list %}
       <p>Device id: {{device.id}}</p>

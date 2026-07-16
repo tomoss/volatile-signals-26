@@ -1,6 +1,6 @@
 {% extends "iaq/base.html" %}
 
-{% block title %}IAQ - Home{% endblock %}
+{% block title %}IAQ - Account{% endblock %}
 
 {% block content %}
     <p>Welcome to your account</p>
@@ -8,4 +8,6 @@
       {% csrf_token %}
       <button class="btn btn-primary" type="submit">Logout</button>
     </form>
-{% endblock %}
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'devices' %}'">My devices</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'profile' %}'">My profile</button>
+    {% endblock %}
