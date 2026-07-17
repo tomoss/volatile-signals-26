@@ -18,6 +18,7 @@ public:
     using OnConnectedCallback = std::function<void()>;
     using OnDisconnectedCallback = std::function<void()>;
     using OnCommandCallback = std::function<void(std::string_view p_data)>;
+    using OnOtaCallback = std::function<void(std::string_view p_url)>;
 
     MqttBridge(Storage& p_storage) : m_storage(p_storage) {}
     ~MqttBridge();
@@ -36,6 +37,7 @@ public:
     void setOnConnectedCallback(OnConnectedCallback p_callback) { m_onConnectedCallback = std::move(p_callback); }
     void setOnDisconnectedCallback(OnDisconnectedCallback p_callback) { m_onDisconnectedCallback = std::move(p_callback); }
     void setOnCommandCallback(OnCommandCallback p_callback) { m_onCommandCallback = std::move(p_callback); }
+    void setOnOtaCallback(OnOtaCallback p_callback) { m_onOtaCallback = std::move(p_callback); }
 
     // Will be sent also if not connected, messages will be queued into the outbox and sent when connected.
     void sendSensorData(const SensorData& p_data);
@@ -61,11 +63,13 @@ private:
     MqttTypes::Topic m_infoPubTopic{};
     MqttTypes::Topic m_statusPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};
+    MqttTypes::Topic m_otaSubTopic{};
     bool m_started = false;
     std::atomic<bool> m_connected{false};
     OnConnectedCallback m_onConnectedCallback;
     OnDisconnectedCallback m_onDisconnectedCallback;
     OnCommandCallback m_onCommandCallback;
+    OnOtaCallback m_onOtaCallback;
 };
 
 #endif // MQTT_BRIDGE_HPP
