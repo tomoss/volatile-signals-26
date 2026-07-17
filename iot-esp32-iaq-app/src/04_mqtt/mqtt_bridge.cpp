@@ -148,6 +148,16 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[4],
              l_mac[5]);
 
+    snprintf(m_otaSubTopic.data(),
+             m_otaSubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/ota",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
     m_client = esp_mqtt_client_init(&l_config);
 
     if (!m_client) {
@@ -325,9 +335,11 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
 
     case MQTT_EVENT_DATA: {
         const std::string_view l_topic{p_event->topic, static_cast<size_t>(p_event->topic_len)};
+        const std::string_view l_payload{p_event->data, static_cast<size_t>(p_event->data_len)};
         if (l_topic == m_commandSubTopic.data() && m_onCommandCallback) {
-            const std::string_view l_command{p_event->data, static_cast<size_t>(p_event->data_len)};
-            m_onCommandCallback(l_command);
+            m_onCommandCallback(l_payload);
+        } else if (l_topic == m_otaSubTopic.data() && m_onOtaCallback) {
+            m_onOtaCallback(l_payload);
         }
         break;
     }
@@ -385,6 +397,7 @@ bool MqttBridge::disconnect() {
 void MqttBridge::handleConnected(bool /*p_sessionPresent*/) {
     m_connected.store(true);
     subscribe(m_commandSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
+    subscribe(m_otaSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
 
     constexpr char l_onlinePayload[] = "online";
     publish(m_statusPubTopic, l_onlinePayload, static_cast<int>(sizeof(l_onlinePayload) - 1), 1);

@@ -1,5 +1,10 @@
 #include "00_vendor/arduino.hpp"
 #include "00_vendor/freertos.hpp"
+#include "00_vendor/http_update.hpp"
+
+#include <algorithm>
+#include <atomic>
+#include <cstring>
 
 #include "01_sensor/env_sensor.hpp"
 #include "01_sensor/sensor_data.hpp"
@@ -7,6 +12,7 @@
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
 #include "04_mqtt/mqtt_bridge.hpp"
+#include "04_mqtt/mqtt_types.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
 #include "07_utils/command.hpp"
@@ -40,9 +46,39 @@ struct HealthTaskParams {
     WifiAdapter* wifiAdapter;
 };
 
+// Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
+// s_otaInProgress guards it: only one OTA can be in flight at a time, so the buffer is
+// never written by a new "ota" MQTT message while otaTask is still reading it.
+static MqttTypes::Payload s_otaUrl{};
+static std::atomic<bool> s_otaInProgress{false};
+
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
+static void otaTask(void* pvParameters) {
+    const char* const l_url = static_cast<const char*>(pvParameters);
+
+    WiFiClient l_client;
+    Serial.printf("[OTA] Starting update from %s\n", l_url);
+
+    const t_httpUpdate_return l_result = httpUpdate.update(l_client, l_url);
+
+    switch (l_result) {
+    case HTTP_UPDATE_OK:
+        Serial.println("[OTA] Update OK, rebooting..."); // httpUpdate reboots automatically on success
+        break;
+    case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("[OTA] No update available");
+        break;
+    case HTTP_UPDATE_FAILED:
+        Serial.printf("[OTA] Failed: %s\n", httpUpdate.getLastErrorString().c_str());
+        break;
+    }
+
+    s_otaInProgress.store(false);
+    vTaskDelete(nullptr);
+}
+
 static void healthTask(void* pvParameters) {
     auto* const l_params = static_cast<HealthTaskParams*>(pvParameters);
     auto* const l_mqttBridge = l_params->mqttBridge;
@@ -246,6 +282,29 @@ void setup() {
     mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
             displayController.setMqttStatus(MqttDisplayState{false});
+        }
+    });
+
+    mqttBridge.setOnOtaCallback([l_hasDisplay](std::string_view p_url) {
+        if (s_otaInProgress.exchange(true)) {
+            Serial.println("[OTA] Update already in progress, ignoring");
+            return;
+        }
+
+        Serial.println("[OTA] Preparing for update...");
+        envSensor.requestModeChange(SensorMode::Disabled);
+        if (l_hasDisplay) {
+            displayController.disableDisplay();
+        }
+
+        const size_t l_len = std::min(p_url.size(), s_otaUrl.size() - 1);
+        std::memcpy(s_otaUrl.data(), p_url.data(), l_len);
+        s_otaUrl[l_len] = '\0';
+
+        if (xTaskCreate(otaTask, "ota", 8192, s_otaUrl.data(), 1, nullptr) != pdPASS) {
+            Serial.println("[OTA] Failed to create OTA task");
+            s_otaInProgress.store(false);
+            return;
         }
     });
 
