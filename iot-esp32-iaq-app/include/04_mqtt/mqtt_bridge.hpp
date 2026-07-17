@@ -59,6 +59,7 @@ private:
     MqttTypes::Topic m_sensorPubtopic{};
     MqttTypes::Topic m_healthPubTopic{};
     MqttTypes::Topic m_infoPubTopic{};
+    MqttTypes::Topic m_statusPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};
     bool m_started = false;
     std::atomic<bool> m_connected{false};
