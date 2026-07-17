@@ -13,7 +13,6 @@
 constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
 constexpr int DEFAULT_MQTT_PUB_QOS = 1;                  // QoS level 1
 constexpr int DEFAULT_MQTT_SUB_QOS = 1;                  // QoS level 1
-constexpr int DEFAULT_MQTT_RETAIN = 0;                   // Retain flag
 
 MqttBridge::~MqttBridge() {
     if (m_client) {
@@ -109,6 +108,16 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[4],
              l_mac[5]);
 
+    snprintf(m_infoPubTopic.data(),
+             m_infoPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/info",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
     snprintf(m_commandSubTopic.data(),
              m_commandSubTopic.size(),
              "iaq/%02X:%02X:%02X:%02X:%02X:%02X/command",
@@ -165,7 +174,7 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
     const int l_len =
         snprintf(l_payload.data(),
                  l_payload.size(),
-                 "{\"iaq\":%.2f,\"iaqAccuracy\":%d,\"co2\":%.2f,\"voc\":%.2f,\"temp\":%.2f,\"hum\":%.2f,\"pressure\":%.2f,\"timestamp\":%lld}",
+                 "{\"iaq\":%.2f,\"iaq_accuracy\":%d,\"co2\":%.2f,\"voc\":%.2f,\"temp\":%.2f,\"hum\":%.2f,\"pressure\":%.2f,\"timestamp\":%lld}",
                  p_data.iaq,
                  static_cast<int>(p_data.iaqAccuracy),
                  p_data.co2,
@@ -195,7 +204,7 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
     MqttTypes::Payload l_payload{};
     const int l_len = snprintf(l_payload.data(),
                                l_payload.size(),
-                               "{\"rssi\":%d,\"heap\":%lu,\"minHeap\":%lu,\"uptime\":%lu}",
+                               "{\"rssi\":%d,\"heap\":%lu,\"min_heap\":%lu,\"uptime\":%lu}",
                                p_health.rssi,
                                static_cast<unsigned long>(p_health.heap),
                                static_cast<unsigned long>(p_health.minHeap),
@@ -210,13 +219,41 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
     publish(m_healthPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
-void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len) {
+void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
+    // If not connected, no need to send device info; it'll be resent on the next successful connect.
+    if (!m_connected.load()) {
+        return;
+    }
+
+    MqttTypes::Payload l_payload{};
+    const int l_len = snprintf(l_payload.data(),
+                               l_payload.size(),
+                               "{\"firmware_version\":\"%s\",\"chip_model\":\"%s\",\"chip_revision\":%u,\"chip_cores\":%u,"
+                               "\"reset_reason\":%u}",
+                               p_info.firmwareVersion,
+                               p_info.chipModel,
+                               static_cast<unsigned int>(p_info.chipRevision),
+                               static_cast<unsigned int>(p_info.chipCores),
+                               static_cast<unsigned int>(p_info.resetReason));
+
+    if (l_len < 0) {
+        Serial.println("[MQTT] Failed to serialize device info");
+        return;
+    }
+
+    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    // Retained so the broker hands the last-known info to any late-subscribing client
+    // (e.g. the backend restarting) without waiting for the device's next reconnect.
+    publish(m_infoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
+}
+
+void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain) {
     if (m_client == nullptr) {
         Serial.println("[MQTT] Publish failed: call init() first");
         return;
     }
 
-    int l_result = esp_mqtt_client_publish(m_client, p_topic.data(), p_data, p_len, DEFAULT_MQTT_PUB_QOS, DEFAULT_MQTT_RETAIN);
+    int l_result = esp_mqtt_client_publish(m_client, p_topic.data(), p_data, p_len, DEFAULT_MQTT_PUB_QOS, p_retain);
 
     if (l_result >= 0) {
         Serial.printf("[MQTT] Published to %s, size: %d\n", p_topic.data(), p_len);

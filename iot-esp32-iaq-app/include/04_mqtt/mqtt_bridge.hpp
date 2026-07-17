@@ -11,6 +11,7 @@
 #include "02_storage/storage.hpp"
 #include "04_mqtt/mqtt_types.hpp"
 #include "07_utils/device_health.hpp"
+#include "07_utils/device_info.hpp"
 
 class MqttBridge {
 public:
@@ -40,9 +41,11 @@ public:
     void sendSensorData(const SensorData& p_data);
     // Will be sent only if connected, otherwise ignored. If not connected, no need to send device health data.
     void sendDeviceHealth(const DeviceHealth& p_health);
+    // Static device metadata, sent retained once per connection instead of on the health timer.
+    void sendDeviceInfo(const DeviceInfo& p_info);
 
 private:
-    void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len);
+    void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain = 0);
     void subscribe(const char* p_topic, int p_qos = 0);
 
     static void eventHandler(void* p_arg, esp_event_base_t p_base, int32_t p_eventId, void* p_eventData);
@@ -55,6 +58,7 @@ private:
     Storage& m_storage;
     MqttTypes::Topic m_sensorPubtopic{};
     MqttTypes::Topic m_healthPubTopic{};
+    MqttTypes::Topic m_infoPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};
     bool m_started = false;
     std::atomic<bool> m_connected{false};

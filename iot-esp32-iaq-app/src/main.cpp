@@ -11,7 +11,10 @@
 #include "06_display/display_controller.hpp"
 #include "07_utils/command.hpp"
 #include "07_utils/device_health.hpp"
+#include "07_utils/device_info.hpp"
 #include "07_utils/time_sync.hpp"
+
+#include <esp_system.h>
 
 // Delay duration to wait for board to stabilize
 constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
@@ -110,6 +113,7 @@ static void consumerTask(void* pvParameters) {
 void setup() {
     Serial.begin(115200);
     delay(DELAY_UNTIL_STABLE); // Wait for board to stabilize
+    Serial.println("Firmware version: " FIRMWARE_VERSION);
 
     // Own the shared I2C bus here, then inject it into every device on it (display + sensor)
     // so they share one consistently-clocked bus instead of each calling Wire.begin().
@@ -132,6 +136,13 @@ void setup() {
     static DisplayController displayController(l_wire);
     static MqttBridge mqttBridge(storage);
     static TimeSync timeSync;
+
+    static DeviceInfo deviceInfo;
+    deviceInfo.firmwareVersion = FIRMWARE_VERSION;
+    deviceInfo.chipModel = ESP.getChipModel();
+    deviceInfo.chipRevision = ESP.getChipRevision();
+    deviceInfo.chipCores = ESP.getChipCores();
+    deviceInfo.resetReason = static_cast<uint8_t>(esp_reset_reason());
 
     if (storage.init() == false) {
         Serial.println("Storage init failed, restarting...");
@@ -229,6 +240,7 @@ void setup() {
         if (l_hasDisplay) {
             displayController.setMqttStatus(MqttDisplayState{true});
         }
+        mqttBridge.sendDeviceInfo(deviceInfo);
     });
 
     mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
