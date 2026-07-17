@@ -81,6 +81,16 @@ bool MqttBridge::init(bool p_enableTls) {
     // *** NETWORK CONFIGURATION ***
     l_config.network.reconnect_timeout_ms = DEFAULT_MQTT_RECONNECT_TIMEOUT_MS;
 
+    // *** LAST WILL AND TESTAMENT CONFIGURATION ***
+    // LWT: the broker publishes this retained message on our behalf if it detects an
+    // ungraceful disconnect (crash, power loss, WiFi drop) instead of a clean MQTT disconnect.
+    // msg_len 0 tells esp-mqtt to derive the length from the NULL-terminated msg string.
+    l_config.session.last_will.topic = m_statusPubTopic.data();
+    l_config.session.last_will.msg = "offline";
+    l_config.session.last_will.msg_len = 0;
+    l_config.session.last_will.qos = DEFAULT_MQTT_PUB_QOS;
+    l_config.session.last_will.retain = 1;
+
     // *** TOPICS CREATION ***
 
     // esp_read_mac() reads the factory-burned MAC from eFuse directly, so it's valid
@@ -111,6 +121,16 @@ bool MqttBridge::init(bool p_enableTls) {
     snprintf(m_infoPubTopic.data(),
              m_infoPubTopic.size(),
              "iaq/%02X:%02X:%02X:%02X:%02X:%02X/info",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
+    snprintf(m_statusPubTopic.data(),
+             m_statusPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/status",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -350,6 +370,11 @@ bool MqttBridge::disconnect() {
         return false;
     }
 
+    // A clean MQTT disconnect does NOT trigger the broker's LWT (that only fires on an
+    // ungraceful connection loss), so publish "offline" ourselves before stopping.
+    constexpr char l_offlinePayload[] = "offline";
+    publish(m_statusPubTopic, l_offlinePayload, static_cast<int>(sizeof(l_offlinePayload) - 1), 1);
+
     if (esp_mqtt_client_stop(m_client) != ESP_OK) {
         Serial.println("[MQTT] esp_mqtt_client_stop failed");
         return false;
@@ -360,6 +385,10 @@ bool MqttBridge::disconnect() {
 void MqttBridge::handleConnected(bool /*p_sessionPresent*/) {
     m_connected.store(true);
     subscribe(m_commandSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
+
+    constexpr char l_onlinePayload[] = "online";
+    publish(m_statusPubTopic, l_onlinePayload, static_cast<int>(sizeof(l_onlinePayload) - 1), 1);
+
     if (m_onConnectedCallback) {
         m_onConnectedCallback();
     }
