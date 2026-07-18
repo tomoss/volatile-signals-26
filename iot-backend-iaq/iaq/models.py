@@ -33,11 +33,24 @@ class SensorReading(models.Model):
     timestamp = models.DateTimeField()
 
 class HealthReading(models.Model):
-    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="health_readings")
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="device_health")
     rssi = models.SmallIntegerField()
-    uptime = models.PositiveIntegerField()
     heap = models.PositiveIntegerField()
     min_heap = models.PositiveIntegerField()
-    firmware_version = models.CharField(max_length=40)
-    reset_reason = models.SmallIntegerField(default=0)
+    uptime = models.PositiveIntegerField()
     received_at = models.DateTimeField(auto_now_add=True)
+
+class DeviceInfo(models.Model):
+    device = models.OneToOneField(Device, on_delete=models.CASCADE, related_name="device_info")
+    firmware_version = models.CharField(max_length=40)
+    chip_model = models.CharField(max_length=40)
+    chip_revision = models.PositiveSmallIntegerField()
+    chip_cores = models.PositiveSmallIntegerField()
+    reset_reason = models.SmallIntegerField(default=0)
+    total_heap = models.PositiveIntegerField()
+
+class DeviceStatus(models.Model):
+    device = models.OneToOneField(Device, on_delete=models.CASCADE, related_name="device_status")
+    is_online = models.BooleanField(default=False)
+    received_at = models.DateTimeField(auto_now=True)
+
