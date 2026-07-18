@@ -12,9 +12,11 @@ class TimeSync {
 public:
     bool sync(uint32_t p_timeoutMs = TIME_SYNC_DEFAULT_TIMEOUT_MS);
 
-    // True once sync() has succeeded at least once. Before that, time(nullptr) silently
-    // returns seconds-since-boot (no battery-backed RTC), not a real epoch - callers that
-    // need a trustworthy timestamp should check this rather than assume.
+    // True once sync() has succeeded at least once this boot, i.e. time(nullptr) is
+    // confirmed accurate via NTP. Before that, the system clock may already hold a
+    // plausible epoch seeded from the battery-backed RTC (see Rtc), but that value can be
+    // stale if the device was powered off for a while - callers that need network-confirmed
+    // accuracy should check this rather than assume.
     bool isSynced() const { return m_synced; }
 
 private:
