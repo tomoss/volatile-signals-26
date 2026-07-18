@@ -181,6 +181,7 @@ void setup() {
     deviceInfo.chipRevision = ESP.getChipRevision();
     deviceInfo.chipCores = ESP.getChipCores();
     deviceInfo.resetReason = static_cast<uint8_t>(esp_reset_reason());
+    deviceInfo.totalHeap = ESP.getHeapSize();
 
     if (storage.init() == false) {
         Serial.println("Storage init failed, restarting...");
