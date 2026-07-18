@@ -259,12 +259,13 @@ void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
     const int l_len = snprintf(l_payload.data(),
                                l_payload.size(),
                                "{\"firmware_version\":\"%s\",\"chip_model\":\"%s\",\"chip_revision\":%u,\"chip_cores\":%u,"
-                               "\"reset_reason\":%u}",
+                               "\"reset_reason\":%u,\"total_heap\":%lu}",
                                p_info.firmwareVersion,
                                p_info.chipModel,
                                static_cast<unsigned int>(p_info.chipRevision),
                                static_cast<unsigned int>(p_info.chipCores),
-                               static_cast<unsigned int>(p_info.resetReason));
+                               static_cast<unsigned int>(p_info.resetReason),
+                               static_cast<unsigned long>(p_info.totalHeap));
 
     if (l_len < 0) {
         Serial.println("[MQTT] Failed to serialize device info");
