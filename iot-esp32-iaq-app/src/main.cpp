@@ -18,6 +18,7 @@
 #include "07_utils/command.hpp"
 #include "07_utils/device_health.hpp"
 #include "07_utils/device_info.hpp"
+#include "07_utils/rtc.hpp"
 #include "07_utils/time_sync.hpp"
 
 #include <esp_system.h>
@@ -172,6 +173,7 @@ void setup() {
     static DisplayController displayController(l_wire);
     static MqttBridge mqttBridge(storage);
     static TimeSync timeSync;
+    static RealTimeClock rtc(l_wire);
 
     static DeviceInfo deviceInfo;
     deviceInfo.firmwareVersion = FIRMWARE_VERSION;
@@ -185,6 +187,17 @@ void setup() {
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
+    }
+
+    const bool l_hasRtc = rtc.init();
+    if (!l_hasRtc) {
+        Serial.println("RTC not found (continuing without RTC-backed boot time)");
+    } else if (const auto l_rtcTime = rtc.read()) {
+        const struct timeval l_tv{*l_rtcTime, 0};
+        settimeofday(&l_tv, nullptr);
+        Serial.println("[RTC] Seeded system clock from RTC");
+    } else {
+        Serial.println("[RTC] No valid time on RTC (battery low/never set)");
     }
 
     if (!envSensor.init(SensorMode::LowPower)) {
@@ -222,12 +235,14 @@ void setup() {
         displayController.enableDisplay();
     }
 
-    wifiAdapter.setConnectedCallback([l_hasDisplay] {
+    wifiAdapter.setConnectedCallback([l_hasDisplay, l_hasRtc] {
         Serial.println("WiFi connected callback called");
         if (l_hasDisplay) {
             displayController.setWifiStatus(WifiDisplayState{true});
         }
-        timeSync.sync();
+        if (timeSync.sync() && l_hasRtc) {
+            rtc.write(time(nullptr));
+        }
         mqttBridge.connect();
     });
 
