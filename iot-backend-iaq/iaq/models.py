@@ -38,6 +38,7 @@ class HealthReading(models.Model):
     heap = models.PositiveIntegerField()
     min_heap = models.PositiveIntegerField()
     uptime = models.PositiveIntegerField()
+    timestamp = models.DateTimeField()
     received_at = models.DateTimeField(auto_now_add=True)
 
 class DeviceInfo(models.Model):
