@@ -234,11 +234,12 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
     MqttTypes::Payload l_payload{};
     const int l_len = snprintf(l_payload.data(),
                                l_payload.size(),
-                               "{\"rssi\":%d,\"heap\":%lu,\"min_heap\":%lu,\"uptime\":%lu}",
+                               "{\"rssi\":%d,\"heap\":%lu,\"min_heap\":%lu,\"uptime\":%lu,\"timestamp\":%lld}",
                                p_health.rssi,
                                static_cast<unsigned long>(p_health.heap),
                                static_cast<unsigned long>(p_health.minHeap),
-                               static_cast<unsigned long>(p_health.uptime));
+                               static_cast<unsigned long>(p_health.uptime),
+                               static_cast<long long>(p_health.timestamp));
 
     if (l_len < 0) {
         Serial.println("[MQTT] Failed to serialize device health");

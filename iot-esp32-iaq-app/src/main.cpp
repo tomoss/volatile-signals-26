@@ -91,6 +91,7 @@ static void healthTask(void* pvParameters) {
         l_health.heap = ESP.getFreeHeap();
         l_health.minHeap = ESP.getMinFreeHeap();
         l_health.uptime = millis() / 1000;
+        l_health.timestamp = time(nullptr);
 
         l_mqttBridge->sendDeviceHealth(l_health);
         vTaskDelay(pdMS_TO_TICKS(HEALTH_PUBLISH_INTERVAL_MS));
