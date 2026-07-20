@@ -30,16 +30,22 @@
         {% endif %}
     {% else %}
         <div class="row g-4" id="history-charts">
-            <div class="col-md-6">
-                <div class="card">
+            <div class="col-12">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">IAQ</h5>
+                        <div class="d-flex flex-wrap gap-3 small chart-legend mb-2">
+                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:#0ca30c;"></span> 0–100 Excellent / Good</span>
+                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:#fab219;"></span> 101–200 Lightly / Moderately polluted</span>
+                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:#ec835a;"></span> 201–350 Heavily / Severely polluted</span>
+                            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:#d03b3b;"></span> 351+ Extremely polluted</span>
+                        </div>
                         <canvas id="chart-iaq"></canvas>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">CO2 equivalent (ppm)</h5>
                         <canvas id="chart-co2"></canvas>
@@ -47,7 +53,7 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">VOC equivalent (ppb)</h5>
                         <canvas id="chart-voc"></canvas>
@@ -55,7 +61,7 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">Temperature (°C)</h5>
                         <canvas id="chart-temperature"></canvas>
@@ -63,7 +69,7 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">Humidity (%)</h5>
                         <canvas id="chart-humidity"></canvas>
@@ -71,7 +77,7 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
+                <div class="card chart-card">
                     <div class="card-body">
                         <h5 class="card-title">Pressure (hPa)</h5>
                         <canvas id="chart-pressure"></canvas>

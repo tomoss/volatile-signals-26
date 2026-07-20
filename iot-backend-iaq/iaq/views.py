@@ -38,8 +38,10 @@ class IaqHomeView(ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        return Device.objects.filter(is_public=True).select_related(
-            "latest_sensor_reading", "device_info"
+        return (
+            Device.objects.filter(is_public=True)
+            .select_related("latest_sensor_reading", "device_info")
+            .order_by("name")
         )
 
 
@@ -135,8 +137,10 @@ class IaqDeviceListView(LoginRequiredMixin, ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        return Device.objects.filter(user=self.request.user).select_related(
-            "latest_sensor_reading", "device_info"
+        return (
+            Device.objects.filter(user=self.request.user)
+            .select_related("latest_sensor_reading", "device_info")
+            .order_by("name")
         )
 
 
@@ -203,6 +207,11 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         return Device.objects.filter(user=self.request.user).select_related(
             "latest_health_reading", "device_info", "device_status"
         )
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return ["iaq/device_management_health.html"]
+        return [self.template_name]
 
 
 class IaqDeviceCommandView(LoginRequiredMixin, View):
