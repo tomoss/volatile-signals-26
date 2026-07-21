@@ -18,10 +18,6 @@ class IaqLoginView(LoginView):
     template_name = "iaq/login.html"
     redirect_authenticated_user = True
 
-# TODO: Populate Account page with info, etc
-class IaqAccountView(LoginRequiredMixin, TemplateView):
-    template_name = "iaq/account.html"
-
 class IaqRegisterView(CreateView):
     template_name = "iaq/register.html"
     form_class = IaqUserCreationForm
