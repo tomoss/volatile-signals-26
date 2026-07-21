@@ -1,6 +1,6 @@
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, ListView, TemplateView
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordChangeDoneView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from iaq.models import Device, SensorReading
@@ -33,7 +33,7 @@ class IaqDeviceDashboardView(TemplateView):
 class IaqDeviceHistoryView(TemplateView):
     template_name = "iaq/history.html"
 
-class IaqDevicesView(LoginRequiredMixin, ListView):
+class IaqDeviceListView(LoginRequiredMixin, ListView):
     template_name = "iaq/devices.html"
     model = Device
     context_object_name = "device_list"
@@ -43,3 +43,10 @@ class IaqDevicesView(LoginRequiredMixin, ListView):
 
 class IaqProfileView(LoginRequiredMixin, TemplateView):
     template_name = "iaq/profile.html"
+
+class IaqPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
+    template_name = "iaq/password_change.html"
+    success_url = reverse_lazy("password_change_done")
+
+class IaqPasswordChangeDoneView(LoginRequiredMixin, PasswordChangeDoneView):
+    template_name = "iaq/password_change_done.html"
