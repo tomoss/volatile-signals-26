@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import HealthReading, IaqUser, SensorReading, Device
+from .models import DeviceInfo, DeviceStatus, HealthReading, IaqUser, SensorReading, Device
 
 
 class IaqUserAdmin(admin.ModelAdmin):
@@ -14,3 +14,5 @@ admin.site.register(IaqUser, IaqUserAdmin)
 admin.site.register(Device)
 admin.site.register(SensorReading)
 admin.site.register(HealthReading)
+admin.site.register(DeviceInfo)
+admin.site.register(DeviceStatus)
