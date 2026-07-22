@@ -13,9 +13,14 @@
         <p>Humidity: {{ device.latest_reading.humidity }} %<br></p>
         <p>IAQ: {{ device.latest_reading.iaq }}<br></p>
         <p>Last updated: {{ device.latest_reading.timestamp }}</p>
-    {% else %}
+      {% else %}
         <p>No readings yet.</p>
-    {% endif %}
+      {% endif %}
+      {% if device.device_info %}
+        <p>Firmware version: {{ device.device_info.firmware_version }}</p>
+      {% else %}
+        <p>No device info yet.</p>
+      {% endif %}
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'dashboard' device.id %}'">Dashboard</button>
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'history' device.id %}'">History</button>
       <hr>

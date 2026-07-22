@@ -12,7 +12,7 @@ class IaqHomeView(ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        return (Device.objects.filter(is_public=True).select_related("latest_reading"))
+        return Device.objects.filter(is_public=True).select_related("latest_reading", "device_info")
 
 class IaqLoginView(LoginView):
     template_name = "iaq/login.html"
@@ -39,7 +39,7 @@ class IaqDevicesView(LoginRequiredMixin, ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        return (Device.objects.filter(user=self.request.user).select_related("latest_reading"))
+        return Device.objects.filter(is_public=True).select_related("latest_reading", "device_info")
 
 class IaqProfileView(LoginRequiredMixin, TemplateView):
     template_name = "iaq/profile.html"
