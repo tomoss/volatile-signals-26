@@ -89,7 +89,7 @@ DATABASES = {
 
 # Mqtt client settings
 MQTT_HOST = os.environ.get("MQTT_HOST")
-MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_USERNAME = os.environ.get("MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD") or None
 MQTT_TLS = os.environ.get("MQTT_TLS", "").lower() == "true"
