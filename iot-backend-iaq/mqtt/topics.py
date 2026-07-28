@@ -8,10 +8,16 @@ class Subscription(NamedTuple):
     qos: int
 
 
-SENSOR = "iaq/+/sensor"
-HEALTH = "iaq/+/health"
-INFO = "iaq/+/info"
-STATUS = "iaq/+/status"
+PREFIX = "iaq/+/"
+SENSOR_TOPIC_NAME = "sensor"
+HEALTH_TOPIC_NAME = "health"
+INFO_TOPIC_NAME = "info"
+STATUS_TOPIC_NAME = "status"
+
+SENSOR = PREFIX + SENSOR_TOPIC_NAME
+HEALTH = PREFIX + HEALTH_TOPIC_NAME
+INFO = PREFIX + INFO_TOPIC_NAME
+STATUS = PREFIX + STATUS_TOPIC_NAME
 
 QOS_AT_LEAST_ONCE = 1
 
