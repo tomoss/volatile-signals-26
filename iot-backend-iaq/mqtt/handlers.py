@@ -33,7 +33,7 @@ class SensorPayload:
     timestamp: int
 
     @classmethod
-    def parse(cls, payload: bytes) -> "SensorPayload":
+    def fromJsonBytes(cls, payload: bytes) -> "SensorPayload":
         return cls(**json.loads(payload))
 
 
@@ -46,7 +46,7 @@ class HealthPayload:
     timestamp: int
 
     @classmethod
-    def parse(cls, payload: bytes) -> "HealthPayload":
+    def fromJsonBytes(cls, payload: bytes) -> "HealthPayload":
         return cls(**json.loads(payload))
 
 
@@ -60,7 +60,7 @@ class InfoPayload:
     total_heap: int
 
     @classmethod
-    def parse(cls, payload: bytes) -> "InfoPayload":
+    def fromJsonBytes(cls, payload: bytes) -> "InfoPayload":
         return cls(**json.loads(payload))
 
 
@@ -75,18 +75,12 @@ class MessageHandler:
             topics.STATUS_TOPIC_SUFFIX: self._handle_status,
         }
 
-    def handle(self, client, userdata, message) -> None:
+    def on_message(self, client, userdata, message) -> None:
         topic = message.topic
         payload = message.payload
         try:
             parsed_topic = self._parse_topic(topic)
-            handler = self._handlers.get(parsed_topic.message_type)
-            if handler is None:
-                logger.warning(
-                    "No handler available for this message type in topic: %s", topic
-                )
-                return
-
+            handler = self._handlers.get(parsed_topic.message_type, self._handle_unknown)
             handler(parsed_topic.mac, payload)
         except (
             ValueError,
@@ -104,13 +98,16 @@ class MessageHandler:
             raise ValueError(f"malformed topic: {topic!r}")
         return ParsedTopic(mac=middle, message_type=right)
 
+    def _handle_unknown(self, mac: str, payload: bytes) -> None:
+        logger.warning("No handler available for this message type from device: %s", mac)
+
     @staticmethod
     @lru_cache(maxsize=10)
     def _get_device_id(mac: str) -> int:
         return Device.objects.only("id").get(mac=mac).id
 
     def _handle_sensor(self, mac: str, payload: bytes) -> None:
-        data = SensorPayload.parse(payload)
+        data = SensorPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
 
@@ -132,7 +129,7 @@ class MessageHandler:
             ).update(latest_reading=sensor_reading)
 
     def _handle_health(self, mac: str, payload: bytes) -> None:
-        data = HealthPayload.parse(payload)
+        data = HealthPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
 
@@ -146,7 +143,7 @@ class MessageHandler:
         )
 
     def _handle_info(self, mac: str, payload: bytes) -> None:
-        data = InfoPayload.parse(payload)
+        data = InfoPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
 
         DeviceInfo.objects.update_or_create(

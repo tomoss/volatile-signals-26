@@ -34,7 +34,7 @@ class Command(BaseCommand):
             self._client.on_connect = self._on_connect
             self._client.on_disconnect = self._on_disconnect
             self._client.on_subscribe = self._on_subscribe
-            self._client.on_message = self._handler.handle
+            self._client.on_message = self._handler.on_message
 
             signal.signal(signal.SIGINT, self._shutdown)
             signal.signal(signal.SIGTERM, self._shutdown)
