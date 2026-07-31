@@ -11,6 +11,7 @@ on:
     paths:
       - "iot-backend-iaq/**"
       - ".github/workflows/django-ci.yml"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
