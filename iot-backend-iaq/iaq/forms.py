@@ -1,6 +1,8 @@
-from django.contrib.auth.forms import UserCreationForm
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+
 from iaq.models import IaqUser
+
 
 class IaqUserCreationForm(UserCreationForm):
     email = forms.EmailField(
