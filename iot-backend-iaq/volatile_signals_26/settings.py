@@ -82,8 +82,17 @@ DATABASES = {
         'PASSWORD': os.environ['POSTGRES_PASSWORD'],
         'HOST': os.environ['POSTGRES_HOST'],
         'PORT': os.environ['POSTGRES_PORT'],
+        "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
     }
 }
+
+# Mqtt client settings
+MQTT_HOST = os.environ.get("MQTT_HOST")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+MQTT_USERNAME = os.environ.get("MQTT_USERNAME") or None
+MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD") or None
+MQTT_TLS = os.environ.get("MQTT_TLS", "").lower() == "true"
 
 
 # Password validation
@@ -123,4 +132,18 @@ LOGIN_REDIRECT_URL = "profile"
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
