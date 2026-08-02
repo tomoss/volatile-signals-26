@@ -56,6 +56,20 @@ static std::atomic<bool> s_otaInProgress{false};
 /*****************************************************************/
 /* Tasks                                                         */
 /*****************************************************************/
+// esp_mqtt_client_stop() cannot be called from the MQTT event task itself, so the reboot
+// command hands the actual disconnect + restart off to this separate task. The delay before
+// disconnecting lets the MQTT task's own loop flush the QoS1 PUBACK for the command over the
+// socket first; otherwise the persistent session sees it as unacknowledged and redelivers it
+// on reconnect, rebooting the device again in an infinite loop.
+static void rebootTask(void* pvParameters) {
+    auto* const l_mqttBridge = static_cast<MqttBridge*>(pvParameters);
+
+    vTaskDelay(pdMS_TO_TICKS(200));
+    l_mqttBridge->disconnect();
+    vTaskDelay(pdMS_TO_TICKS(200));
+    esp_restart();
+}
+
 static void otaTask(void* pvParameters) {
     const char* const l_url = static_cast<const char*>(pvParameters);
 
@@ -328,8 +342,12 @@ void setup() {
     mqttBridge.setOnCommandCallback([](std::string_view p_data) {
         switch (parseCommand(p_data)) {
         case Command::Reboot:
+            if (s_otaInProgress.load()) {
+                Serial.println("[CMD] Ignoring reboot: OTA update in progress");
+                return;
+            }
             Serial.println("[CMD] Rebooting...");
-            esp_restart();
+            xTaskCreate(rebootTask, "reboot", 4096, &mqttBridge, 1, nullptr);
             return;
         case Command::SensorLowPower:
             Serial.println("[CMD] Switching sensor to Low Power mode");
