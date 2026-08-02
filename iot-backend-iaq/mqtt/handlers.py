@@ -80,7 +80,9 @@ class MessageHandler:
         payload = message.payload
         try:
             parsed_topic = self._parse_topic(topic)
-            handler = self._handlers.get(parsed_topic.message_type, self._handle_unknown)
+            handler = self._handlers.get(
+                parsed_topic.message_type, self._handle_unknown
+            )
             handler(parsed_topic.mac, payload)
         except (
             ValueError,
@@ -99,7 +101,9 @@ class MessageHandler:
         return ParsedTopic(mac=middle, message_type=right)
 
     def _handle_unknown(self, mac: str, payload: bytes) -> None:
-        logger.warning("No handler available for this message type from device: %s", mac)
+        logger.warning(
+            "No handler available for this message type from device: %s", mac
+        )
 
     @staticmethod
     @lru_cache(maxsize=10)
@@ -124,23 +128,28 @@ class MessageHandler:
                 timestamp=timestamp,
             )
             Device.objects.filter(pk=device_id).filter(
-                Q(latest_reading__isnull=True)
-                | Q(latest_reading__timestamp__lte=timestamp)
-            ).update(latest_reading=sensor_reading)
+                Q(latest_sensor_reading__isnull=True)
+                | Q(latest_sensor_reading__timestamp__lte=timestamp)
+            ).update(latest_sensor_reading=sensor_reading)
 
     def _handle_health(self, mac: str, payload: bytes) -> None:
         data = HealthPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
 
-        HealthReading.objects.create(
-            device_id=device_id,
-            rssi=data.rssi,
-            heap=data.heap,
-            min_heap=data.min_heap,
-            uptime=data.uptime,
-            timestamp=timestamp,
-        )
+        with transaction.atomic():
+            HealthReading.objects.create(
+                device_id=device_id,
+                rssi=data.rssi,
+                heap=data.heap,
+                min_heap=data.min_heap,
+                uptime=data.uptime,
+                timestamp=timestamp,
+            )
+            Device.objects.filter(pk=device_id).filter(
+                Q(latest_health_reading__isnull=True)
+                | Q(latest_health_reading__timestamp__lte=timestamp)
+            ).update(latest_health_reading=HealthReading.objects.latest("timestamp"))
 
     def _handle_info(self, mac: str, payload: bytes) -> None:
         data = InfoPayload.fromJsonBytes(payload)
