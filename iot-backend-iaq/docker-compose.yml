@@ -1,10 +1,7 @@
 services:
   db:
     image: postgres:17
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,14 +12,7 @@ services:
 
   web:
     build: .
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      SECRET_KEY: ${SECRET_KEY}
-      DEBUG: ${DEBUG}
+    env_file: .env
     volumes:
       - .:/app
     ports:
@@ -35,19 +25,7 @@ services:
     build: .
     command: mqtt
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      SECRET_KEY: ${SECRET_KEY}
-      DEBUG: ${DEBUG}
-      MQTT_HOST: ${MQTT_HOST}
-      MQTT_PORT: ${MQTT_PORT}
-      MQTT_USERNAME: ${MQTT_USERNAME}
-      MQTT_PASSWORD: ${MQTT_PASSWORD}
-      MQTT_TLS: ${MQTT_TLS}
+    env_file: .env
     volumes:
       - .:/app
     depends_on:
