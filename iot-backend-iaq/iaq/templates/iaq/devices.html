@@ -23,6 +23,7 @@
       {% endif %}
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'dashboard' device.id %}'">Dashboard</button>
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'history' device.id %}'">History</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'device_management' device.id %}'">Device Management</button>
       <hr>
     {% endfor %}
 {% endblock %}

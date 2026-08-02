@@ -5,9 +5,9 @@ from django.contrib.auth.views import (
     PasswordChangeView,
 )
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView, TemplateView
+from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
-from iaq.models import Device, SensorReading
+from iaq.models import Device
 
 from .forms import IaqUserCreationForm
 
@@ -64,3 +64,15 @@ class IaqPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
 
 class IaqPasswordChangeDoneView(LoginRequiredMixin, PasswordChangeDoneView):
     template_name = "iaq/password_change_done.html"
+
+
+class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
+    template_name = "iaq/device_management.html"
+    model = Device
+    pk_url_kwarg = "device_id"
+    context_object_name = "device"
+
+    def get_queryset(self):
+        return Device.objects.select_related(
+            "latest_health_reading", "device_info", "device_status"
+        )
