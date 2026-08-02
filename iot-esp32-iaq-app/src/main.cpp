@@ -47,11 +47,16 @@ struct HealthTaskParams {
     WifiAdapter* wifiAdapter;
 };
 
-// Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
-// s_otaInProgress guards it: only one OTA can be in flight at a time, so the buffer is
+// Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request. Only
+// one OTA can be in flight at a time (guarded by s_lifecycleInProgress below), so the buffer is
 // never written by a new "ota" MQTT message while otaTask is still reading it.
 static MqttTypes::Payload s_otaUrl{};
-static std::atomic<bool> s_otaInProgress{false};
+
+// Claimed atomically (exchange, not load-then-act) by whichever of OTA or reboot gets there
+// first, so a reboot command can't be accepted, wait out its pre-restart delay, and then
+// stomp on an OTA that started during that window - and so repeated/duplicate reboot
+// deliveries can't each spawn their own rebootTask.
+static std::atomic<bool> s_lifecycleInProgress{false};
 
 /*****************************************************************/
 /* Tasks                                                         */
@@ -93,7 +98,7 @@ static void otaTask(void* pvParameters) {
         break;
     }
 
-    s_otaInProgress.store(false);
+    s_lifecycleInProgress.store(false);
     vTaskDelete(nullptr);
 }
 
@@ -320,8 +325,8 @@ void setup() {
     });
 
     mqttBridge.setOnOtaCallback([l_hasDisplay](std::string_view p_url) {
-        if (s_otaInProgress.exchange(true)) {
-            Serial.println("[OTA] Update already in progress, ignoring");
+        if (s_lifecycleInProgress.exchange(true)) {
+            Serial.println("[OTA] Update or reboot already in progress, ignoring");
             return;
         }
 
@@ -337,7 +342,7 @@ void setup() {
 
         if (xTaskCreate(otaTask, "ota", 8192, s_otaUrl.data(), 1, nullptr) != pdPASS) {
             Serial.println("[OTA] Failed to create OTA task");
-            s_otaInProgress.store(false);
+            s_lifecycleInProgress.store(false);
             return;
         }
     });
@@ -345,14 +350,15 @@ void setup() {
     mqttBridge.setOnCommandCallback([](std::string_view p_data) {
         switch (parseCommand(p_data)) {
         case Command::Reboot:
-            if (s_otaInProgress.load()) {
-                Serial.println("[CMD] Ignoring reboot: OTA update in progress");
+            if (s_lifecycleInProgress.exchange(true)) {
+                Serial.println("[CMD] Ignoring reboot: OTA update or reboot already in progress");
                 return;
             }
             Serial.println("[CMD] Rebooting...");
             // Not falling back to esp_restart() here - that would reintroduce the redelivery boot loop.
             if (xTaskCreate(rebootTask, "reboot", 4096, &mqttBridge, 1, nullptr) != pdPASS) {
                 Serial.println("[CMD] Failed to create reboot task, reboot not performed");
+                s_lifecycleInProgress.store(false);
             }
             return;
         case Command::SensorLowPower:
