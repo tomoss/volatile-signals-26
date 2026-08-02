@@ -233,3 +233,8 @@ class IaqSensorUltraLowPowerView(IaqDeviceCommandView):
     command = "sensor_ulp"
     success_message = "Ultra low power command sent."
     error_message = "Failed to send ultra low power command; broker unreachable."
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return ["iaq/_device_health_status.html"]
+        return [self.template_name]
