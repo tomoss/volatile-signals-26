@@ -65,9 +65,12 @@ static void rebootTask(void* pvParameters) {
     auto* const l_mqttBridge = static_cast<MqttBridge*>(pvParameters);
 
     vTaskDelay(pdMS_TO_TICKS(200));
-    l_mqttBridge->disconnect();
+    if (!l_mqttBridge->disconnect()) {
+        Serial.println("[CMD] MQTT disconnect failed, rebooting anyway");
+    }
     vTaskDelay(pdMS_TO_TICKS(200));
     esp_restart();
+    vTaskDelete(nullptr);
 }
 
 static void otaTask(void* pvParameters) {
@@ -347,7 +350,10 @@ void setup() {
                 return;
             }
             Serial.println("[CMD] Rebooting...");
-            xTaskCreate(rebootTask, "reboot", 4096, &mqttBridge, 1, nullptr);
+            // Not falling back to esp_restart() here - that would reintroduce the redelivery boot loop.
+            if (xTaskCreate(rebootTask, "reboot", 4096, &mqttBridge, 1, nullptr) != pdPASS) {
+                Serial.println("[CMD] Failed to create reboot task, reboot not performed");
+            }
             return;
         case Command::SensorLowPower:
             Serial.println("[CMD] Switching sensor to Low Power mode");
