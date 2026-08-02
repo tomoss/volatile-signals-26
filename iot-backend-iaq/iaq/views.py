@@ -19,7 +19,7 @@ class IaqHomeView(ListView):
 
     def get_queryset(self):
         return Device.objects.filter(is_public=True).select_related(
-            "latest_reading", "device_info"
+            "latest_sensor_reading", "device_info"
         )
 
 
@@ -49,7 +49,7 @@ class IaqDeviceListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return Device.objects.filter(is_public=True).select_related(
-            "latest_reading", "device_info"
+            "latest_sensor_reading", "device_info"
         )
 
 
