@@ -138,7 +138,7 @@ class MessageHandler:
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
 
         with transaction.atomic():
-            HealthReading.objects.create(
+            health_reading = HealthReading.objects.create(
                 device_id=device_id,
                 rssi=data.rssi,
                 heap=data.heap,
@@ -149,7 +149,7 @@ class MessageHandler:
             Device.objects.filter(pk=device_id).filter(
                 Q(latest_health_reading__isnull=True)
                 | Q(latest_health_reading__timestamp__lte=timestamp)
-            ).update(latest_health_reading=HealthReading.objects.latest("timestamp"))
+            ).update(latest_health_reading=health_reading)
 
     def _handle_info(self, mac: str, payload: bytes) -> None:
         data = InfoPayload.fromJsonBytes(payload)
