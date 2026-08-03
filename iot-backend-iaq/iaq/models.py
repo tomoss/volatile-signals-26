@@ -81,3 +81,10 @@ class DeviceStatus(models.Model):
     )
     is_online = models.BooleanField(default=False)
     received_at = models.DateTimeField(auto_now=True)
+
+
+class SensorInfo(models.Model):
+    device = models.OneToOneField(
+        Device, on_delete=models.CASCADE, related_name="sensor_info"
+    )
+    mode = models.PositiveSmallIntegerField()

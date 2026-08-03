@@ -44,7 +44,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/sensor", to_bytes(payload)),
+            FakeMessage(f"iaq/{self.device.mac}/sensor_data", to_bytes(payload)),
         )
 
         reading = SensorReading.objects.get()
@@ -88,7 +88,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/sensor", to_bytes(payload)),
+            FakeMessage(f"iaq/{self.device.mac}/sensor_data", to_bytes(payload)),
         )
 
         self.device.refresh_from_db()
@@ -99,7 +99,7 @@ class MessageHandlerTests(TestCase):
             self.handler.on_message(
                 None,
                 None,
-                FakeMessage(f"iaq/{self.device.mac}/sensor", to_bytes("not json")),
+                FakeMessage(f"iaq/{self.device.mac}/sensor_data", to_bytes("not json")),
             )
         self.assertFalse(SensorReading.objects.exists())
 
@@ -109,7 +109,7 @@ class MessageHandlerTests(TestCase):
             self.handler.on_message(
                 None,
                 None,
-                FakeMessage(f"iaq/{self.device.mac}/sensor", to_bytes(payload)),
+                FakeMessage(f"iaq/{self.device.mac}/sensor_data", to_bytes(payload)),
             )
         self.assertFalse(SensorReading.objects.exists())
 
@@ -126,7 +126,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/health", to_bytes(payload)),
+            FakeMessage(f"iaq/{self.device.mac}/device_health", to_bytes(payload)),
         )
 
         reading = HealthReading.objects.get()
@@ -164,7 +164,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/health", to_bytes(payload)),
+            FakeMessage(f"iaq/{self.device.mac}/device_health", to_bytes(payload)),
         )
 
         self.device.refresh_from_db()
@@ -184,7 +184,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/info", to_bytes(payload)),
+            FakeMessage(f"iaq/{self.device.mac}/device_info", to_bytes(payload)),
         )
         info = DeviceInfo.objects.get(device=self.device)
         self.assertEqual(info.firmware_version, "1.0.0")
@@ -195,7 +195,7 @@ class MessageHandlerTests(TestCase):
         self.handler.on_message(
             None,
             None,
-            FakeMessage(f"iaq/{self.device.mac}/status", to_bytes("online")),
+            FakeMessage(f"iaq/{self.device.mac}/device_status", to_bytes("online")),
         )
         status = DeviceStatus.objects.get(device=self.device)
         self.assertTrue(status.is_online)
@@ -205,7 +205,7 @@ class MessageHandlerTests(TestCase):
             self.handler.on_message(
                 None,
                 None,
-                FakeMessage(f"iaq/{self.device.mac}/status", to_bytes("maybe")),
+                FakeMessage(f"iaq/{self.device.mac}/device_status", to_bytes("maybe")),
             )
         self.assertFalse(DeviceStatus.objects.filter(device=self.device).exists())
 
