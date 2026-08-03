@@ -74,5 +74,5 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Device.objects.select_related(
-            "latest_health_reading", "device_info", "device_status"
+            "latest_health_reading", "device_info", "device_status", "sensor_info"
         )
