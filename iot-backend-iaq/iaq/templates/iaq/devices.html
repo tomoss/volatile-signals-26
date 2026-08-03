@@ -8,11 +8,11 @@
     {% for device in device_list %}
       <p>Device id: {{device.id}}</p>
       <p>Device name: {{ device.name }}</p>
-      {% if device.latest_reading %}
-        <p>Temperature: {{ device.latest_reading.temperature }} °C<br></p>
-        <p>Humidity: {{ device.latest_reading.humidity }} %<br></p>
-        <p>IAQ: {{ device.latest_reading.iaq }}<br></p>
-        <p>Last updated: {{ device.latest_reading.timestamp }}</p>
+      {% if device.latest_sensor_reading %}
+        <p>Temperature: {{ device.latest_sensor_reading.temperature }} °C<br></p>
+        <p>Humidity: {{ device.latest_sensor_reading.humidity }} %<br></p>
+        <p>IAQ: {{ device.latest_sensor_reading.iaq }}<br></p>
+        <p>Last updated: {{ device.latest_sensor_reading.timestamp }}</p>
       {% else %}
         <p>No readings yet.</p>
       {% endif %}
@@ -23,6 +23,7 @@
       {% endif %}
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'dashboard' device.id %}'">Dashboard</button>
       <button type="button" class="btn btn-primary" onclick="location.href='{% url 'history' device.id %}'">History</button>
+      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'device_management' device.id %}'">Device Management</button>
       <hr>
     {% endfor %}
 {% endblock %}

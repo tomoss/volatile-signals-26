@@ -28,6 +28,11 @@ urlpatterns = [
         views.IaqDeviceHistoryView.as_view(),
         name="history",
     ),
+    path(
+        "device/<int:device_id>/management/",
+        views.IaqDeviceManagementView.as_view(),
+        name="device_management",
+    ),
     path("logout/", logout_then_login, name="logout"),
     path("", views.IaqHomeView.as_view(), name="home"),
 ]

@@ -21,8 +21,15 @@ class Device(models.Model):
     mac = models.CharField(max_length=17, unique=True)
     name = models.CharField(max_length=100, default="")
     is_public = models.BooleanField(default=False)
-    latest_reading = models.ForeignKey(
+    latest_sensor_reading = models.ForeignKey(
         "SensorReading",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    latest_health_reading = models.ForeignKey(
+        "HealthReading",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

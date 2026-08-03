@@ -53,7 +53,7 @@ class MessageHandlerTests(TestCase):
         self.assertEqual(reading.co2_equivalent, 400.0)
 
         self.device.refresh_from_db()
-        self.assertEqual(self.device.latest_reading_id, reading.id)
+        self.assertEqual(self.device.latest_sensor_reading_id, reading.id)
 
     def test_sensor_ignores_older_out_of_order_message(self):
         newer_timestamp = datetime(2030, 1, 1, tzinfo=UTC)
@@ -70,7 +70,7 @@ class MessageHandlerTests(TestCase):
             accuracy=1,
             timestamp=newer_timestamp,
         )
-        self.device.latest_reading = newer
+        self.device.latest_sensor_reading = newer
         self.device.save()
 
         payload = json.dumps(
@@ -92,7 +92,7 @@ class MessageHandlerTests(TestCase):
         )
 
         self.device.refresh_from_db()
-        self.assertEqual(self.device.latest_reading_id, newer.id)
+        self.assertEqual(self.device.latest_sensor_reading_id, newer.id)
 
     def test_sensor_invalid_json_is_logged_not_raised(self):
         with self.assertLogs("mqtt.handlers", level="WARNING"):
@@ -133,6 +133,42 @@ class MessageHandlerTests(TestCase):
         self.assertEqual(reading.device_id, self.device.id)
         self.assertEqual(reading.rssi, -60)
         self.assertEqual(reading.uptime, 12345)
+
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.latest_health_reading_id, reading.id)
+
+    def test_health_ignores_older_out_of_order_message(self):
+        newer_timestamp = datetime(2030, 1, 1, tzinfo=UTC)
+        older_timestamp = datetime(2020, 1, 1, tzinfo=UTC)
+
+        newer = HealthReading.objects.create(
+            device=self.device,
+            rssi=-50,
+            heap=1000,
+            min_heap=500,
+            uptime=1,
+            timestamp=newer_timestamp,
+        )
+        self.device.latest_health_reading = newer
+        self.device.save()
+
+        payload = json.dumps(
+            {
+                "rssi": -60,
+                "heap": 1000,
+                "min_heap": 500,
+                "uptime": 12345,
+                "timestamp": int(older_timestamp.timestamp()),
+            }
+        )
+        self.handler.on_message(
+            None,
+            None,
+            FakeMessage(f"iaq/{self.device.mac}/health", to_bytes(payload)),
+        )
+
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.latest_health_reading_id, newer.id)
 
     def test_info_creates_reading(self):
         payload = json.dumps(
