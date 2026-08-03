@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <variant>
 
 #include "01_sensor/env_sensor.hpp"
 #include "01_sensor/sensor_data.hpp"
@@ -150,41 +151,49 @@ static void consumerTask(void* pvParameters) {
     auto* const l_mqttBridge = l_params->mqttBridge;
 
     for (;;) {
-        SensorData l_data;
-        if (xQueueReceive(l_envSensor->getQueue(), &l_data, pdMS_TO_TICKS(100))) {
-            Serial.printf("[%lld] "
-                          "IAQ=%.1f(acc:%d) "
-                          "CO2eq=%.0fppm "
-                          "VOCeq=%.2fppm "
-                          "Gas=%.0fΩ "
-                          "T=%.2fC "
-                          "RH=%.2f%% "
-                          "RawT=%.2fC "
-                          "RawRH=%.2f%% "
-                          "P=%.2fhPa\n",
-                          l_data.timestamp,
-                          l_data.iaq,
-                          static_cast<int>(l_data.iaqAccuracy),
-                          l_data.co2,
-                          l_data.voc,
-                          l_data.gas,
-                          l_data.temp,
-                          l_data.hum,
-                          l_data.rawTemp,
-                          l_data.rawHum,
-                          l_data.pressure);
+        SensorEvent l_event;
+        if (!xQueueReceive(l_envSensor->getQueue(), &l_event, pdMS_TO_TICKS(100))) {
+            continue;
+        }
 
-            if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
-                !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
-                l_mqttBridge->sendSensorData(l_data);
+        if (const auto* l_mode = std::get_if<SensorMode>(&l_event)) {
+            l_mqttBridge->sendSensorInfo(*l_mode);
+            continue;
+        }
 
-                if (l_displayController != nullptr) {
-                    EnvDisplayState l_envState;
-                    l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
-                    l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
-                    l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
-                    l_displayController->setEnvironment(l_envState);
-                }
+        const auto& l_data = std::get<SensorData>(l_event);
+        Serial.printf("[%lld] "
+                      "IAQ=%.1f(acc:%d) "
+                      "CO2eq=%.0fppm "
+                      "VOCeq=%.2fppm "
+                      "Gas=%.0fΩ "
+                      "T=%.2fC "
+                      "RH=%.2f%% "
+                      "RawT=%.2fC "
+                      "RawRH=%.2f%% "
+                      "P=%.2fhPa\n",
+                      l_data.timestamp,
+                      l_data.iaq,
+                      static_cast<int>(l_data.iaqAccuracy),
+                      l_data.co2,
+                      l_data.voc,
+                      l_data.gas,
+                      l_data.temp,
+                      l_data.hum,
+                      l_data.rawTemp,
+                      l_data.rawHum,
+                      l_data.pressure);
+
+        if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
+            !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
+            l_mqttBridge->sendSensorData(l_data);
+
+            if (l_displayController != nullptr) {
+                EnvDisplayState l_envState;
+                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
+                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
+                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
+                l_displayController->setEnvironment(l_envState);
             }
         }
     }

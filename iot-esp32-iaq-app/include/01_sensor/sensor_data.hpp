@@ -3,6 +3,9 @@
 
 #include <cmath>
 #include <ctime>
+#include <variant>
+
+#include "01_sensor/sensor_types.hpp"
 
 enum class IAQAccuracy : uint8_t { Unreliable = 0, Low = 1, Medium = 2, High = 3 };
 
@@ -19,5 +22,7 @@ struct SensorData {
     IAQAccuracy iaqAccuracy = IAQAccuracy::Unreliable;
     time_t timestamp = 0;
 };
+
+using SensorEvent = std::variant<SensorData, SensorMode>;
 
 #endif // SENSOR_DATA_HPP

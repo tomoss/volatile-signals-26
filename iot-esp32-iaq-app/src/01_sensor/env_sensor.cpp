@@ -169,7 +169,7 @@ EnvSensor::~EnvSensor() {
 }
 
 bool EnvSensor::init(SensorMode p_mode) {
-    s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorData));
+    s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
 
     if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus)) {
@@ -190,8 +190,8 @@ bool EnvSensor::init(SensorMode p_mode) {
             return;
         }
 
-        SensorData l_data = convertOutputs(p_outputs);
-        xQueueSend(s_sensorQueue, &l_data, TICKS_TO_WAIT);
+        SensorEvent l_event{convertOutputs(p_outputs)};
+        xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
     });
 
     return true;
@@ -295,6 +295,9 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
 
     m_mode = p_mode;
     printMode();
+
+    SensorEvent l_event{m_mode};
+    xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
 
     return true;
 }
