@@ -87,6 +87,10 @@ class IaqDeviceRebootView(LoginRequiredMixin, View):
         device_id = self.kwargs.get("device_id")
         device = Device.objects.get(pk=device_id)
 
+        if not device.device_status.is_online:
+            messages.error(request, "Device is offline.")
+            return redirect("device_management", device_id=device_id)
+
         try:
             publish_command(device.mac, "reboot")
         except (OSError, ValueError):
@@ -95,5 +99,47 @@ class IaqDeviceRebootView(LoginRequiredMixin, View):
             )
         else:
             messages.success(request, "Reboot command sent.")
+
+        return redirect("device_management", device_id=device_id)
+
+
+class IaqSensorLowPowerView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        device_id = self.kwargs.get("device_id")
+        device = Device.objects.get(pk=device_id)
+
+        if not device.device_status.is_online:
+            messages.error(request, "Device is offline.")
+            return redirect("device_management", device_id=device_id)
+
+        try:
+            publish_command(device.mac, "sensor_lp")
+        except (OSError, ValueError):
+            messages.error(
+                request, "Failed to send low power command; broker unreachable."
+            )
+        else:
+            messages.success(request, "Low power command sent.")
+
+        return redirect("device_management", device_id=device_id)
+
+
+class IaqSensorUltraLowPowerView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        device_id = self.kwargs.get("device_id")
+        device = Device.objects.get(pk=device_id)
+
+        if not device.device_status.is_online:
+            messages.error(request, "Device is offline.")
+            return redirect("device_management", device_id=device_id)
+
+        try:
+            publish_command(device.mac, "sensor_ulp")
+        except (OSError, ValueError):
+            messages.error(
+                request, "Failed to send ultra low power command; broker unreachable."
+            )
+        else:
+            messages.success(request, "Ultra low power command sent.")
 
         return redirect("device_management", device_id=device_id)
