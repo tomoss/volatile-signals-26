@@ -36,6 +36,9 @@ constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 // How often to publish device health (RSSI/heap/uptime) - diagnostic data
 constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 
+// Depth of the command queue fed by the MQTT event callback and drained by commandTask.
+constexpr int COMMAND_QUEUE_SIZE = 8;
+
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
@@ -47,11 +50,20 @@ struct HealthTaskParams {
     WifiAdapter* wifiAdapter;
 };
 
+struct CommandTaskParams {
+    EnvSensor* envSensor;
+    MqttBridge* mqttBridge;
+};
+
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
 // s_otaInProgress guards it: only one OTA can be in flight at a time, so the buffer is
 // never written by a new "ota" MQTT message while otaTask is still reading it.
 static MqttTypes::Payload s_otaUrl{};
 static std::atomic<bool> s_otaInProgress{false};
+
+// The MQTT event callback (called on esp-mqtt's own task) only parses and enqueues; the
+// actual command handling runs on commandTask so it never blocks the MQTT client task.
+static QueueHandle_t s_commandQueue = nullptr;
 
 /*****************************************************************/
 /* Tasks                                                         */
@@ -78,6 +90,39 @@ static void otaTask(void* pvParameters) {
 
     s_otaInProgress.store(false);
     vTaskDelete(nullptr);
+}
+
+static void commandTask(void* pvParameters) {
+    auto* const l_params = static_cast<CommandTaskParams*>(pvParameters);
+    auto* const l_envSensor = l_params->envSensor;
+    auto* const l_mqttBridge = l_params->mqttBridge;
+
+    for (;;) {
+        Command l_cmd;
+        if (xQueueReceive(s_commandQueue, &l_cmd, portMAX_DELAY) != pdTRUE) {
+            continue;
+        }
+
+        switch (l_cmd) {
+        case Command::Reboot:
+            Serial.println("[CMD] Rebooting...");
+            l_envSensor->requestModeChange(SensorMode::Disabled);
+            l_mqttBridge->disconnect();
+            esp_restart();
+            break;
+        case Command::SensorLowPower:
+            Serial.println("[CMD] Switching sensor to Low Power mode");
+            l_envSensor->requestModeChange(SensorMode::LowPower);
+            break;
+        case Command::SensorUltraLowPower:
+            Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
+            l_envSensor->requestModeChange(SensorMode::UltraLowPower);
+            break;
+        case Command::Unknown:
+            Serial.printf("[CMD] Unknown command received");
+            break;
+        }
+    }
 }
 
 static void healthTask(void* pvParameters) {
@@ -209,6 +254,12 @@ void setup() {
         esp_restart();
     }
 
+    // Created before wifiManager/mqttBridge can connect, since a command could otherwise
+    // arrive (and be enqueued from the MQTT task) before this exists.
+    s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge};
+    xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
+
     if (!wifiManager.init()) {
         Serial.println("WiFiManager init failed, restarting...");
         Serial.flush();
@@ -326,22 +377,9 @@ void setup() {
     });
 
     mqttBridge.setOnCommandCallback([](std::string_view p_data) {
-        switch (parseCommand(p_data)) {
-        case Command::Reboot:
-            Serial.println("[CMD] Rebooting...");
-            esp_restart();
-            return;
-        case Command::SensorLowPower:
-            Serial.println("[CMD] Switching sensor to Low Power mode");
-            envSensor.requestModeChange(SensorMode::LowPower);
-            return;
-        case Command::SensorUltraLowPower:
-            Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
-            envSensor.requestModeChange(SensorMode::UltraLowPower);
-            return;
-        case Command::Unknown:
-            Serial.printf("[CMD] Unknown command received");
-            return;
+        const Command l_cmd = parseCommand(p_data);
+        if (xQueueSend(s_commandQueue, &l_cmd, 0) != pdTRUE) {
+            Serial.println("[CMD] Command queue full, dropping command");
         }
     });
 

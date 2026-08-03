@@ -389,10 +389,20 @@ bool MqttBridge::disconnect() {
     constexpr char l_offlinePayload[] = "offline";
     publish(m_statusPubTopic, l_offlinePayload, static_cast<int>(sizeof(l_offlinePayload) - 1), 1);
 
+    // Unlike esp_mqtt_client_stop(), esp_mqtt_client_disconnect() blocks until the DISCONNECT
+    // packet (and anything still queued ahead of it, like the offline publish above) has
+    // actually been sent, so the broker sees a graceful close instead of a dropped connection.
+    if (esp_mqtt_client_disconnect(m_client) != ESP_OK) {
+        Serial.println("[MQTT] esp_mqtt_client_disconnect failed");
+        return false;
+    }
+
     if (esp_mqtt_client_stop(m_client) != ESP_OK) {
         Serial.println("[MQTT] esp_mqtt_client_stop failed");
         return false;
     }
+
+    Serial.println("[MQTT] Disconnected cleanly");
     return true;
 }
 
