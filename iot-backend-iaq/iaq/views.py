@@ -1,13 +1,17 @@
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
     PasswordChangeDoneView,
     PasswordChangeView,
 )
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
 from iaq.models import Device
+from mqtt.publisher import publish_command
 
 from .forms import IaqUserCreationForm
 
@@ -76,3 +80,20 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         return Device.objects.select_related(
             "latest_health_reading", "device_info", "device_status", "sensor_info"
         )
+
+
+class IaqDeviceRebootView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        device_id = self.kwargs.get("device_id")
+        device = Device.objects.get(pk=device_id)
+
+        try:
+            publish_command(device.mac, "reboot")
+        except (OSError, ValueError):
+            messages.error(
+                request, "Failed to send reboot command; broker unreachable."
+            )
+        else:
+            messages.success(request, "Reboot command sent.")
+
+        return redirect("device_management", device_id=device_id)

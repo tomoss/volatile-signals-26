@@ -16,5 +16,6 @@
     <p>Last status update: {{ device.device_status.received_at|default:"N/A" }}</p>
     <p>Sensor mode: {{ device.sensor_info.mode|default:"N/A" }}</p>
     <hr>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'reboot_device' device.id %}'">Reboot device</button>
 
 {% endblock %}

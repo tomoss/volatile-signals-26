@@ -33,6 +33,11 @@ urlpatterns = [
         views.IaqDeviceManagementView.as_view(),
         name="device_management",
     ),
+    path(
+        "device/<int:device_id>/reboot/",
+        views.IaqDeviceRebootView.as_view(),
+        name="reboot_device",
+    ),
     path("logout/", logout_then_login, name="logout"),
     path("", views.IaqHomeView.as_view(), name="home"),
 ]
