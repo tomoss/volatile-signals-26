@@ -82,7 +82,11 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         )
 
 
-class IaqDeviceRebootView(LoginRequiredMixin, View):
+class IaqDeviceCommandView(LoginRequiredMixin, View):
+    command = None
+    success_message = None
+    error_message = None
+
     def get(self, request, *args, **kwargs):
         device_id = self.kwargs.get("device_id")
         device = Device.objects.get(pk=device_id)
@@ -91,55 +95,27 @@ class IaqDeviceRebootView(LoginRequiredMixin, View):
             messages.error(request, "Device is offline.")
             return redirect("device_management", device_id=device_id)
 
-        try:
-            publish_command(device.mac, "reboot")
-        except (OSError, ValueError):
-            messages.error(
-                request, "Failed to send reboot command; broker unreachable."
-            )
+        if publish_command(device.mac, self.command):
+            messages.success(request, self.success_message)
         else:
-            messages.success(request, "Reboot command sent.")
+            messages.error(request, self.error_message)
 
         return redirect("device_management", device_id=device_id)
 
 
-class IaqSensorLowPowerView(LoginRequiredMixin, View):
-    def get(self, request, *args, **kwargs):
-        device_id = self.kwargs.get("device_id")
-        device = Device.objects.get(pk=device_id)
-
-        if not device.device_status.is_online:
-            messages.error(request, "Device is offline.")
-            return redirect("device_management", device_id=device_id)
-
-        try:
-            publish_command(device.mac, "sensor_lp")
-        except (OSError, ValueError):
-            messages.error(
-                request, "Failed to send low power command; broker unreachable."
-            )
-        else:
-            messages.success(request, "Low power command sent.")
-
-        return redirect("device_management", device_id=device_id)
+class IaqDeviceRebootView(IaqDeviceCommandView):
+    command = "reboot"
+    success_message = "Reboot command sent."
+    error_message = "Failed to send reboot command; broker unreachable."
 
 
-class IaqSensorUltraLowPowerView(LoginRequiredMixin, View):
-    def get(self, request, *args, **kwargs):
-        device_id = self.kwargs.get("device_id")
-        device = Device.objects.get(pk=device_id)
+class IaqSensorLowPowerView(IaqDeviceCommandView):
+    command = "sensor_lp"
+    success_message = "Low power command sent."
+    error_message = "Failed to send low power command; broker unreachable."
 
-        if not device.device_status.is_online:
-            messages.error(request, "Device is offline.")
-            return redirect("device_management", device_id=device_id)
 
-        try:
-            publish_command(device.mac, "sensor_ulp")
-        except (OSError, ValueError):
-            messages.error(
-                request, "Failed to send ultra low power command; broker unreachable."
-            )
-        else:
-            messages.success(request, "Ultra low power command sent.")
-
-        return redirect("device_management", device_id=device_id)
+class IaqSensorUltraLowPowerView(IaqDeviceCommandView):
+    command = "sensor_ulp"
+    success_message = "Ultra low power command sent."
+    error_message = "Failed to send ultra low power command; broker unreachable."
