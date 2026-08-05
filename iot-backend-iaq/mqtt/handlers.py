@@ -16,7 +16,6 @@ from iaq.models import (
     DeviceInfo,
     DeviceStatus,
     HealthReading,
-    SensorInfo,
     SensorReading,
 )
 from mqtt import topics
@@ -203,7 +202,7 @@ class MessageHandler:
         data = SensorInfoPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
 
-        SensorInfo.objects.update_or_create(
+        DeviceInfo.objects.update_or_create(
             device_id=device_id,
-            defaults={"mode": data.mode},
+            defaults={"sensor_mode": data.mode},
         )

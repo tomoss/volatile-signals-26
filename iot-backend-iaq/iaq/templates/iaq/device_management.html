@@ -14,7 +14,7 @@
     <p>Reset reason: {{ device.device_info.reset_reason|default:"N/A" }}</p>
     <p>Status: {{ device.device_status.is_online|yesno:"Online,Offline" }}</p>
     <p>Last status update: {{ device.device_status.received_at|default:"N/A" }}</p>
-    <p>Sensor mode: {{ device.sensor_info.mode|default:"N/A" }}</p>
+    <p>Sensor mode: {{ device.device_info.sensor_mode|default:"N/A" }}</p>
     <hr>
     <button type="button" class="btn btn-primary" onclick="location.href='{% url 'reboot_device' device.id %}'">Reboot device</button>
     <button type="button" class="btn btn-primary" onclick="location.href='{% url 'set_sensor_low_power' device.id %}'">Low Power Mode</button>

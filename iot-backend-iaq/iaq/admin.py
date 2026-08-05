@@ -6,7 +6,6 @@ from .models import (
     DeviceStatus,
     HealthReading,
     IaqUser,
-    SensorInfo,
     SensorReading,
 )
 
@@ -26,4 +25,3 @@ admin.site.register(SensorReading)
 admin.site.register(HealthReading)
 admin.site.register(DeviceInfo)
 admin.site.register(DeviceStatus)
-admin.site.register(SensorInfo)

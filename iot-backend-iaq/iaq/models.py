@@ -67,12 +67,13 @@ class DeviceInfo(models.Model):
     device = models.OneToOneField(
         Device, on_delete=models.CASCADE, related_name="device_info"
     )
-    firmware_version = models.CharField(max_length=40)
-    chip_model = models.CharField(max_length=40)
-    chip_revision = models.PositiveSmallIntegerField()
-    chip_cores = models.PositiveSmallIntegerField()
+    firmware_version = models.CharField(max_length=40, default="")
+    chip_model = models.CharField(max_length=40, default="")
+    chip_revision = models.PositiveSmallIntegerField(default=0)
+    chip_cores = models.PositiveSmallIntegerField(default=0)
     reset_reason = models.SmallIntegerField(default=0)
-    total_heap = models.PositiveIntegerField()
+    total_heap = models.PositiveIntegerField(default=0)
+    sensor_mode = models.PositiveSmallIntegerField(default=0)
 
 
 class DeviceStatus(models.Model):
@@ -81,10 +82,3 @@ class DeviceStatus(models.Model):
     )
     is_online = models.BooleanField(default=False)
     received_at = models.DateTimeField(auto_now=True)
-
-
-class SensorInfo(models.Model):
-    device = models.OneToOneField(
-        Device, on_delete=models.CASCADE, related_name="sensor_info"
-    )
-    mode = models.PositiveSmallIntegerField()
