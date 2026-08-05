@@ -14,6 +14,14 @@ TEST(ParseCommandTest, SensorUltraLowPowerParses) {
     EXPECT_EQ(Command::SensorUltraLowPower, parseCommand("sensor_ulp"));
 }
 
+TEST(ParseCommandTest, ClaimedParses) {
+    EXPECT_EQ(Command::Claimed, parseCommand("claimed"));
+}
+
+TEST(ParseCommandTest, UnclaimedParses) {
+    EXPECT_EQ(Command::Unclaimed, parseCommand("unclaimed"));
+}
+
 TEST(ParseCommandTest, UnrecognizedStringIsUnknown) {
     EXPECT_EQ(Command::Unknown, parseCommand("not_a_command"));
 }
