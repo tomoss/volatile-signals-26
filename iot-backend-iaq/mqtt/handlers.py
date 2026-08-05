@@ -64,6 +64,7 @@ class DeviceInfoPayload:
     chip_cores: int
     reset_reason: int
     total_heap: int
+    claim_code: str
 
     @classmethod
     def fromJsonBytes(cls, payload: bytes) -> "DeviceInfoPayload":
@@ -182,6 +183,7 @@ class MessageHandler:
                 "chip_cores": data.chip_cores,
                 "reset_reason": data.reset_reason,
                 "total_heap": data.total_heap,
+                "claim_code": data.claim_code,
             },
         )
 

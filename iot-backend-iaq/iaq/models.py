@@ -74,6 +74,7 @@ class DeviceInfo(models.Model):
     reset_reason = models.SmallIntegerField(default=0)
     total_heap = models.PositiveIntegerField(default=0)
     sensor_mode = models.PositiveSmallIntegerField(default=0)
+    claim_code = models.CharField(max_length=6, default="")
 
 
 class DeviceStatus(models.Model):

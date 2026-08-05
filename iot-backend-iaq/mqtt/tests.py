@@ -179,6 +179,7 @@ class MessageHandlerTests(TestCase):
                 "chip_cores": 2,
                 "reset_reason": 1,
                 "total_heap": 200000,
+                "claim_code": "123456",
             }
         )
         self.handler.on_message(
@@ -190,6 +191,7 @@ class MessageHandlerTests(TestCase):
         self.assertEqual(info.firmware_version, "1.0.0")
         self.assertEqual(info.chip_model, "ESP32")
         self.assertEqual(info.total_heap, 200000)
+        self.assertEqual(info.claim_code, "123456")
 
     def test_status_online(self):
         self.handler.on_message(
