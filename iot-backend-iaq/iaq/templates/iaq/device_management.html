@@ -5,33 +5,19 @@
 {% block content %}
     <p>Hello, you are at device management.</p>
     <hr>
-    {% if device.latest_health_reading %}
-      <p>Device RSSI: {{ device.latest_health_reading.rssi }}</p>
-      <p>Device uptime: {{ device.latest_health_reading.uptime }}</p>
-      <p>Heap: {{ device.latest_health_reading.heap }}</p>
-      <p>Min heap: {{ device.latest_health_reading.min_heap }}</p>
-      <p>Last received: {{ device.latest_health_reading.received_at }}</p>
-    {% else %}
-      <p>Device RSSI: N/A</p>
-      <p>Device uptime: N/A</p>
-      <p>Heap: N/A</p>
-      <p>Min heap: N/A</p>
-      <p>Last received: N/A</p>
-    {% endif %}
-    {% if device.device_info %}
-      <p>Firmware version: {{ device.device_info.firmware_version }}</p>
-      <p>Reset reason: {{ device.device_info.reset_reason }}</p>
-    {% else %}
-      <p>Firmware version: N/A</p>
-      <p>Reset reason: N/A</p>
-    {% endif %}
-    {% if device.device_status %}
-      <p>Status: {{ device.device_status.is_online|yesno:"Online,Offline" }}</p>
-      <p>Last status update: {{ device.device_status.received_at }}</p>
-    {% else %}
-      <p>Status: N/A</p>
-      <p>Last status update: N/A</p>
-    {% endif %}
+    <p>Device RSSI: {{ device.latest_health_reading.rssi|default:"N/A" }}</p>
+    <p>Device uptime: {{ device.latest_health_reading.uptime|default:"N/A" }}</p>
+    <p>Heap: {{ device.latest_health_reading.heap|default:"N/A" }}</p>
+    <p>Min heap: {{ device.latest_health_reading.min_heap|default:"N/A" }}</p>
+    <p>Last received: {{ device.latest_health_reading.received_at|default:"N/A" }}</p>
+    <p>Firmware version: {{ device.device_info.firmware_version|default:"N/A" }}</p>
+    <p>Reset reason: {{ device.device_info.reset_reason|default:"N/A" }}</p>
+    <p>Status: {{ device.device_status.is_online|yesno:"Online,Offline" }}</p>
+    <p>Last status update: {{ device.device_status.received_at|default:"N/A" }}</p>
+    <p>Sensor mode: {{ device.device_info.sensor_mode|default:"N/A" }}</p>
     <hr>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'reboot_device' device.id %}'">Reboot device</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'set_sensor_low_power' device.id %}'">Low Power Mode</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'set_sensor_ultra_low_power' device.id %}'">Ultra Low Power Mode</button>
 
 {% endblock %}

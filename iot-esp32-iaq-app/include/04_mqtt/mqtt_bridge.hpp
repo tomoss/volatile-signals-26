@@ -8,6 +8,7 @@
 #include <mqtt_client.h>
 
 #include "01_sensor/sensor_data.hpp"
+#include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
 #include "04_mqtt/mqtt_types.hpp"
 #include "07_utils/device_health.hpp"
@@ -45,6 +46,9 @@ public:
     void sendDeviceHealth(const DeviceHealth& p_health);
     // Static device metadata, sent retained once per connection instead of on the health timer.
     void sendDeviceInfo(const DeviceInfo& p_info);
+    // Sent retained whenever the sensor's mode actually changes, so a late subscriber immediately
+    // learns the current mode instead of waiting for the next reading.
+    void sendSensorInfo(SensorMode p_mode);
 
 private:
     void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain = 0);
@@ -58,10 +62,11 @@ private:
 
     esp_mqtt_client_handle_t m_client = nullptr;
     Storage& m_storage;
-    MqttTypes::Topic m_sensorPubtopic{};
-    MqttTypes::Topic m_healthPubTopic{};
-    MqttTypes::Topic m_infoPubTopic{};
-    MqttTypes::Topic m_statusPubTopic{};
+    MqttTypes::Topic m_sensorDataPubTopic{};
+    MqttTypes::Topic m_deviceHealthPubTopic{};
+    MqttTypes::Topic m_deviceInfoPubTopic{};
+    MqttTypes::Topic m_sensorInfoPubTopic{};
+    MqttTypes::Topic m_deviceStatusPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};
     MqttTypes::Topic m_otaSubTopic{};
     bool m_started = false;

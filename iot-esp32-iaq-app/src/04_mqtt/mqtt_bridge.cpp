@@ -85,7 +85,7 @@ bool MqttBridge::init(bool p_enableTls) {
     // LWT: the broker publishes this retained message on our behalf if it detects an
     // ungraceful disconnect (crash, power loss, WiFi drop) instead of a clean MQTT disconnect.
     // msg_len 0 tells esp-mqtt to derive the length from the NULL-terminated msg string.
-    l_config.session.last_will.topic = m_statusPubTopic.data();
+    l_config.session.last_will.topic = m_deviceStatusPubTopic.data();
     l_config.session.last_will.msg = "offline";
     l_config.session.last_will.msg_len = 0;
     l_config.session.last_will.qos = DEFAULT_MQTT_PUB_QOS;
@@ -98,9 +98,9 @@ bool MqttBridge::init(bool p_enableTls) {
     std::array<uint8_t, 6> l_mac{};
     esp_read_mac(l_mac.data(), ESP_MAC_WIFI_STA);
 
-    snprintf(m_sensorPubtopic.data(),
-             m_sensorPubtopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor",
+    snprintf(m_sensorDataPubTopic.data(),
+             m_sensorDataPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor_data",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -108,9 +108,9 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[4],
              l_mac[5]);
 
-    snprintf(m_healthPubTopic.data(),
-             m_healthPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/health",
+    snprintf(m_deviceHealthPubTopic.data(),
+             m_deviceHealthPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_health",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -118,9 +118,9 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[4],
              l_mac[5]);
 
-    snprintf(m_infoPubTopic.data(),
-             m_infoPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/info",
+    snprintf(m_deviceInfoPubTopic.data(),
+             m_deviceInfoPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_info",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -128,9 +128,19 @@ bool MqttBridge::init(bool p_enableTls) {
              l_mac[4],
              l_mac[5]);
 
-    snprintf(m_statusPubTopic.data(),
-             m_statusPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/status",
+    snprintf(m_sensorInfoPubTopic.data(),
+             m_sensorInfoPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor_info",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
+    snprintf(m_deviceStatusPubTopic.data(),
+             m_deviceStatusPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_status",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -222,7 +232,7 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
     // snprintf returns the length it would have written even if truncated, so clamp to what
     // actually fits in the buffer (size() - 1, since one byte is reserved for the null terminator).
     const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
-    publish(m_sensorPubtopic, l_payload.data(), static_cast<int>(l_payloadLen));
+    publish(m_sensorDataPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
 void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
@@ -247,7 +257,7 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
     }
 
     const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
-    publish(m_healthPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
+    publish(m_deviceHealthPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
 void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
@@ -276,7 +286,22 @@ void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
     const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
     // Retained so the broker hands the last-known info to any late-subscribing client
     // (e.g. the backend restarting) without waiting for the device's next reconnect.
-    publish(m_infoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
+    publish(m_deviceInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
+}
+
+void MqttBridge::sendSensorInfo(SensorMode p_mode) {
+    MqttTypes::Payload l_payload{};
+    const int l_len = snprintf(l_payload.data(), l_payload.size(), "{\"mode\":%d}", static_cast<int>(p_mode));
+
+    if (l_len < 0) {
+        Serial.println("[MQTT] Failed to serialize sensor info");
+        return;
+    }
+
+    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    // Retained so a late-subscribing client immediately learns the current mode instead of
+    // waiting for it to change again.
+    publish(m_sensorInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
 }
 
 void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain) {
@@ -387,12 +412,22 @@ bool MqttBridge::disconnect() {
     // A clean MQTT disconnect does NOT trigger the broker's LWT (that only fires on an
     // ungraceful connection loss), so publish "offline" ourselves before stopping.
     constexpr char l_offlinePayload[] = "offline";
-    publish(m_statusPubTopic, l_offlinePayload, static_cast<int>(sizeof(l_offlinePayload) - 1), 1);
+    publish(m_deviceStatusPubTopic, l_offlinePayload, static_cast<int>(sizeof(l_offlinePayload) - 1), 1);
+
+    // Unlike esp_mqtt_client_stop(), esp_mqtt_client_disconnect() blocks until the DISCONNECT
+    // packet (and anything still queued ahead of it, like the offline publish above) has
+    // actually been sent, so the broker sees a graceful close instead of a dropped connection.
+    if (esp_mqtt_client_disconnect(m_client) != ESP_OK) {
+        Serial.println("[MQTT] esp_mqtt_client_disconnect failed");
+        return false;
+    }
 
     if (esp_mqtt_client_stop(m_client) != ESP_OK) {
         Serial.println("[MQTT] esp_mqtt_client_stop failed");
         return false;
     }
+
+    Serial.println("[MQTT] Disconnected cleanly");
     return true;
 }
 
@@ -402,7 +437,7 @@ void MqttBridge::handleConnected(bool /*p_sessionPresent*/) {
     subscribe(m_otaSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
 
     constexpr char l_onlinePayload[] = "online";
-    publish(m_statusPubTopic, l_onlinePayload, static_cast<int>(sizeof(l_onlinePayload) - 1), 1);
+    publish(m_deviceStatusPubTopic, l_onlinePayload, static_cast<int>(sizeof(l_onlinePayload) - 1), 1);
 
     if (m_onConnectedCallback) {
         m_onConnectedCallback();

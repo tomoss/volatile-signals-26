@@ -1,13 +1,17 @@
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
     PasswordChangeDoneView,
     PasswordChangeView,
 )
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
 from iaq.models import Device
+from mqtt.publisher import publish_command
 
 from .forms import IaqUserCreationForm
 
@@ -76,3 +80,42 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         return Device.objects.select_related(
             "latest_health_reading", "device_info", "device_status"
         )
+
+
+class IaqDeviceCommandView(LoginRequiredMixin, View):
+    command = None
+    success_message = None
+    error_message = None
+
+    def get(self, request, *args, **kwargs):
+        device_id = self.kwargs.get("device_id")
+        device = Device.objects.get(pk=device_id)
+
+        if not device.device_status.is_online:
+            messages.error(request, "Device is offline.")
+            return redirect("device_management", device_id=device_id)
+
+        if publish_command(device.mac, self.command):
+            messages.success(request, self.success_message)
+        else:
+            messages.error(request, self.error_message)
+
+        return redirect("device_management", device_id=device_id)
+
+
+class IaqDeviceRebootView(IaqDeviceCommandView):
+    command = "reboot"
+    success_message = "Reboot command sent."
+    error_message = "Failed to send reboot command; broker unreachable."
+
+
+class IaqSensorLowPowerView(IaqDeviceCommandView):
+    command = "sensor_lp"
+    success_message = "Low power command sent."
+    error_message = "Failed to send low power command; broker unreachable."
+
+
+class IaqSensorUltraLowPowerView(IaqDeviceCommandView):
+    command = "sensor_ulp"
+    success_message = "Ultra low power command sent."
+    error_message = "Failed to send ultra low power command; broker unreachable."

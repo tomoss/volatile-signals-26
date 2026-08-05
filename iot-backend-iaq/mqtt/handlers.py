@@ -11,7 +11,13 @@ from functools import lru_cache
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
-from iaq.models import Device, DeviceInfo, DeviceStatus, HealthReading, SensorReading
+from iaq.models import (
+    Device,
+    DeviceInfo,
+    DeviceStatus,
+    HealthReading,
+    SensorReading,
+)
 from mqtt import topics
 
 logger = logging.getLogger(__name__)
@@ -51,7 +57,7 @@ class HealthPayload:
 
 
 @dataclass
-class InfoPayload:
+class DeviceInfoPayload:
     firmware_version: str
     chip_model: str
     chip_revision: int
@@ -60,7 +66,16 @@ class InfoPayload:
     total_heap: int
 
     @classmethod
-    def fromJsonBytes(cls, payload: bytes) -> "InfoPayload":
+    def fromJsonBytes(cls, payload: bytes) -> "DeviceInfoPayload":
+        return cls(**json.loads(payload))
+
+
+@dataclass
+class SensorInfoPayload:
+    mode: int
+
+    @classmethod
+    def fromJsonBytes(cls, payload: bytes) -> "SensorInfoPayload":
         return cls(**json.loads(payload))
 
 
@@ -69,10 +84,11 @@ class MessageHandler:
 
     def __init__(self):
         self._handlers: dict[str, Handler] = {
-            topics.SENSOR_TOPIC_SUFFIX: self._handle_sensor,
-            topics.HEALTH_TOPIC_SUFFIX: self._handle_health,
-            topics.INFO_TOPIC_SUFFIX: self._handle_info,
-            topics.STATUS_TOPIC_SUFFIX: self._handle_status,
+            topics.SENSOR_DATA_TOPIC_SUFFIX: self._handle_sensor_data,
+            topics.SENSOR_INFO_TOPIC_SUFFIX: self._handle_sensor_info,
+            topics.DEVICE_HEALTH_TOPIC_SUFFIX: self._handle_device_health,
+            topics.DEVICE_INFO_TOPIC_SUFFIX: self._handle_device_info,
+            topics.DEVICE_STATUS_TOPIC_SUFFIX: self._handle_device_status,
         }
 
     def on_message(self, client, userdata, message) -> None:
@@ -102,7 +118,9 @@ class MessageHandler:
 
     def _handle_unknown(self, mac: str, payload: bytes) -> None:
         logger.warning(
-            "No handler available for this message type from device: %s", mac
+            "No handler available for this message (%s) from device: %s",
+            payload,
+            mac,
         )
 
     @staticmethod
@@ -110,7 +128,7 @@ class MessageHandler:
     def _get_device_id(mac: str) -> int:
         return Device.objects.only("id").get(mac=mac).id
 
-    def _handle_sensor(self, mac: str, payload: bytes) -> None:
+    def _handle_sensor_data(self, mac: str, payload: bytes) -> None:
         data = SensorPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
@@ -132,7 +150,7 @@ class MessageHandler:
                 | Q(latest_sensor_reading__timestamp__lte=timestamp)
             ).update(latest_sensor_reading=sensor_reading)
 
-    def _handle_health(self, mac: str, payload: bytes) -> None:
+    def _handle_device_health(self, mac: str, payload: bytes) -> None:
         data = HealthPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
         timestamp = datetime.fromtimestamp(data.timestamp, tz=UTC)
@@ -151,8 +169,8 @@ class MessageHandler:
                 | Q(latest_health_reading__timestamp__lte=timestamp)
             ).update(latest_health_reading=health_reading)
 
-    def _handle_info(self, mac: str, payload: bytes) -> None:
-        data = InfoPayload.fromJsonBytes(payload)
+    def _handle_device_info(self, mac: str, payload: bytes) -> None:
+        data = DeviceInfoPayload.fromJsonBytes(payload)
         device_id = MessageHandler._get_device_id(mac)
 
         DeviceInfo.objects.update_or_create(
@@ -167,7 +185,7 @@ class MessageHandler:
             },
         )
 
-    def _handle_status(self, mac: str, payload: bytes) -> None:
+    def _handle_device_status(self, mac: str, payload: bytes) -> None:
         status = payload.decode("utf-8").strip().lower()
 
         if status not in ("online", "offline"):
@@ -178,4 +196,13 @@ class MessageHandler:
         DeviceStatus.objects.update_or_create(
             device_id=device_id,
             defaults={"is_online": status == "online"},
+        )
+
+    def _handle_sensor_info(self, mac: str, payload: bytes) -> None:
+        data = SensorInfoPayload.fromJsonBytes(payload)
+        device_id = MessageHandler._get_device_id(mac)
+
+        DeviceInfo.objects.update_or_create(
+            device_id=device_id,
+            defaults={"sensor_mode": data.mode},
         )
