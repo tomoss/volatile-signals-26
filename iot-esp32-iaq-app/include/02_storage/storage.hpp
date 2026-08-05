@@ -9,6 +9,7 @@
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
 #include "04_mqtt/mqtt_types.hpp"
+#include "07_utils/claim_code.hpp"
 #include "07_utils/mutex.hpp"
 
 class Storage {
@@ -48,6 +49,13 @@ public:
     std::optional<MqttTypes::Password> loadMqttPassword();
     bool saveMqttPassword(const MqttTypes::Password& p_password);
 
+    // Whether the device has been claimed by a user account yet. Defaults to false (unset).
+    bool loadDeviceClaimed();
+    bool saveDeviceClaimed(bool p_claimed);
+
+    std::optional<ClaimCode> loadClaimCode();
+    bool saveClaimCode(const ClaimCode& p_code);
+
 private:
     template<typename Func>
     auto withPreferences(const char* p_namespace, bool p_readOnly, Func&& p_func) {
@@ -81,6 +89,12 @@ private:
         });
     }
 
+    bool get(const char* p_namespace, const char* p_key, bool p_default) {
+        return withPreferences(p_namespace, true, [&](Preferences& p_preferences) {
+            return p_preferences.getBool(p_key, p_default);
+        });
+    }
+
     bool put(const char* p_namespace, const char* p_key, const char* p_buf) {
         return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
             return p_preferences.putString(p_key, p_buf) > 0;
@@ -96,6 +110,12 @@ private:
     bool put(const char* p_namespace, const char* p_key, uint16_t p_value) {
         return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
             return p_preferences.putUShort(p_key, p_value) > 0;
+        });
+    }
+
+    bool put(const char* p_namespace, const char* p_key, bool p_value) {
+        return withPreferences(p_namespace, false, [&](Preferences& p_preferences) {
+            return p_preferences.putBool(p_key, p_value) > 0;
         });
     }
 
