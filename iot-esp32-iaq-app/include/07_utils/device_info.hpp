@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "07_utils/claim_code.hpp"
+
 struct DeviceInfo {
     const char* firmwareVersion = nullptr;
     const char* chipModel = nullptr;
@@ -10,6 +12,7 @@ struct DeviceInfo {
     uint8_t chipCores = 0;
     uint8_t resetReason = 0;
     uint32_t totalHeap = 0; // ESP.getHeapSize() - total heap capacity in bytes, denominator for heap% elsewhere
+    ClaimCode claimCode{};
 };
 
 #endif // DEVICE_INFO_HPP

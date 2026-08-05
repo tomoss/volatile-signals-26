@@ -230,6 +230,22 @@ void setup() {
     static TimeSync timeSync;
     static RealTimeClock rtc(l_wire);
 
+    if (storage.init() == false) {
+        Serial.println("Storage init failed, restarting...");
+        Serial.flush();
+        delay(DELAY_UNTIL_RESTART);
+        esp_restart();
+    }
+
+    ClaimCode l_claimCode{};
+    if (const auto l_savedCode = storage.loadClaimCode()) {
+        l_claimCode = *l_savedCode;
+    } else {
+        const uint32_t l_random = esp_random() % 1000000;
+        snprintf(l_claimCode.data(), l_claimCode.size(), "%06lu", static_cast<unsigned long>(l_random));
+        storage.saveClaimCode(l_claimCode);
+    }
+
     static DeviceInfo deviceInfo;
     deviceInfo.firmwareVersion = FIRMWARE_VERSION;
     deviceInfo.chipModel = ESP.getChipModel();
@@ -237,7 +253,7 @@ void setup() {
     deviceInfo.chipCores = ESP.getChipCores();
     deviceInfo.resetReason = static_cast<uint8_t>(esp_reset_reason());
     deviceInfo.totalHeap = ESP.getHeapSize();
-
+    deviceInfo.claimCode = l_claimCode;
     if (storage.init() == false) {
         Serial.println("Storage init failed, restarting...");
         Serial.flush();
