@@ -3,11 +3,27 @@
 
 #include <cstdint>
 
+#include "07_utils/claim_code.hpp"
+
 struct ProvisionDisplayState {
     bool active{false};
     uint32_t passkey{0};
 
     bool operator==(const ProvisionDisplayState& other) const { return active == other.active && passkey == other.passkey; }
+};
+
+struct ClaimingDisplayState {
+    bool active{false};
+    ClaimCode code{};
+
+    bool operator==(const ClaimingDisplayState& other) const { return active == other.active && code == other.code; }
+};
+
+// Shown on a button press once the device is already registered, in place of the claim code.
+struct AlreadyClaimedDisplayState {
+    bool active{false};
+
+    bool operator==(const AlreadyClaimedDisplayState& other) const { return active == other.active; }
 };
 
 struct WifiDisplayState {
@@ -34,6 +50,8 @@ struct EnvDisplayState {
 
 struct DisplayState {
     ProvisionDisplayState provision;
+    ClaimingDisplayState claiming;
+    AlreadyClaimedDisplayState alreadyClaimed;
     WifiDisplayState wifi;
     MqttDisplayState mqtt;
     EnvDisplayState env;

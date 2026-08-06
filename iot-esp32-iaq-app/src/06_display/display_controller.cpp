@@ -96,6 +96,26 @@ void DisplayController::setProvisioningStatus(ProvisionDisplayState p_provisionS
     });
 }
 
+void DisplayController::setClaimedStatus(ClaimingDisplayState p_claimingState) {
+    updateState([p_claimingState](DisplayState& p_outState) {
+        if (p_outState.claiming == p_claimingState) {
+            return false; // No change.
+        }
+        p_outState.claiming = p_claimingState;
+        return true;
+    });
+}
+
+void DisplayController::setClaimedStatus(AlreadyClaimedDisplayState p_alreadyClaimedState) {
+    updateState([p_alreadyClaimedState](DisplayState& p_outState) {
+        if (p_outState.alreadyClaimed == p_alreadyClaimedState) {
+            return false; // No change.
+        }
+        p_outState.alreadyClaimed = p_alreadyClaimedState;
+        return true;
+    });
+}
+
 void DisplayController::notify() {
     xTaskNotifyGive(m_task);
 }
@@ -128,6 +148,17 @@ void DisplayController::render() {
         }
 
         m_display.renderHalves("PROVISIONING", l_passkey);
+        return;
+    }
+
+    // Take precedence over WiFi/MQTT/env status, but not over active provisioning.
+    if (m_state.claiming.active) {
+        m_display.renderHalves("CLAIM CODE", m_state.claiming.code.data());
+        return;
+    }
+
+    if (m_state.alreadyClaimed.active) {
+        m_display.renderHalves("DEVICE", "REGISTERED");
         return;
     }
 

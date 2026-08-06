@@ -26,6 +26,8 @@ public:
     void setMqttStatus(MqttDisplayState p_mqttState);
     void setEnvironment(EnvDisplayState p_envState);
     void setProvisioningStatus(ProvisionDisplayState p_provisionState);
+    void setClaimedStatus(ClaimingDisplayState p_claimingState);
+    void setClaimedStatus(AlreadyClaimedDisplayState p_alreadyClaimedState);
 
 private:
     static void taskEntry(void* parameter);
