@@ -273,6 +273,16 @@ void setup() {
         esp_restart();
     }
 
+    // Generated once, ever
+    if (!storage.loadClaimCode()) {
+        ClaimCode l_code{};
+        const uint32_t l_random = esp_random() % 1000000;
+        snprintf(l_code.data(), l_code.size(), "%06lu", static_cast<unsigned long>(l_random));
+        if (!storage.saveClaimCode(l_code)) {
+            Serial.println("Failed to save claim code");
+        }
+    }
+
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
