@@ -3,7 +3,7 @@
 #include "07_utils/command.hpp"
 
 TEST(ParseCommandTest, RebootParses) {
-    EXPECT_EQ(Command::Reboot, parseCommand("reboot"));
+    EXPECT_EQ(Command::DeviceReboot, parseCommand("device_reboot"));
 }
 
 TEST(ParseCommandTest, SensorLowPowerParses) {
@@ -15,11 +15,11 @@ TEST(ParseCommandTest, SensorUltraLowPowerParses) {
 }
 
 TEST(ParseCommandTest, ClaimedParses) {
-    EXPECT_EQ(Command::Claimed, parseCommand("claimed"));
+    EXPECT_EQ(Command::DeviceClaimed, parseCommand("device_claimed"));
 }
 
 TEST(ParseCommandTest, UnclaimedParses) {
-    EXPECT_EQ(Command::Unclaimed, parseCommand("unclaimed"));
+    EXPECT_EQ(Command::DeviceUnclaimed, parseCommand("device_unclaimed"));
 }
 
 TEST(ParseCommandTest, UnrecognizedStringIsUnknown) {

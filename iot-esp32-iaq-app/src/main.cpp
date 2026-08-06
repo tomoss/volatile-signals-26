@@ -54,6 +54,7 @@ struct HealthTaskParams {
 struct CommandTaskParams {
     EnvSensor* envSensor;
     MqttBridge* mqttBridge;
+    Storage* storage;
 };
 
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
@@ -97,6 +98,7 @@ static void commandTask(void* pvParameters) {
     auto* const l_params = static_cast<CommandTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_mqttBridge = l_params->mqttBridge;
+    auto* const l_storage = l_params->storage;
 
     for (;;) {
         Command l_cmd;
@@ -105,7 +107,7 @@ static void commandTask(void* pvParameters) {
         }
 
         switch (l_cmd) {
-        case Command::Reboot:
+        case Command::DeviceReboot:
             Serial.println("[CMD] Rebooting...");
             l_envSensor->requestModeChange(SensorMode::Disabled);
             l_mqttBridge->disconnect();
@@ -118,6 +120,14 @@ static void commandTask(void* pvParameters) {
         case Command::SensorUltraLowPower:
             Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
             l_envSensor->requestModeChange(SensorMode::UltraLowPower);
+            break;
+        case Command::DeviceClaimed:
+            Serial.println("[CMD] Device claimed");
+            l_storage->saveDeviceClaimStatus(true);
+            break;
+        case Command::DeviceUnclaimed:
+            Serial.println("[CMD] Device unclaimed");
+            l_storage->saveDeviceClaimStatus(false);
             break;
         case Command::Unknown:
             Serial.printf("[CMD] Unknown command received");
@@ -266,7 +276,7 @@ void setup() {
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge};
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage};
     xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
     if (!wifiManager.init()) {
