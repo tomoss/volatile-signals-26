@@ -3,40 +3,26 @@
 
 #include <cstdint>
 
-struct ProvisionDisplayState {
-    bool active{false};
-    uint32_t passkey{0};
+#include "07_utils/claim_code.hpp"
 
-    bool operator==(const ProvisionDisplayState& other) const { return active == other.active && passkey == other.passkey; }
-};
-
-struct WifiDisplayState {
-    bool connected{false};
-
-    bool operator==(const WifiDisplayState& other) const { return connected == other.connected; }
-};
-
-struct MqttDisplayState {
-    bool connected{false};
-
-    bool operator==(const MqttDisplayState& other) const { return connected == other.connected; }
-};
-
-struct EnvDisplayState {
-    uint16_t iaq{0};
-    int8_t temperatureC{0};
-    uint8_t accuracy{0};
-
-    bool operator==(const EnvDisplayState& other) const {
-        return iaq == other.iaq && temperatureC == other.temperatureC && accuracy == other.accuracy;
-    }
+// Which full-screen overlay, if any, currently takes precedence over the normal WiFi/MQTT/env
+// status screen. At most one is shown at a time.
+enum class DisplayOverlay : uint8_t {
+    None,
+    Provisioning,
+    Claim,
 };
 
 struct DisplayState {
-    ProvisionDisplayState provision;
-    WifiDisplayState wifi;
-    MqttDisplayState mqtt;
-    EnvDisplayState env;
+    DisplayOverlay overlay{DisplayOverlay::None};
+    uint32_t provisionPasskey{0};
+    ClaimCode claimCode{};
+    bool claimed{false};
+    bool wifiConnected{false};
+    bool mqttConnected{false};
+    uint16_t iaq{0};
+    int8_t temperatureC{0};
+    uint8_t accuracy{0};
 };
 
 #endif // DISPLAY_TYPES_HPP

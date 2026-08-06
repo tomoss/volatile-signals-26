@@ -40,6 +40,10 @@ constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 // Depth of the command queue fed by the MQTT event callback and drained by commandTask.
 constexpr int COMMAND_QUEUE_SIZE = 8;
 
+// Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
+constexpr int CLAIM_BUTTON_PIN = D1;
+constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
+
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
@@ -54,6 +58,16 @@ struct HealthTaskParams {
 struct CommandTaskParams {
     EnvSensor* envSensor;
     MqttBridge* mqttBridge;
+    Storage* storage;
+    DisplayController* displayController;
+    const ClaimCode* claimCode;
+};
+
+struct ClaimButtonTaskParams {
+    DisplayController* displayController;
+    Storage* storage;
+    MqttBridge* mqttBridge;
+    const ClaimCode* claimCode;
 };
 
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
@@ -65,6 +79,23 @@ static std::atomic<bool> s_otaInProgress{false};
 // The MQTT event callback (called on esp-mqtt's own task) only parses and enqueues; the
 // actual command handling runs on commandTask so it never blocks the MQTT client task.
 static QueueHandle_t s_commandQueue = nullptr;
+
+static TaskHandle_t s_claimButtonTaskHandle = nullptr;
+
+// Runs on the interrupt level: debounces in-place (via a static timestamp) and only wakes
+// claimButtonTask on an actual press, so nothing on the button path spins a polling loop.
+static void IRAM_ATTR claimButtonIsr() {
+    static uint32_t s_lastIsrMs = 0;
+    const uint32_t l_now = millis();
+    if (l_now - s_lastIsrMs < CLAIM_BUTTON_DEBOUNCE_MS) {
+        return;
+    }
+    s_lastIsrMs = l_now;
+
+    BaseType_t l_higherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(s_claimButtonTaskHandle, &l_higherPriorityTaskWoken);
+    portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
+}
 
 /*****************************************************************/
 /* Tasks                                                         */
@@ -93,10 +124,53 @@ static void otaTask(void* pvParameters) {
     vTaskDelete(nullptr);
 }
 
+static void claimButtonTask(void* pvParameters) {
+    auto* const l_params = static_cast<ClaimButtonTaskParams*>(pvParameters);
+    bool l_showing = false;
+
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        l_showing = !l_showing;
+
+        const bool l_claimed = l_params->storage->loadDeviceClaimStatus();
+
+        if (!l_showing) {
+            if (l_params->displayController != nullptr) {
+                l_params->displayController->setActiveOverlay(DisplayOverlay::None);
+            }
+            if (!l_claimed) {
+                l_params->mqttBridge->clearClaimCode();
+                Serial.println("Stopped claiming process on server");
+            }
+            continue;
+        }
+
+        if (l_claimed) {
+            Serial.println("Device is already registered");
+            if (l_params->displayController != nullptr) {
+                l_params->displayController->setClaimedStatus(true);
+                l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
+            }
+            continue;
+        }
+
+        if (l_params->displayController != nullptr) {
+            l_params->displayController->setClaimedStatus(false);
+            l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
+        }
+        l_params->mqttBridge->sendClaimCode(*l_params->claimCode);
+        Serial.println("Started claiming process on server");
+        Serial.printf("Claim code: %s\n", l_params->claimCode->data());
+    }
+}
+
 static void commandTask(void* pvParameters) {
     auto* const l_params = static_cast<CommandTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_mqttBridge = l_params->mqttBridge;
+    auto* const l_storage = l_params->storage;
+    auto* const l_displayController = l_params->displayController;
+    auto* const l_claimCode = l_params->claimCode;
 
     for (;;) {
         Command l_cmd;
@@ -105,7 +179,7 @@ static void commandTask(void* pvParameters) {
         }
 
         switch (l_cmd) {
-        case Command::Reboot:
+        case Command::DeviceReboot:
             Serial.println("[CMD] Rebooting...");
             l_envSensor->requestModeChange(SensorMode::Disabled);
             l_mqttBridge->disconnect();
@@ -118,6 +192,21 @@ static void commandTask(void* pvParameters) {
         case Command::SensorUltraLowPower:
             Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
             l_envSensor->requestModeChange(SensorMode::UltraLowPower);
+            break;
+        case Command::DeviceClaimed:
+            Serial.println("[CMD] Device claimed");
+            l_storage->saveDeviceClaimStatus(true);
+            if (l_displayController != nullptr) {
+                l_displayController->setClaimedStatus(true);
+            }
+            break;
+        case Command::DeviceUnclaimed:
+            Serial.println("[CMD] Device unclaimed");
+            l_storage->saveDeviceClaimStatus(false);
+            if (l_displayController != nullptr) {
+                l_displayController->setClaimedStatus(false);
+            }
+            Serial.printf("Claim code: %s\n", l_claimCode->data());
             break;
         case Command::Unknown:
             Serial.printf("[CMD] Unknown command received");
@@ -189,11 +278,9 @@ static void consumerTask(void* pvParameters) {
             l_mqttBridge->sendSensorData(l_data);
 
             if (l_displayController != nullptr) {
-                EnvDisplayState l_envState;
-                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
-                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
-                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
-                l_displayController->setEnvironment(l_envState);
+                l_displayController->setEnvironment(static_cast<uint16_t>(std::round(l_data.iaq)),
+                                                    static_cast<int8_t>(std::round(l_data.temp)),
+                                                    static_cast<uint8_t>(l_data.iaqAccuracy));
             }
         }
     }
@@ -263,11 +350,21 @@ void setup() {
         esp_restart();
     }
 
+    // Generated once, ever
+    static ClaimCode claim_code{};
+    if (const auto l_savedClaimCode = storage.loadClaimCode()) {
+        claim_code = *l_savedClaimCode;
+    } else {
+        const uint32_t l_random = esp_random() % 1000000;
+        snprintf(claim_code.data(), claim_code.size(), "%06lu", static_cast<unsigned long>(l_random));
+        if (!storage.saveClaimCode(claim_code)) {
+            Serial.println("Failed to save claim code");
+        }
+    }
+
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge};
-    xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
     if (!wifiManager.init()) {
         Serial.println("WiFiManager init failed, restarting...");
@@ -295,12 +392,13 @@ void setup() {
         Serial.println("Display init failed (continuing without display)");
     } else {
         displayController.enableDisplay();
+        displayController.setClaimingCode(claim_code);
     }
 
     wifiAdapter.setConnectedCallback([l_hasDisplay, l_hasRtc] {
         Serial.println("WiFi connected callback called");
         if (l_hasDisplay) {
-            displayController.setWifiStatus(WifiDisplayState{true});
+            displayController.setWifiStatus(true);
         }
         if (timeSync.sync() && l_hasRtc) {
             rtc.write(time(nullptr));
@@ -311,28 +409,29 @@ void setup() {
     wifiAdapter.setDisconnectedCallback([l_hasDisplay] {
         Serial.println("WiFi disconnected callback called");
         if (l_hasDisplay) {
-            displayController.setWifiStatus(WifiDisplayState{false});
+            displayController.setWifiStatus(false);
         }
     });
 
     wifiAdapter.setStartProvisioningCallback([l_hasDisplay] {
         bleProvisioner.start();
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{true, 0});
+            displayController.setProvisioningStatus(0);
+            displayController.setActiveOverlay(DisplayOverlay::Provisioning);
         }
     });
 
     wifiAdapter.setStopProvisioningCallback([l_hasDisplay] {
         bleProvisioner.stop();
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{false, 0});
+            displayController.setActiveOverlay(DisplayOverlay::None);
         }
     });
 
     bleProvisioner.setPasskeyDisplayCallback([l_hasDisplay](uint32_t p_passkey) {
         Serial.printf("[BLE] Pairing passkey: %06lu\n", p_passkey);
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{true, p_passkey});
+            displayController.setProvisioningStatus(p_passkey);
         }
     });
 
@@ -351,14 +450,14 @@ void setup() {
 
     mqttBridge.setOnConnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
-            displayController.setMqttStatus(MqttDisplayState{true});
+            displayController.setMqttStatus(true);
         }
         mqttBridge.sendDeviceInfo(deviceInfo);
     });
 
     mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
-            displayController.setMqttStatus(MqttDisplayState{false});
+            displayController.setMqttStatus(false);
         }
     });
 
@@ -391,6 +490,15 @@ void setup() {
             Serial.println("[CMD] Command queue full, dropping command");
         }
     });
+
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claim_code};
+    xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
+
+    static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claim_code};
+    xTaskCreate(claimButtonTask, "claim_button", 4096, &claimButtonTaskParams, 1, &s_claimButtonTaskHandle);
+
+    pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), claimButtonIsr, FALLING);
 
     envSensor.start();
     wifiManager.start();

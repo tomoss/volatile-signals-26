@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <cstring>
 #include <string_view>
 
 #include <esp_crt_bundle.h>
@@ -141,6 +142,16 @@ bool MqttBridge::init(bool p_enableTls) {
     snprintf(m_deviceStatusPubTopic.data(),
              m_deviceStatusPubTopic.size(),
              "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_status",
+             l_mac[0],
+             l_mac[1],
+             l_mac[2],
+             l_mac[3],
+             l_mac[4],
+             l_mac[5]);
+
+    snprintf(m_deviceClaimPubTopic.data(),
+             m_deviceClaimPubTopic.size(),
+             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_claim",
              l_mac[0],
              l_mac[1],
              l_mac[2],
@@ -302,6 +313,36 @@ void MqttBridge::sendSensorInfo(SensorMode p_mode) {
     // Retained so a late-subscribing client immediately learns the current mode instead of
     // waiting for it to change again.
     publish(m_sensorInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
+}
+
+void MqttBridge::sendClaimCode(const ClaimCode& p_code) {
+    // If not connected, there's nothing to do; the code isn't queued or retried, the user just
+    // presses the button again.
+    if (!m_connected.load()) {
+        return;
+    }
+
+    const size_t l_codeLen = strnlen(p_code.data(), p_code.size());
+    MqttTypes::Payload l_payload{};
+    const int l_len = snprintf(l_payload.data(), l_payload.size(), "{\"code\":\"%.*s\"}",
+                                static_cast<int>(l_codeLen), p_code.data());
+
+    if (l_len < 0) {
+        Serial.println("[MQTT] Failed to serialize claim code");
+        return;
+    }
+
+    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    publish(m_deviceClaimPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
+}
+
+void MqttBridge::clearClaimCode() {
+    if (!m_connected.load()) {
+        return;
+    }
+
+    static constexpr char l_emptyPayload[] = "{\"code\":\"\"}";
+    publish(m_deviceClaimPubTopic, l_emptyPayload, sizeof(l_emptyPayload) - 1);
 }
 
 void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain) {
