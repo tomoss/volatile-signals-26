@@ -13,6 +13,7 @@ from django.db.models import Q
 
 from iaq.models import (
     Device,
+    DeviceClaim,
     DeviceInfo,
     DeviceStatus,
     HealthReading,
@@ -64,7 +65,6 @@ class DeviceInfoPayload:
     chip_cores: int
     reset_reason: int
     total_heap: int
-    claim_code: str
 
     @classmethod
     def fromJsonBytes(cls, payload: bytes) -> "DeviceInfoPayload":
@@ -90,6 +90,7 @@ class MessageHandler:
             topics.DEVICE_HEALTH_TOPIC_SUFFIX: self._handle_device_health,
             topics.DEVICE_INFO_TOPIC_SUFFIX: self._handle_device_info,
             topics.DEVICE_STATUS_TOPIC_SUFFIX: self._handle_device_status,
+            topics.DEVICE_CLAIM_TOPIC_SUFFIX: self._handle_device_claim,
         }
 
     def on_message(self, client, userdata, message) -> None:
@@ -183,8 +184,13 @@ class MessageHandler:
                 "chip_cores": data.chip_cores,
                 "reset_reason": data.reset_reason,
                 "total_heap": data.total_heap,
-                "claim_code": data.claim_code,
             },
+        )
+
+    def _handle_device_claim(self, mac: str, payload: bytes) -> None:
+        claim_code = payload.decode("utf-8").strip()
+        DeviceClaim.objects.update_or_create(
+            mac=mac, defaults={"claim_code": claim_code}
         )
 
     def _handle_device_status(self, mac: str, payload: bytes) -> None:
