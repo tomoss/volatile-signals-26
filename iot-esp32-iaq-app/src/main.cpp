@@ -40,6 +40,10 @@ constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 // Depth of the command queue fed by the MQTT event callback and drained by commandTask.
 constexpr int COMMAND_QUEUE_SIZE = 8;
 
+// Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
+constexpr int CLAIM_BUTTON_PIN = D1;
+constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
+
 struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
@@ -56,6 +60,14 @@ struct CommandTaskParams {
     MqttBridge* mqttBridge;
     Storage* storage;
     DisplayController* displayController;
+    const ClaimCode* claimCode;
+};
+
+struct ClaimButtonTaskParams {
+    DisplayController* displayController;
+    Storage* storage;
+    MqttBridge* mqttBridge;
+    const ClaimCode* claimCode;
 };
 
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
@@ -67,6 +79,23 @@ static std::atomic<bool> s_otaInProgress{false};
 // The MQTT event callback (called on esp-mqtt's own task) only parses and enqueues; the
 // actual command handling runs on commandTask so it never blocks the MQTT client task.
 static QueueHandle_t s_commandQueue = nullptr;
+
+static TaskHandle_t s_claimButtonTaskHandle = nullptr;
+
+// Runs on the interrupt level: debounces in-place (via a static timestamp) and only wakes
+// claimButtonTask on an actual press, so nothing on the button path spins a polling loop.
+static void IRAM_ATTR claimButtonIsr() {
+    static uint32_t s_lastIsrMs = 0;
+    const uint32_t l_now = millis();
+    if (l_now - s_lastIsrMs < CLAIM_BUTTON_DEBOUNCE_MS) {
+        return;
+    }
+    s_lastIsrMs = l_now;
+
+    BaseType_t l_higherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(s_claimButtonTaskHandle, &l_higherPriorityTaskWoken);
+    portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
+}
 
 /*****************************************************************/
 /* Tasks                                                         */
@@ -95,12 +124,53 @@ static void otaTask(void* pvParameters) {
     vTaskDelete(nullptr);
 }
 
+static void claimButtonTask(void* pvParameters) {
+    auto* const l_params = static_cast<ClaimButtonTaskParams*>(pvParameters);
+    bool l_showing = false;
+
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        l_showing = !l_showing;
+
+        const bool l_claimed = l_params->storage->loadDeviceClaimStatus();
+
+        if (!l_showing) {
+            if (l_params->displayController != nullptr) {
+                l_params->displayController->setActiveOverlay(DisplayOverlay::None);
+            }
+            if (!l_claimed) {
+                l_params->mqttBridge->clearClaimCode();
+                Serial.println("Stopped claiming process on server");
+            }
+            continue;
+        }
+
+        if (l_claimed) {
+            Serial.println("Device is already registered");
+            if (l_params->displayController != nullptr) {
+                l_params->displayController->setClaimedStatus(true);
+                l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
+            }
+            continue;
+        }
+
+        if (l_params->displayController != nullptr) {
+            l_params->displayController->setClaimedStatus(false);
+            l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
+        }
+        l_params->mqttBridge->sendClaimCode(*l_params->claimCode);
+        Serial.println("Started claiming process on server");
+        Serial.printf("Claim code: %s\n", l_params->claimCode->data());
+    }
+}
+
 static void commandTask(void* pvParameters) {
     auto* const l_params = static_cast<CommandTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_mqttBridge = l_params->mqttBridge;
     auto* const l_storage = l_params->storage;
     auto* const l_displayController = l_params->displayController;
+    auto* const l_claimCode = l_params->claimCode;
 
     for (;;) {
         Command l_cmd;
@@ -136,6 +206,7 @@ static void commandTask(void* pvParameters) {
             if (l_displayController != nullptr) {
                 l_displayController->setClaimedStatus(false);
             }
+            Serial.printf("Claim code: %s\n", l_claimCode->data());
             break;
         case Command::Unknown:
             Serial.printf("[CMD] Unknown command received");
@@ -280,11 +351,13 @@ void setup() {
     }
 
     // Generated once, ever
-    if (!storage.loadClaimCode()) {
-        ClaimCode l_code{};
+    static ClaimCode claim_code{};
+    if (const auto l_savedClaimCode = storage.loadClaimCode()) {
+        claim_code = *l_savedClaimCode;
+    } else {
         const uint32_t l_random = esp_random() % 1000000;
-        snprintf(l_code.data(), l_code.size(), "%06lu", static_cast<unsigned long>(l_random));
-        if (!storage.saveClaimCode(l_code)) {
+        snprintf(claim_code.data(), claim_code.size(), "%06lu", static_cast<unsigned long>(l_random));
+        if (!storage.saveClaimCode(claim_code)) {
             Serial.println("Failed to save claim code");
         }
     }
@@ -292,8 +365,6 @@ void setup() {
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, &displayController};
-    xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
     if (!wifiManager.init()) {
         Serial.println("WiFiManager init failed, restarting...");
@@ -321,6 +392,7 @@ void setup() {
         Serial.println("Display init failed (continuing without display)");
     } else {
         displayController.enableDisplay();
+        displayController.setClaimingCode(claim_code);
     }
 
     wifiAdapter.setConnectedCallback([l_hasDisplay, l_hasRtc] {
@@ -418,6 +490,15 @@ void setup() {
             Serial.println("[CMD] Command queue full, dropping command");
         }
     });
+
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claim_code};
+    xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
+
+    static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claim_code};
+    xTaskCreate(claimButtonTask, "claim_button", 4096, &claimButtonTaskParams, 1, &s_claimButtonTaskHandle);
+
+    pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), claimButtonIsr, FALLING);
 
     envSensor.start();
     wifiManager.start();
