@@ -4,7 +4,14 @@ from datetime import UTC, datetime
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from iaq.models import Device, DeviceInfo, DeviceStatus, HealthReading, SensorReading
+from iaq.models import (
+    Device,
+    DeviceClaim,
+    DeviceInfo,
+    DeviceStatus,
+    HealthReading,
+    SensorReading,
+)
 from mqtt.handlers import MessageHandler
 
 
@@ -179,7 +186,6 @@ class MessageHandlerTests(TestCase):
                 "chip_cores": 2,
                 "reset_reason": 1,
                 "total_heap": 200000,
-                "claim_code": "123456",
             }
         )
         self.handler.on_message(
@@ -191,7 +197,45 @@ class MessageHandlerTests(TestCase):
         self.assertEqual(info.firmware_version, "1.0.0")
         self.assertEqual(info.chip_model, "ESP32")
         self.assertEqual(info.total_heap, 200000)
-        self.assertEqual(info.claim_code, "123456")
+
+    def test_info_from_unclaimed_device_is_dropped(self):
+        payload = json.dumps(
+            {
+                "firmware_version": "1.0.0",
+                "chip_model": "ESP32",
+                "chip_revision": 1,
+                "chip_cores": 2,
+                "reset_reason": 1,
+                "total_heap": 200000,
+            }
+        )
+        with self.assertLogs("mqtt.handlers", level="WARNING"):
+            self.handler.on_message(
+                None,
+                None,
+                FakeMessage("iaq/11:22:33:44:55:66/device_info", to_bytes(payload)),
+            )
+        self.assertFalse(DeviceInfo.objects.exists())
+
+    def test_claim_stores_code_for_unclaimed_device(self):
+        self.handler.on_message(
+            None,
+            None,
+            FakeMessage("iaq/11:22:33:44:55:66/device_claim", to_bytes("123456")),
+        )
+        claim = DeviceClaim.objects.get(mac="11:22:33:44:55:66")
+        self.assertEqual(claim.claim_code, "123456")
+
+    def test_claim_updates_existing_code(self):
+        DeviceClaim.objects.create(mac="11:22:33:44:55:66", claim_code="000000")
+
+        self.handler.on_message(
+            None,
+            None,
+            FakeMessage("iaq/11:22:33:44:55:66/device_claim", to_bytes("123456")),
+        )
+        claim = DeviceClaim.objects.get(mac="11:22:33:44:55:66")
+        self.assertEqual(claim.claim_code, "123456")
 
     def test_status_online(self):
         self.handler.on_message(
