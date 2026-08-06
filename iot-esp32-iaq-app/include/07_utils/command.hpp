@@ -3,10 +3,10 @@
 
 #include <string_view>
 
-enum class Command : uint8_t { Reboot = 0, SensorLowPower = 1, SensorUltraLowPower = 2, Unknown = 3 };
+enum class Command : uint8_t { Reboot = 0, SensorLowPower = 1, SensorUltraLowPower = 2, Claimed = 3, Unclaimed = 4, Unknown = 5 };
 
 inline Command parseCommand(std::string_view p_cmd) {
-    if (p_cmd == "reboot") {
+    if (p_cmd == "device_reboot") {
         return Command::Reboot;
     }
 
@@ -16,6 +16,14 @@ inline Command parseCommand(std::string_view p_cmd) {
 
     if (p_cmd == "sensor_ulp") {
         return Command::SensorUltraLowPower;
+    }
+
+    if (p_cmd == "device_claimed") {
+        return Command::Claimed;
+    }
+
+    if (p_cmd == "device_unclaimed") {
+        return Command::Unclaimed;
     }
 
     return Command::Unknown;

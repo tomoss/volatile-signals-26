@@ -15,6 +15,10 @@ constexpr char STORAGE_KEY_MQTT_PORT[] = "mqtt-port";
 constexpr char STORAGE_KEY_MQTT_USER[] = "mqtt-user";
 constexpr char STORAGE_KEY_MQTT_PASS[] = "mqtt-pass";
 
+constexpr char STORAGE_DEVICE_NAMESPACE[] = "device";
+constexpr char STORAGE_KEY_CLAIM_STATUS[] = "claim-status";
+constexpr char STORAGE_KEY_CLAIM_CODE[] = "claim-code";
+
 static const char* sensorModeToKey(SensorMode p_mode) {
     switch (p_mode) {
     case SensorMode::LowPower:
@@ -109,4 +113,24 @@ std::optional<MqttTypes::Password> Storage::loadMqttPassword() {
 
 bool Storage::saveMqttPassword(const MqttTypes::Password& p_password) {
     return put(STORAGE_MQTT_NAMESPACE, STORAGE_KEY_MQTT_PASS, p_password.data());
+}
+
+bool Storage::loadDeviceClaimStatus() {
+    return get(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_CLAIM_STATUS, false);
+}
+
+bool Storage::saveDeviceClaimStatus(bool p_claimed) {
+    return put(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_CLAIM_STATUS, p_claimed);
+}
+
+std::optional<ClaimCode> Storage::loadClaimCode() {
+    ClaimCode l_code{};
+    size_t l_len = get(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_CLAIM_CODE, l_code.data(), l_code.size());
+    if (l_len == 0)
+        return std::nullopt;
+    return l_code;
+}
+
+bool Storage::saveClaimCode(const ClaimCode& p_code) {
+    return put(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_CLAIM_CODE, p_code.data());
 }
