@@ -55,6 +55,7 @@ struct CommandTaskParams {
     EnvSensor* envSensor;
     MqttBridge* mqttBridge;
     Storage* storage;
+    DisplayController* displayController;
 };
 
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
@@ -99,6 +100,7 @@ static void commandTask(void* pvParameters) {
     auto* const l_envSensor = l_params->envSensor;
     auto* const l_mqttBridge = l_params->mqttBridge;
     auto* const l_storage = l_params->storage;
+    auto* const l_displayController = l_params->displayController;
 
     for (;;) {
         Command l_cmd;
@@ -124,10 +126,16 @@ static void commandTask(void* pvParameters) {
         case Command::DeviceClaimed:
             Serial.println("[CMD] Device claimed");
             l_storage->saveDeviceClaimStatus(true);
+            if (l_displayController != nullptr) {
+                l_displayController->setClaimedStatus(true);
+            }
             break;
         case Command::DeviceUnclaimed:
             Serial.println("[CMD] Device unclaimed");
             l_storage->saveDeviceClaimStatus(false);
+            if (l_displayController != nullptr) {
+                l_displayController->setClaimedStatus(false);
+            }
             break;
         case Command::Unknown:
             Serial.printf("[CMD] Unknown command received");
@@ -199,11 +207,9 @@ static void consumerTask(void* pvParameters) {
             l_mqttBridge->sendSensorData(l_data);
 
             if (l_displayController != nullptr) {
-                EnvDisplayState l_envState;
-                l_envState.iaq = static_cast<uint16_t>(std::round(l_data.iaq));
-                l_envState.temperatureC = static_cast<int8_t>(std::round(l_data.temp));
-                l_envState.accuracy = static_cast<uint8_t>(l_data.iaqAccuracy);
-                l_displayController->setEnvironment(l_envState);
+                l_displayController->setEnvironment(static_cast<uint16_t>(std::round(l_data.iaq)),
+                                                    static_cast<int8_t>(std::round(l_data.temp)),
+                                                    static_cast<uint8_t>(l_data.iaqAccuracy));
             }
         }
     }
@@ -286,7 +292,7 @@ void setup() {
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage};
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, &displayController};
     xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
     if (!wifiManager.init()) {
@@ -320,7 +326,7 @@ void setup() {
     wifiAdapter.setConnectedCallback([l_hasDisplay, l_hasRtc] {
         Serial.println("WiFi connected callback called");
         if (l_hasDisplay) {
-            displayController.setWifiStatus(WifiDisplayState{true});
+            displayController.setWifiStatus(true);
         }
         if (timeSync.sync() && l_hasRtc) {
             rtc.write(time(nullptr));
@@ -331,28 +337,29 @@ void setup() {
     wifiAdapter.setDisconnectedCallback([l_hasDisplay] {
         Serial.println("WiFi disconnected callback called");
         if (l_hasDisplay) {
-            displayController.setWifiStatus(WifiDisplayState{false});
+            displayController.setWifiStatus(false);
         }
     });
 
     wifiAdapter.setStartProvisioningCallback([l_hasDisplay] {
         bleProvisioner.start();
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{true, 0});
+            displayController.setProvisioningStatus(0);
+            displayController.setActiveOverlay(DisplayOverlay::Provisioning);
         }
     });
 
     wifiAdapter.setStopProvisioningCallback([l_hasDisplay] {
         bleProvisioner.stop();
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{false, 0});
+            displayController.setActiveOverlay(DisplayOverlay::None);
         }
     });
 
     bleProvisioner.setPasskeyDisplayCallback([l_hasDisplay](uint32_t p_passkey) {
         Serial.printf("[BLE] Pairing passkey: %06lu\n", p_passkey);
         if (l_hasDisplay) {
-            displayController.setProvisioningStatus(ProvisionDisplayState{true, p_passkey});
+            displayController.setProvisioningStatus(p_passkey);
         }
     });
 
@@ -371,14 +378,14 @@ void setup() {
 
     mqttBridge.setOnConnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
-            displayController.setMqttStatus(MqttDisplayState{true});
+            displayController.setMqttStatus(true);
         }
         mqttBridge.sendDeviceInfo(deviceInfo);
     });
 
     mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
-            displayController.setMqttStatus(MqttDisplayState{false});
+            displayController.setMqttStatus(false);
         }
     });
 

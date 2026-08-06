@@ -56,62 +56,74 @@ void DisplayController::disableDisplay() {
     }
 }
 
-void DisplayController::setWifiStatus(WifiDisplayState p_wifiState) {
-    updateState([p_wifiState](DisplayState& p_outState) {
-        if (p_outState.wifi == p_wifiState) {
+void DisplayController::setWifiStatus(bool p_connected) {
+    updateState([p_connected](DisplayState& p_outState) {
+        if (p_outState.wifiConnected == p_connected) {
             return false; // No change.
         }
-        p_outState.wifi = p_wifiState;
+        p_outState.wifiConnected = p_connected;
         return true;
     });
 }
 
-void DisplayController::setMqttStatus(MqttDisplayState p_mqttState) {
-    updateState([p_mqttState](DisplayState& p_outState) {
-        if (p_outState.mqtt == p_mqttState) {
+void DisplayController::setMqttStatus(bool p_connected) {
+    updateState([p_connected](DisplayState& p_outState) {
+        if (p_outState.mqttConnected == p_connected) {
             return false; // No change.
         }
-        p_outState.mqtt = p_mqttState;
+        p_outState.mqttConnected = p_connected;
         return true;
     });
 }
 
-void DisplayController::setEnvironment(EnvDisplayState p_envState) {
-    updateState([p_envState](DisplayState& p_outState) {
-        if (p_outState.env == p_envState) {
+void DisplayController::setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy) {
+    updateState([p_iaq, p_temperatureC, p_accuracy](DisplayState& p_outState) {
+        if (p_outState.iaq == p_iaq && p_outState.temperatureC == p_temperatureC && p_outState.accuracy == p_accuracy) {
             return false; // No change.
         }
-        p_outState.env = p_envState;
+        p_outState.iaq = p_iaq;
+        p_outState.temperatureC = p_temperatureC;
+        p_outState.accuracy = p_accuracy;
         return true;
     });
 }
 
-void DisplayController::setProvisioningStatus(ProvisionDisplayState p_provisionState) {
-    updateState([p_provisionState](DisplayState& p_outState) {
-        if (p_outState.provision == p_provisionState) {
+void DisplayController::setProvisioningStatus(uint32_t p_passkey) {
+    updateState([p_passkey](DisplayState& p_outState) {
+        if (p_outState.provisionPasskey == p_passkey) {
             return false; // No change.
         }
-        p_outState.provision = p_provisionState;
+        p_outState.provisionPasskey = p_passkey;
         return true;
     });
 }
 
-void DisplayController::setClaimedStatus(ClaimingDisplayState p_claimingState) {
-    updateState([p_claimingState](DisplayState& p_outState) {
-        if (p_outState.claiming == p_claimingState) {
+void DisplayController::setClaimingCode(const ClaimCode& p_code) {
+    updateState([p_code](DisplayState& p_outState) {
+        if (p_outState.claimCode == p_code) {
             return false; // No change.
         }
-        p_outState.claiming = p_claimingState;
+        p_outState.claimCode = p_code;
         return true;
     });
 }
 
-void DisplayController::setClaimedStatus(AlreadyClaimedDisplayState p_alreadyClaimedState) {
-    updateState([p_alreadyClaimedState](DisplayState& p_outState) {
-        if (p_outState.alreadyClaimed == p_alreadyClaimedState) {
+void DisplayController::setClaimedStatus(bool p_claimed) {
+    updateState([p_claimed](DisplayState& p_outState) {
+        if (p_outState.claimed == p_claimed) {
             return false; // No change.
         }
-        p_outState.alreadyClaimed = p_alreadyClaimedState;
+        p_outState.claimed = p_claimed;
+        return true;
+    });
+}
+
+void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
+    updateState([p_overlay](DisplayState& p_outState) {
+        if (p_outState.overlay == p_overlay) {
+            return false; // No change.
+        }
+        p_outState.overlay = p_overlay;
         return true;
     });
 }
@@ -137,12 +149,12 @@ void DisplayController::taskLoop() {
 void DisplayController::render() {
     const MutexGuard l_guard(m_mutex);
 
-    // If provisioning is active, it takes precedence over the other display states.
-    if (m_state.provision.active) {
+    switch (m_state.overlay) {
+    case DisplayOverlay::Provisioning: {
         char l_passkey[SECOND_HALF_TEXT_SIZE];
 
-        if (m_state.provision.passkey != 0) {
-            snprintf(l_passkey, sizeof(l_passkey), "%06lu", static_cast<unsigned long>(m_state.provision.passkey));
+        if (m_state.provisionPasskey != 0) {
+            snprintf(l_passkey, sizeof(l_passkey), "%06lu", static_cast<unsigned long>(m_state.provisionPasskey));
         } else {
             snprintf(l_passkey, sizeof(l_passkey), "------");
         }
@@ -150,37 +162,35 @@ void DisplayController::render() {
         m_display.renderHalves("PROVISIONING", l_passkey);
         return;
     }
+    case DisplayOverlay::Claim:
+        if (m_state.claimed) {
+            m_display.renderHalves("DEVICE", "REGISTERED");
+        } else {
+            m_display.renderHalves("CLAIM CODE", m_state.claimCode.data());
+        }
+        return;
+    case DisplayOverlay::None: {
+        char l_firstHalfDisplay[FIRST_HALF_TEXT_SIZE];
+        char l_secondHalfDisplay[SECOND_HALF_TEXT_SIZE];
 
-    // Take precedence over WiFi/MQTT/env status, but not over active provisioning.
-    if (m_state.claiming.active) {
-        m_display.renderHalves("CLAIM CODE", m_state.claiming.code.data());
+        // If WiFi is not connected, display "WiFi connecting" on the first half and the IAQ on the second half.
+        // If WiFi is connected, display "MQTT connecting" on the first half and the IAQ on the second half.
+        if (!m_state.wifiConnected) {
+            snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "WiFi connecting");
+        } else if (!m_state.mqttConnected) {
+            snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "MQTT connecting");
+        } else {
+            snprintf(l_firstHalfDisplay,
+                     sizeof(l_firstHalfDisplay),
+                     "(%d\xc2\xb0"
+                     "C) (ACC %u)",
+                     m_state.temperatureC,
+                     m_state.accuracy);
+        }
+
+        snprintf(l_secondHalfDisplay, sizeof(l_secondHalfDisplay), "IAQ: %u", m_state.iaq);
+        m_display.renderHalves(l_firstHalfDisplay, l_secondHalfDisplay);
         return;
     }
-
-    if (m_state.alreadyClaimed.active) {
-        m_display.renderHalves("DEVICE", "REGISTERED");
-        return;
     }
-
-    char l_firstHalfDisplay[FIRST_HALF_TEXT_SIZE];
-    char l_secondHalfDisplay[SECOND_HALF_TEXT_SIZE];
-
-    // If provisioning is not active, display the WiFi status.
-    // If WiFi is not connected, display "WiFi connecting" on the first half and the IAQ on the second half.
-    // If WiFi is connected, display "MQTT connecting" on the first half and the IAQ on the second half.
-    if (!m_state.wifi.connected) {
-        snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "WiFi connecting");
-    } else if (!m_state.mqtt.connected) {
-        snprintf(l_firstHalfDisplay, sizeof(l_firstHalfDisplay), "MQTT connecting");
-    } else {
-        snprintf(l_firstHalfDisplay,
-                 sizeof(l_firstHalfDisplay),
-                 "(%d\xc2\xb0"
-                 "C) (ACC %u)",
-                 m_state.env.temperatureC,
-                 m_state.env.accuracy);
-    }
-
-    snprintf(l_secondHalfDisplay, sizeof(l_secondHalfDisplay), "IAQ: %u", m_state.env.iaq);
-    m_display.renderHalves(l_firstHalfDisplay, l_secondHalfDisplay);
 }

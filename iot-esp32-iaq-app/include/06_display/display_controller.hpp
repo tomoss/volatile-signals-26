@@ -22,12 +22,15 @@ public:
     // Thread-safe: safe to call from any task context.
     void enableDisplay();
     void disableDisplay();
-    void setWifiStatus(WifiDisplayState p_wifiState);
-    void setMqttStatus(MqttDisplayState p_mqttState);
-    void setEnvironment(EnvDisplayState p_envState);
-    void setProvisioningStatus(ProvisionDisplayState p_provisionState);
-    void setClaimedStatus(ClaimingDisplayState p_claimingState);
-    void setClaimedStatus(AlreadyClaimedDisplayState p_alreadyClaimedState);
+    void setWifiStatus(bool p_connected);
+    void setMqttStatus(bool p_connected);
+    void setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy);
+    void setProvisioningStatus(uint32_t p_passkey);
+    void setClaimingCode(const ClaimCode& p_code);
+    void setClaimedStatus(bool p_claimed);
+    // Selects which of provision/claiming/already-claimed (if any) takes precedence over the
+    // normal WiFi/MQTT/env status screen. Independent of the data setters above.
+    void setActiveOverlay(DisplayOverlay p_overlay);
 
 private:
     static void taskEntry(void* parameter);
