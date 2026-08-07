@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.validators import RegexValidator
+from django.utils import timezone
 
 from iaq.models import IaqUser
 
@@ -15,6 +18,42 @@ class IaqUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = IaqUser
         fields = ("email", "first_name", "last_name")
+
+
+class HistoryFilterForm(forms.Form):
+    max_range_days = 365
+
+    start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control", "id": "start_date"}
+        ),
+    )
+    end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control", "id": "end_date"}
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        today = timezone.localdate()
+        start_date = cleaned_data.get("start_date") or today - timedelta(days=7)
+        end_date = cleaned_data.get("end_date") or today
+
+        if start_date > end_date:
+            raise forms.ValidationError("Start date must not be after end date.")
+
+        if (end_date - start_date).days > self.max_range_days:
+            raise forms.ValidationError(
+                f"Date range must not exceed {self.max_range_days} days."
+            )
+
+        cleaned_data["start_date"] = start_date
+        cleaned_data["end_date"] = end_date
+        return cleaned_data
 
 
 class DeviceClaimForm(forms.Form):

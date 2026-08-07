@@ -1,3 +1,5 @@
+from datetime import datetime, time, timedelta
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
@@ -6,8 +8,10 @@ from django.contrib.auth.views import (
     PasswordChangeView,
 )
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -20,7 +24,7 @@ from django.views.generic import (
 from iaq.models import Device, DeviceClaim
 from mqtt.publisher import publish_command
 
-from .forms import DeviceClaimForm, IaqUserCreationForm
+from .forms import DeviceClaimForm, HistoryFilterForm, IaqUserCreationForm
 
 
 class IaqHomeView(ListView):
@@ -49,8 +53,58 @@ class IaqDeviceDashboardView(TemplateView):
     template_name = "iaq/dashboard.html"
 
 
-class IaqDeviceHistoryView(TemplateView):
+class IaqDeviceHistoryView(DetailView):
     template_name = "iaq/history.html"
+    model = Device
+    pk_url_kwarg = "device_id"
+    context_object_name = "device"
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Device.objects.filter(Q(is_public=True) | Q(user=self.request.user))
+        return Device.objects.filter(is_public=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        today = timezone.localdate()
+        data = {
+            "start_date": self.request.GET.get("start_date")
+            or (today - timedelta(days=7)).isoformat(),
+            "end_date": self.request.GET.get("end_date") or today.isoformat(),
+        }
+        form = HistoryFilterForm(data)
+        context["form"] = form
+
+        if not form.is_valid():
+            context["readings"] = []
+            return context
+
+        start_date = form.cleaned_data["start_date"]
+        end_date = form.cleaned_data["end_date"]
+
+        start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
+        end_dt = timezone.make_aware(datetime.combine(end_date, time.max))
+
+        readings = (
+            self.object.sensor_readings.filter(timestamp__range=(start_dt, end_dt))
+            .order_by("timestamp")
+            .values(
+                "timestamp",
+                "iaq",
+                "co2_equivalent",
+                "voc_equivalent",
+                "temperature",
+                "humidity",
+                "pressure",
+            )
+        )
+
+        context["readings"] = [
+            {**reading, "timestamp": reading["timestamp"].isoformat()}
+            for reading in readings
+        ]
+        return context
 
 
 class IaqDeviceListView(LoginRequiredMixin, ListView):
