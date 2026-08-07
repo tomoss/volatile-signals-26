@@ -26,6 +26,45 @@
     });
     const showMarkers = readings.length <= 60;
 
+    const readingTimes = readings.map(function (r) {
+        return new Date(r.timestamp).getTime();
+    });
+
+    const GAP_WINDOW_SIZE = 5;
+
+    const deltas = [];
+    for (let i = 1; i < readingTimes.length; i++) {
+        deltas.push(readingTimes[i] - readingTimes[i - 1]);
+    }
+
+    function median(values) {
+        const sorted = values.slice().sort(function (a, b) { return a - b; });
+        return sorted[Math.floor(sorted.length / 2)];
+    }
+
+    function localGapThreshold(deltaIndex) {
+        const window = [];
+        for (let i = Math.max(0, deltaIndex - GAP_WINDOW_SIZE); i < deltaIndex; i++) {
+            window.push(deltas[i]);
+        }
+        for (
+            let i = deltaIndex + 1;
+            i <= Math.min(deltas.length - 1, deltaIndex + GAP_WINDOW_SIZE);
+            i++
+        ) {
+            window.push(deltas[i]);
+        }
+        if (window.length === 0) {
+            return Infinity;
+        }
+        return median(window) * 2;
+    }
+
+    function isGapSegment(ctx) {
+        const deltaIndex = ctx.p0DataIndex;
+        return deltas[deltaIndex] > localGapThreshold(deltaIndex);
+    }
+
     const gridColor = "#e1e0d9";
     const tickColor = "#898781";
 
@@ -56,6 +95,11 @@
                     pointRadius: showMarkers ? 4 : 0,
                     pointHoverRadius: 5,
                     tension: 0.2,
+                    segment: {
+                        borderColor: function (ctx) {
+                            return isGapSegment(ctx) ? "transparent" : undefined;
+                        },
+                    },
                 }],
             },
             options: {
