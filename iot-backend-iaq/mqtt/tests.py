@@ -4,7 +4,14 @@ from datetime import UTC, datetime
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from iaq.models import Device, DeviceInfo, DeviceStatus, HealthReading, SensorReading
+from iaq.models import (
+    Device,
+    DeviceClaim,
+    DeviceInfo,
+    DeviceStatus,
+    HealthReading,
+    SensorReading,
+)
 from mqtt.handlers import MessageHandler
 
 
@@ -208,6 +215,59 @@ class MessageHandlerTests(TestCase):
                 FakeMessage(f"iaq/{self.device.mac}/device_status", to_bytes("maybe")),
             )
         self.assertFalse(DeviceStatus.objects.filter(device=self.device).exists())
+
+    def test_claim_creates_pending_claim_for_unregistered_device(self):
+        mac = "11:22:33:44:55:66"
+        payload = json.dumps({"code": "123456"})
+        self.handler.on_message(
+            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+        )
+
+        claim = DeviceClaim.objects.get(mac=mac)
+        self.assertEqual(claim.claim_code, "123456")
+
+    def test_claim_updates_existing_pending_claim(self):
+        mac = "11:22:33:44:55:66"
+        DeviceClaim.objects.create(mac=mac, claim_code="000000")
+
+        payload = json.dumps({"code": "123456"})
+        self.handler.on_message(
+            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+        )
+
+        claim = DeviceClaim.objects.get(mac=mac)
+        self.assertEqual(claim.claim_code, "123456")
+
+    def test_claim_empty_code_removes_pending_claim(self):
+        mac = "11:22:33:44:55:66"
+        DeviceClaim.objects.create(mac=mac, claim_code="123456")
+
+        payload = json.dumps({"code": ""})
+        self.handler.on_message(
+            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+        )
+
+        self.assertFalse(DeviceClaim.objects.filter(mac=mac).exists())
+
+    def test_claim_empty_code_without_pending_claim_is_noop(self):
+        mac = "11:22:33:44:55:66"
+        payload = json.dumps({"code": ""})
+        self.handler.on_message(
+            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+        )
+
+        self.assertFalse(DeviceClaim.objects.filter(mac=mac).exists())
+
+    def test_claim_invalid_json_is_logged_not_raised(self):
+        with self.assertLogs("mqtt.handlers", level="WARNING"):
+            self.handler.on_message(
+                None,
+                None,
+                FakeMessage(
+                    f"iaq/{self.device.mac}/device_claim", to_bytes("not json")
+                ),
+            )
+        self.assertFalse(DeviceClaim.objects.exists())
 
     def test_unknown_device_is_logged_not_raised(self):
         with self.assertLogs("mqtt.handlers", level="WARNING"):
