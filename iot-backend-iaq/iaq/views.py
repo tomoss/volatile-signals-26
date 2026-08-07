@@ -87,7 +87,9 @@ class IaqDeviceHistoryView(DetailView):
         end_dt = timezone.make_aware(datetime.combine(end_date, time.max))
 
         readings = (
-            self.object.sensor_readings.filter(timestamp__range=(start_dt, end_dt))
+            self.object.sensor_readings.filter(
+                timestamp__range=(start_dt, end_dt), accuracy=3
+            )
             .order_by("timestamp")
             .values(
                 "timestamp",
