@@ -90,4 +90,4 @@ class DeviceClaim(models.Model):
     """
 
     mac = models.CharField(max_length=17, unique=True)
-    claim_code = models.CharField(max_length=6)
+    claim_code = models.CharField(max_length=6, unique=True)

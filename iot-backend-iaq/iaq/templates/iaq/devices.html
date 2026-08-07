@@ -4,6 +4,7 @@
 
 {% block content %}
     <p>Hello, these are your devices.</p>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'add_device' %}'">Add device</button>
     <hr>
     {% for device in device_list %}
       <p>Device id: {{device.id}}</p>

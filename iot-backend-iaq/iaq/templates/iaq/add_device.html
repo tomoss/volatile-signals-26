@@ -1,0 +1,13 @@
+{% extends "iaq/base.html" %}
+
+{% block title %}IAQ - Add device{% endblock %}
+
+{% block content %}
+    <h1>Add device</h1>
+    <p>Press the claim button on the device to display its claim code, then enter it below.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary" type="submit">Add device</button>
+    </form>
+{% endblock %}

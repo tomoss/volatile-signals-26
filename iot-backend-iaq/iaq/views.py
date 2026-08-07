@@ -5,15 +5,16 @@ from django.contrib.auth.views import (
     PasswordChangeDoneView,
     PasswordChangeView,
 )
-from django.shortcuts import redirect
+from django.db import IntegrityError, transaction
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
-from iaq.models import Device
+from iaq.models import Device, DeviceClaim
 from mqtt.publisher import publish_command
 
-from .forms import IaqUserCreationForm
+from .forms import DeviceClaimForm, IaqUserCreationForm
 
 
 class IaqHomeView(ListView):
@@ -52,9 +53,57 @@ class IaqDeviceListView(LoginRequiredMixin, ListView):
     context_object_name = "device_list"
 
     def get_queryset(self):
-        return Device.objects.filter(is_public=True).select_related(
+        return Device.objects.filter(user=self.request.user).select_related(
             "latest_sensor_reading", "device_info"
         )
+
+
+class IaqDeviceAddView(LoginRequiredMixin, View):
+    template_name = "iaq/add_device.html"
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, {"form": DeviceClaimForm()})
+
+    def post(self, request, *args, **kwargs):
+        form = DeviceClaimForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+
+        claim_code = form.cleaned_data["claim_code"]
+        try:
+            claim = DeviceClaim.objects.get(claim_code=claim_code)
+        except DeviceClaim.DoesNotExist:
+            form.add_error("claim_code", "No device found with this claim code.")
+            return render(request, self.template_name, {"form": form})
+
+        cleaned = form.cleaned_data
+
+        def finalize_claim():
+            if publish_command(device.mac, "device_claimed"):
+                messages.success(request, f"Device '{device.name}' added.")
+            else:
+                messages.warning(
+                    request,
+                    f"Device '{device.name}' added, but couldn't reach device to "
+                    "confirm the claim.",
+                )
+
+        try:
+            with transaction.atomic():
+                device = Device.objects.create(
+                    user=request.user,
+                    mac=claim.mac,
+                    name=cleaned["name"],
+                    is_public=cleaned["is_public"],
+                )
+                claim.delete()
+                transaction.on_commit(finalize_claim)
+        except IntegrityError:
+            # Device.mac is unique; another user claimed it first.
+            form.add_error(None, "This device has already been claimed.")
+            return render(request, self.template_name, {"form": form})
+
+        return redirect("devices")
 
 
 class IaqProfileView(LoginRequiredMixin, TemplateView):

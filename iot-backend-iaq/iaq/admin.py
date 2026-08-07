@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Device,
+    DeviceClaim,
     DeviceInfo,
     DeviceStatus,
     HealthReading,
@@ -25,3 +26,4 @@ admin.site.register(SensorReading)
 admin.site.register(HealthReading)
 admin.site.register(DeviceInfo)
 admin.site.register(DeviceStatus)
+admin.site.register(DeviceClaim)
