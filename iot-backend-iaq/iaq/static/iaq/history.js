@@ -10,13 +10,13 @@
     startInput.addEventListener("change", syncBounds);
     endInput.addEventListener("change", syncBounds);
 
-    const readingsData = document.getElementById("readings-data");
-    if (!readingsData) {
+    const sensorReadingsData = document.getElementById("sensor_readings_data");
+    if (!sensorReadingsData) {
         return;
     }
 
-    const readings = JSON.parse(readingsData.textContent);
-    const labels = readings.map(function (r) {
+    const sensorReadings = JSON.parse(sensorReadingsData.textContent);
+    const labels = sensorReadings.map(function (r) {
         return new Date(r.timestamp).toLocaleString([], {
             month: "short",
             day: "numeric",
@@ -24,9 +24,9 @@
             minute: "2-digit",
         });
     });
-    const showMarkers = readings.length <= 60;
+    const showMarkers = sensorReadings.length <= 60;
 
-    const readingTimes = readings.map(function (r) {
+    const readingTimes = sensorReadings.map(function (r) {
         return new Date(r.timestamp).getTime();
     });
 
@@ -88,7 +88,7 @@
                 labels: labels,
                 datasets: [{
                     label: metric.label,
-                    data: readings.map(function (r) { return r[metric.key]; }),
+                    data: sensorReadings.map(function (r) { return r[metric.key]; }),
                     borderColor: metric.color,
                     backgroundColor: metric.color,
                     borderWidth: 2,

@@ -1,3 +1,4 @@
+from collections import namedtuple
 from datetime import timedelta
 
 from django import forms
@@ -6,6 +7,15 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from iaq.models import IaqUser
+
+DEFAULT_HISTORY_RANGE_DAYS = 7
+
+DateRange = namedtuple("DateRange", ["start", "end"])
+
+
+def default_date_range():
+    today = timezone.localdate()
+    return DateRange(today - timedelta(days=DEFAULT_HISTORY_RANGE_DAYS), today)
 
 
 class IaqUserCreationForm(UserCreationForm):
@@ -39,9 +49,9 @@ class HistoryFilterForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
 
-        today = timezone.localdate()
-        start_date = cleaned_data.get("start_date") or today - timedelta(days=7)
-        end_date = cleaned_data.get("end_date") or today
+        default_dates = default_date_range()
+        start_date = cleaned_data.get("start_date") or default_dates.start
+        end_date = cleaned_data.get("end_date") or default_dates.end
 
         if start_date > end_date:
             raise forms.ValidationError("Start date must not be after end date.")

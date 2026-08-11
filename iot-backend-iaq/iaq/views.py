@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -24,7 +24,12 @@ from django.views.generic import (
 from iaq.models import Device, DeviceClaim
 from mqtt.publisher import publish_command
 
-from .forms import DeviceClaimForm, HistoryFilterForm, IaqUserCreationForm
+from .forms import (
+    DeviceClaimForm,
+    HistoryFilterForm,
+    IaqUserCreationForm,
+    default_date_range,
+)
 
 
 class IaqHomeView(ListView):
@@ -67,17 +72,21 @@ class IaqDeviceHistoryView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        today = timezone.localdate()
-        data = {
-            "start_date": self.request.GET.get("start_date")
-            or (today - timedelta(days=7)).isoformat(),
-            "end_date": self.request.GET.get("end_date") or today.isoformat(),
-        }
+        default_dates = default_date_range()
+
+        start_date = (
+            self.request.GET.get("start_date") or default_dates.start.isoformat()
+        )
+
+        end_date = self.request.GET.get("end_date") or default_dates.end.isoformat()
+
+        data = {"start_date": start_date, "end_date": end_date}
+
         form = HistoryFilterForm(data)
         context["form"] = form
 
         if not form.is_valid():
-            context["readings"] = []
+            context["sensor_readings"] = []
             return context
 
         start_date = form.cleaned_data["start_date"]
@@ -102,10 +111,7 @@ class IaqDeviceHistoryView(DetailView):
             )
         )
 
-        context["readings"] = [
-            {**reading, "timestamp": reading["timestamp"].isoformat()}
-            for reading in readings
-        ]
+        context["sensor_readings"] = list(readings)
         return context
 
 

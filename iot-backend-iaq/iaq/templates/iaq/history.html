@@ -24,7 +24,7 @@
         </div>
     </form>
 
-    {% if not readings %}
+    {% if not sensor_readings %}
         {% if form.is_valid %}
         <div class="alert alert-info">No readings in this date range.</div>
         {% endif %}
@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        {{ readings|json_script:"readings-data" }}
+        {{ sensor_readings|json_script:"sensor_readings_data" }}
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js" integrity="sha384-XcdcwHqIPULERb2yDEM4R0XaQKU3YnDsrTmjACBZyfdVVqjh6xQ4/DCMd7XLcA6Y" crossorigin="anonymous"></script>
     {% endif %}
     <script src="{% static 'iaq/history.js' %}"></script>
