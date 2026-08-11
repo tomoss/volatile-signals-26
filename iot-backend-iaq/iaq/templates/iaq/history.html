@@ -1,0 +1,87 @@
+{% extends "iaq/base.html" %}
+{% load static %}
+
+{% block title %}IAQ - History{% endblock %}
+
+{% block content %}
+    <h1 class="h4">History for {{ device.name|default:device.mac }}</h1>
+    <hr>
+
+    <form method="get" class="row g-3 align-items-end mb-4">
+        {{ form.non_field_errors }}
+        <div class="col-auto">
+            <label for="{{ form.start_date.id_for_label }}" class="form-label">Start date</label>
+            {{ form.start_date.errors }}
+            {{ form.start_date }}
+        </div>
+        <div class="col-auto">
+            <label for="{{ form.end_date.id_for_label }}" class="form-label">End date</label>
+            {{ form.end_date.errors }}
+            {{ form.end_date }}
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+
+    {% if not sensor_readings %}
+        {% if form.is_valid %}
+        <div class="alert alert-info">No readings in this date range.</div>
+        {% endif %}
+    {% else %}
+        <div class="row g-4" id="history-charts">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">IAQ</h5>
+                        <canvas id="chart-iaq"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">CO2 equivalent (ppm)</h5>
+                        <canvas id="chart-co2"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">VOC equivalent (ppb)</h5>
+                        <canvas id="chart-voc"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Temperature (°C)</h5>
+                        <canvas id="chart-temperature"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Humidity (%)</h5>
+                        <canvas id="chart-humidity"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Pressure (hPa)</h5>
+                        <canvas id="chart-pressure"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ sensor_readings|json_script:"sensor_readings_data" }}
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js" integrity="sha384-XcdcwHqIPULERb2yDEM4R0XaQKU3YnDsrTmjACBZyfdVVqjh6xQ4/DCMd7XLcA6Y" crossorigin="anonymous"></script>
+    {% endif %}
+    <script src="{% static 'iaq/history.js' %}"></script>
+{% endblock %}
