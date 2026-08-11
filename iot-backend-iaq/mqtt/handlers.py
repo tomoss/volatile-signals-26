@@ -13,6 +13,7 @@ from django.db.models import Q
 
 from iaq.models import (
     Device,
+    DeviceClaim,
     DeviceInfo,
     DeviceStatus,
     HealthReading,
@@ -79,6 +80,15 @@ class SensorInfoPayload:
         return cls(**json.loads(payload))
 
 
+@dataclass
+class DeviceClaimPayload:
+    code: str
+
+    @classmethod
+    def fromJsonBytes(cls, payload: bytes) -> "DeviceClaimPayload":
+        return cls(**json.loads(payload))
+
+
 class MessageHandler:
     """Validate and persist messages received on IAQ MQTT topics."""
 
@@ -89,6 +99,7 @@ class MessageHandler:
             topics.DEVICE_HEALTH_TOPIC_SUFFIX: self._handle_device_health,
             topics.DEVICE_INFO_TOPIC_SUFFIX: self._handle_device_info,
             topics.DEVICE_STATUS_TOPIC_SUFFIX: self._handle_device_status,
+            topics.DEVICE_CLAIM_TOPIC_SUFFIX: self._handle_device_claim,
         }
 
     def on_message(self, client, userdata, message) -> None:
@@ -205,4 +216,19 @@ class MessageHandler:
         DeviceInfo.objects.update_or_create(
             device_id=device_id,
             defaults={"sensor_mode": data.mode},
+        )
+
+    def _handle_device_claim(self, mac: str, payload: bytes) -> None:
+        """Handle device claim messages."""
+        data = DeviceClaimPayload.fromJsonBytes(payload)
+
+        if not data.code:
+            # Claim button was pressed again to stop device claiming.
+            # Remove any pending claim for this device.
+            DeviceClaim.objects.filter(mac=mac).delete()
+            return
+
+        DeviceClaim.objects.update_or_create(
+            mac=mac,
+            defaults={"claim_code": data.code},
         )

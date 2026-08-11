@@ -82,3 +82,12 @@ class DeviceStatus(models.Model):
     )
     is_online = models.BooleanField(default=False)
     received_at = models.DateTimeField(auto_now=True)
+
+
+class DeviceClaim(models.Model):
+    """A claim code reported by a device that hasn't been claimed yet.
+    Deleted once a user successfully claims the device.
+    """
+
+    mac = models.CharField(max_length=17, unique=True)
+    claim_code = models.CharField(max_length=6, unique=True)

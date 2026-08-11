@@ -7,6 +7,11 @@ urlpatterns = [
     path("account/login/", views.IaqLoginView.as_view(), name="login"),
     path("account/register/", views.IaqRegisterView.as_view(), name="register"),
     path("account/devices/", views.IaqDeviceListView.as_view(), name="devices"),
+    path(
+        "account/devices/add/",
+        views.IaqDeviceAddView.as_view(),
+        name="add_device",
+    ),
     path("account/profile/", views.IaqProfileView.as_view(), name="profile"),
     path(
         "account/profile/password/",
