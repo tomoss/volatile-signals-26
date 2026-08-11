@@ -21,7 +21,7 @@ from django.views.generic import (
     TemplateView,
 )
 
-from iaq.models import Device, DeviceClaim
+from iaq.models import Device, DeviceClaim, DeviceStatus
 from mqtt.publisher import publish_command
 
 from .forms import (
@@ -200,7 +200,12 @@ class IaqDeviceCommandView(LoginRequiredMixin, View):
         device_id = self.kwargs.get("device_id")
         device = Device.objects.get(pk=device_id)
 
-        if not device.device_status.is_online:
+        try:
+            is_online = device.device_status.is_online
+        except DeviceStatus.DoesNotExist:
+            is_online = False
+
+        if not is_online:
             messages.error(request, "Device is offline.")
             return redirect("device_management", device_id=device_id)
 
