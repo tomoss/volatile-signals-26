@@ -1,0 +1,12 @@
+<div id="device-sensor-reading"
+     hx-get="{% url 'dashboard' device.id %}"
+     hx-trigger="every 5s [document.visibilityState == 'visible']"
+     hx-swap="outerHTML">
+    <p>IAQ: {{ device.latest_sensor_reading.iaq|default:"N/A" }}</p>
+    <p>CO2 equivalent: {{ device.latest_sensor_reading.co2_equivalent|default:"N/A" }} ppm</p>
+    <p>VOC equivalent: {{ device.latest_sensor_reading.voc_equivalent|default:"N/A" }} ppb</p>
+    <p>Temperature: {{ device.latest_sensor_reading.temperature|default:"N/A" }} °C</p>
+    <p>Humidity: {{ device.latest_sensor_reading.humidity|default:"N/A" }} %</p>
+    <p>Pressure: {{ device.latest_sensor_reading.pressure|default:"N/A" }} hPa</p>
+    <p>Last updated: {{ device.latest_sensor_reading.timestamp|default:"N/A" }}</p>
+</div>
