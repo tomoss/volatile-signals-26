@@ -5,5 +5,5 @@
 {% block content %}
     <h1 class="h4">Dashboard for {{ device.name|default:device.mac }}</h1>
     <hr>
-    {% include "iaq/_device_sensor_reading.html" %}
+    {% include "iaq/dashboard_sensor_reading.html" %}
 {% endblock %}

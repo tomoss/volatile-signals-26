@@ -68,7 +68,7 @@ class IaqDeviceDashboardView(DetailView):
 
     def get_template_names(self):
         if self.request.headers.get("HX-Request") == "true":
-            return ["iaq/_device_sensor_reading.html"]
+            return ["iaq/dashboard_sensor_reading.html"]
         return [self.template_name]
 
 
