@@ -231,6 +231,21 @@ class IaqDeviceCommandView(LoginRequiredMixin, View):
         return redirect("device_management", device_id=device_id)
 
 
+class IaqDeviceToggleVisibilityView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        device_id = self.kwargs.get("device_id")
+        device = Device.objects.get(pk=device_id)
+        device.is_public = not device.is_public
+        device.save(update_fields=["is_public"])
+
+        if device.is_public:
+            messages.success(request, "Device is now public.")
+        else:
+            messages.success(request, "Device is now private.")
+
+        return redirect("device_management", device_id=device_id)
+
+
 class IaqDeviceRebootView(IaqDeviceCommandView):
     command = "reboot"
     success_message = "Reboot command sent."
