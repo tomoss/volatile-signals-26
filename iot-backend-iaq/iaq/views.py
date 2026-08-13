@@ -54,8 +54,22 @@ class IaqRegisterView(CreateView):
     success_url = reverse_lazy("login")
 
 
-class IaqDeviceDashboardView(TemplateView):
+class IaqDeviceDashboardView(DetailView):
     template_name = "iaq/dashboard.html"
+    model = Device
+    pk_url_kwarg = "device_id"
+    context_object_name = "device"
+
+    def get_queryset(self):
+        qs = Device.objects.select_related("latest_sensor_reading")
+        if self.request.user.is_authenticated:
+            return qs.filter(Q(is_public=True) | Q(user=self.request.user))
+        return qs.filter(is_public=True)
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return ["iaq/dashboard_sensor_reading.html"]
+        return [self.template_name]
 
 
 class IaqDeviceHistoryView(DetailView):
