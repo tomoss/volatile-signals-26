@@ -231,11 +231,21 @@ class IaqDeviceCommandView(LoginRequiredMixin, View):
         return redirect("device_management", device_id=device_id)
 
 
-class IaqDeviceToggleVisibilityView(LoginRequiredMixin, View):
-    def get(self, request, *args, **kwargs):
+class IaqDeviceSetVisibilityView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
         device_id = self.kwargs.get("device_id")
+        is_public = request.POST.get("is_public") == "true"
+
         device = Device.objects.get(pk=device_id)
-        device.is_public = not device.is_public
+
+        if device.is_public == is_public:
+            messages.info(
+                request,
+                f"Device is already {'public' if is_public else 'private'}.",
+            )
+            return redirect("device_management", device_id=device_id)
+
+        device.is_public = is_public
         device.save(update_fields=["is_public"])
 
         if device.is_public:
