@@ -13,6 +13,7 @@ DEVICE_INFO_TOPIC_SUFFIX = "device_info"
 DEVICE_STATUS_TOPIC_SUFFIX = "device_status"
 DEVICE_CLAIM_TOPIC_SUFFIX = "device_claim"
 COMMAND_TOPIC_SUFFIX = "command"
+OTA_TOPIC_SUFFIX = "ota"
 
 SENSOR_DATA_TOPIC = f"{PREFIX}/{MAC_PLACEHOLDER}/{SENSOR_DATA_TOPIC_SUFFIX}"
 SENSOR_INFO_TOPIC = f"{PREFIX}/{MAC_PLACEHOLDER}/{SENSOR_INFO_TOPIC_SUFFIX}"
@@ -35,3 +36,7 @@ SUBSCRIPTIONS = [
 
 def create_command_topic(mac: str) -> str:
     return f"{PREFIX}/{mac}/{COMMAND_TOPIC_SUFFIX}"
+
+
+def create_ota_topic(mac: str) -> str:
+    return f"{PREFIX}/{mac}/{OTA_TOPIC_SUFFIX}"

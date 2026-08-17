@@ -1,0 +1,14 @@
+{% extends "iaq/base.html" %}
+
+{% block title %}IAQ - Firmware update{% endblock %}
+
+{% block content %}
+    <h1>Firmware update</h1>
+    <p>Upload a new firmware binary for "{{ device.name }}". The device will download and flash it, then reboot automatically.</p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary" type="submit">Start update</button>
+    </form>
+    <a href="{% url 'device_management' device.id %}" class="btn btn-secondary">Cancel</a>
+{% endblock %}

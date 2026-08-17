@@ -1,5 +1,6 @@
 from datetime import datetime, time
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
@@ -7,10 +8,11 @@ from django.contrib.auth.views import (
     PasswordChangeDoneView,
     PasswordChangeView,
 )
+from django.core.files.storage import default_storage
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
 from django.views.generic import (
@@ -22,10 +24,11 @@ from django.views.generic import (
 )
 
 from iaq.models import Device, DeviceClaim, DeviceStatus
-from mqtt.publisher import publish_command
+from mqtt.publisher import publish_command, publish_ota
 
 from .forms import (
     DeviceClaimForm,
+    DeviceOtaForm,
     HistoryFilterForm,
     IaqUserCreationForm,
     default_date_range,
@@ -203,6 +206,53 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         return Device.objects.filter(user=self.request.user).select_related(
             "latest_health_reading", "device_info", "device_status"
         )
+
+
+class IaqDeviceOtaView(LoginRequiredMixin, FormView):
+    template_name = "iaq/device_ota.html"
+    form_class = DeviceOtaForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.device = get_object_or_404(
+            Device, pk=kwargs["device_id"], user=request.user
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["device"] = self.device
+        return context
+
+    def get_success_url(self):
+        return reverse("device_management", kwargs={"device_id": self.device.pk})
+
+    def form_valid(self, form):
+        binary = form.cleaned_data["binary"]
+        path = f"ota/{self.device.mac}.bin"
+
+        if default_storage.exists(path):
+            default_storage.delete(path)
+        saved_path = default_storage.save(path, binary)
+
+        media_url = default_storage.url(saved_path)
+        if settings.OTA_BASE_URL:
+            url = f"{settings.OTA_BASE_URL.rstrip('/')}{media_url}"
+        else:
+            # Falls back to the upload request's Host header, which is only
+            # correct if that request itself came from a device-reachable
+            # address (not "localhost").
+            url = self.request.build_absolute_uri(media_url)
+        # The device's OTA client connects with a plain (non-TLS) WiFiClient.
+        url = url.replace("https://", "http://", 1)
+
+        if publish_ota(self.device.mac, url):
+            messages.success(self.request, "OTA update started.")
+        else:
+            messages.error(
+                self.request, "Failed to send OTA command; broker unreachable."
+            )
+
+        return super().form_valid(form)
 
 
 class IaqDeviceCommandView(LoginRequiredMixin, View):

@@ -28,7 +28,9 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ["DEBUG"] == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
+]
 
 
 # Application definition
@@ -96,6 +98,13 @@ MQTT_USERNAME = os.environ.get("MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD") or None
 MQTT_TLS = os.environ.get("MQTT_TLS", "").lower() == "true"
 
+# Base URL devices use to reach this server for OTA firmware downloads, e.g.
+# "http://192.168.1.42:8000". Must be an address reachable from the device's
+# WiFi network -- can't be derived from the upload request's Host header,
+# since that reflects the browser's connection (often "localhost"), not
+# what's reachable from the device.
+OTA_BASE_URL = os.environ.get("OTA_BASE_URL", "")
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -139,6 +148,10 @@ MESSAGE_TAGS = {
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
+
+# User-uploaded files (OTA firmware binaries)
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 LOGGING = {
     "version": 1,

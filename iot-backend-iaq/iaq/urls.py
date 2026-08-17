@@ -44,6 +44,11 @@ urlpatterns = [
         name="set_device_visibility",
     ),
     path(
+        "device/<int:device_id>/ota/",
+        views.IaqDeviceOtaView.as_view(),
+        name="device_ota",
+    ),
+    path(
         "device/<int:device_id>/reboot/",
         views.IaqDeviceRebootView.as_view(),
         name="reboot_device",

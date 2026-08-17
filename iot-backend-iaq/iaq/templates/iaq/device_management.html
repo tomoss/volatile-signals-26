@@ -20,6 +20,7 @@
     <button type="button" class="btn btn-primary" onclick="location.href='{% url 'reboot_device' device.id %}'">Reboot device</button>
     <button type="button" class="btn btn-primary" onclick="location.href='{% url 'set_sensor_low_power' device.id %}'">Low Power Mode</button>
     <button type="button" class="btn btn-primary" onclick="location.href='{% url 'set_sensor_ultra_low_power' device.id %}'">Ultra Low Power Mode</button>
+    <button type="button" class="btn btn-primary" onclick="location.href='{% url 'device_ota' device.id %}'">Firmware Update (OTA)</button>
     <form action="{% url 'set_device_visibility' device.id %}" method="post" class="d-inline">
         {% csrf_token %}
         <input type="hidden" name="is_public" value="{% if device.is_public %}false{% else %}true{% endif %}">

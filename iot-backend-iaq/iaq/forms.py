@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from django.core.validators import RegexValidator
+from django.core.validators import FileExtensionValidator, RegexValidator
 from django.utils import timezone
 
 from iaq.models import IaqUser
@@ -103,4 +103,11 @@ class DeviceClaimForm(forms.Form):
         label="Make this device public",
         required=False,
         help_text="Public devices are visible to anyone on the home page.",
+    )
+
+
+class DeviceOtaForm(forms.Form):
+    binary = forms.FileField(
+        label="Firmware binary",
+        validators=[FileExtensionValidator(allowed_extensions=["bin"])],
     )
