@@ -9,7 +9,7 @@ from django.contrib.auth.views import (
 )
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
@@ -200,7 +200,7 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
     context_object_name = "device"
 
     def get_queryset(self):
-        return Device.objects.select_related(
+        return Device.objects.filter(user=self.request.user).select_related(
             "latest_health_reading", "device_info", "device_status"
         )
 
@@ -212,7 +212,7 @@ class IaqDeviceCommandView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         device_id = self.kwargs.get("device_id")
-        device = Device.objects.get(pk=device_id)
+        device = get_object_or_404(Device, pk=device_id, user=request.user)
 
         try:
             is_online = device.device_status.is_online
@@ -236,7 +236,7 @@ class IaqDeviceSetVisibilityView(LoginRequiredMixin, View):
         device_id = self.kwargs.get("device_id")
         is_public = request.POST.get("is_public") == "true"
 
-        device = Device.objects.get(pk=device_id)
+        device = get_object_or_404(Device, pk=device_id, user=request.user)
 
         if device.is_public == is_public:
             messages.info(
