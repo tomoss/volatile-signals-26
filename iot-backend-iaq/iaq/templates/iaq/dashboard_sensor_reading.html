@@ -8,7 +8,7 @@
         <div class="iaq-console-title">
             <span class="iaq-console-icon"><i class="bi bi-wind"></i></span>
             <h2>{{ device.name|default:device.mac }}</h2>
-            {% if device.device_status.is_online %}
+            {% if is_online %}
             <span class="iaq-live-badge iaq-live-badge-on">
                 <span class="iaq-live-dot iaq-live-dot-on"></span>
                 <span class="iaq-mono">Online</span>
@@ -48,10 +48,17 @@
             </div>
 
             <div class="iaq-panel iaq-info-grid">
+                {% if is_online %}
                 <div class="iaq-info-item"><span>Accuracy</span><span>{{ device.latest_sensor_reading.accuracy|accuracy_label }}</span></div>
                 <div class="iaq-info-item"><span>Sensor mode</span><span>{{ device.device_info.sensor_mode|sensor_mode_label }}</span></div>
                 <div class="iaq-info-item"><span>Signal</span><span>{{ device.latest_health_reading.rssi|rssi_signal }}</span></div>
                 <div class="iaq-info-item"><span>Uptime</span><span>{{ device.latest_health_reading.uptime|format_uptime }}</span></div>
+                {% else %}
+                <div class="iaq-info-item"><span>Accuracy</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Sensor mode</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Signal</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Uptime</span><span>N/A</span></div>
+                {% endif %}
             </div>
 
             <div class="iaq-panel iaq-legend">

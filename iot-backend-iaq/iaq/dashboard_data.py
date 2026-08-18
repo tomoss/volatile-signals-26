@@ -1,5 +1,6 @@
 import math
 
+from iaq.models import DeviceStatus
 from iaq.templatetags.iaq_extras import iaq_status
 
 # Keep in sync with the status-* color variables in iaq/static/iaq/css/base.css.
@@ -96,8 +97,16 @@ def _band_status(value, band):
     return "good" if low <= value <= high else "poor"
 
 
+def _is_online(device):
+    try:
+        return device.device_status.is_online
+    except DeviceStatus.DoesNotExist:
+        return False
+
+
 def build_dashboard_context(device):
-    latest = device.latest_sensor_reading
+    is_online = _is_online(device)
+    latest = device.latest_sensor_reading if is_online else None
 
     metrics = []
     for metric_def in METRIC_DEFS:
@@ -145,4 +154,5 @@ def build_dashboard_context(device):
         "metrics": metrics,
         "gauge": gauge,
         "gauge_ticks": GAUGE_TICKS,
+        "is_online": is_online,
     }
