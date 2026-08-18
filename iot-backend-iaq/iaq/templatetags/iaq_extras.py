@@ -2,10 +2,14 @@ from django import template
 
 register = template.Library()
 
+# Bosch BSEC IAQ scale.
 IAQ_LEVELS = (
+    (50, "Excellent", "excellent"),
     (100, "Good", "good"),
-    (200, "Moderate", "moderate"),
-    (350, "Poor", "poor"),
+    (150, "Lightly polluted", "lightly-polluted"),
+    (200, "Moderately polluted", "moderately-polluted"),
+    (250, "Heavily polluted", "heavily-polluted"),
+    (350, "Severely polluted", "severely-polluted"),
 )
 
 
@@ -18,7 +22,7 @@ def iaq_status(value):
     for threshold, label, css_class in IAQ_LEVELS:
         if value <= threshold:
             return {"label": label, "css_class": css_class}
-    return {"label": "Hazardous", "css_class": "hazardous"}
+    return {"label": "Extremely polluted", "css_class": "extremely-polluted"}
 
 
 # WiFi RSSI (dBm) thresholds, roughly matching a phone's 4-bar signal meter.
@@ -83,3 +87,21 @@ def sensor_mode_label(value):
     except (TypeError, ValueError):
         return "N/A"
     return SENSOR_MODE_LABELS.get(value, "N/A")
+
+
+# BSEC IAQ accuracy indicator: 0 = still stabilizing, 3 = fully calibrated.
+ACCURACY_LABELS = {
+    0: "Uncalibrated",
+    1: "Low",
+    2: "Medium",
+    3: "High",
+}
+
+
+@register.filter
+def accuracy_label(value):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    return ACCURACY_LABELS.get(value, "N/A")

@@ -2,8 +2,9 @@
 
 {% block title %}IAQ - Dashboard{% endblock %}
 
+{% block body_class %}iaq-fullscreen-page{% endblock %}
+{% block main_class %}iaq-fullscreen-main{% endblock %}
+
 {% block content %}
-    <h1 class="h4">Dashboard for {{ device.name|default:device.mac }}</h1>
-    <hr>
     {% include "iaq/dashboard_sensor_reading.html" %}
 {% endblock %}

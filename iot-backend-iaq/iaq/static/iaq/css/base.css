@@ -18,6 +18,20 @@
     --color-hazardous-bg: rgba(239, 68, 119, 0.15);
     --color-unknown: #8b93a7;
     --color-unknown-bg: rgba(139, 147, 167, 0.15);
+
+    /* Bosch BSEC IAQ scale (7 tiers) */
+    --color-excellent: #10b981;
+    --color-excellent-bg: rgba(16, 185, 129, 0.15);
+    --color-lightly-polluted: #eab308;
+    --color-lightly-polluted-bg: rgba(234, 179, 8, 0.15);
+    --color-moderately-polluted: #f97316;
+    --color-moderately-polluted-bg: rgba(249, 115, 22, 0.15);
+    --color-heavily-polluted: #ef4444;
+    --color-heavily-polluted-bg: rgba(239, 68, 68, 0.15);
+    --color-severely-polluted: #be123c;
+    --color-severely-polluted-bg: rgba(190, 18, 60, 0.15);
+    --color-extremely-polluted: #78350f;
+    --color-extremely-polluted-bg: rgba(120, 53, 15, 0.15);
 }
 
 body {
@@ -112,11 +126,35 @@ body {
 .status-unknown { color: var(--color-unknown); background-color: var(--color-unknown-bg); }
 .status-unknown .status-dot { background-color: var(--color-unknown); }
 
+.status-excellent { color: var(--color-excellent); background-color: var(--color-excellent-bg); }
+.status-excellent .status-dot { background-color: var(--color-excellent); }
+
+.status-lightly-polluted { color: var(--color-lightly-polluted); background-color: var(--color-lightly-polluted-bg); }
+.status-lightly-polluted .status-dot { background-color: var(--color-lightly-polluted); }
+
+.status-moderately-polluted { color: var(--color-moderately-polluted); background-color: var(--color-moderately-polluted-bg); }
+.status-moderately-polluted .status-dot { background-color: var(--color-moderately-polluted); }
+
+.status-heavily-polluted { color: var(--color-heavily-polluted); background-color: var(--color-heavily-polluted-bg); }
+.status-heavily-polluted .status-dot { background-color: var(--color-heavily-polluted); }
+
+.status-severely-polluted { color: var(--color-severely-polluted); background-color: var(--color-severely-polluted-bg); }
+.status-severely-polluted .status-dot { background-color: var(--color-severely-polluted); }
+
+.status-extremely-polluted { color: var(--color-extremely-polluted); background-color: var(--color-extremely-polluted-bg); }
+.status-extremely-polluted .status-dot { background-color: var(--color-extremely-polluted); }
+
 .text-good { color: var(--color-good); }
 .text-moderate { color: var(--color-moderate); }
 .text-poor { color: var(--color-poor); }
 .text-hazardous { color: var(--color-hazardous); }
 .text-unknown { color: var(--color-unknown); }
+.text-excellent { color: var(--color-excellent); }
+.text-lightly-polluted { color: var(--color-lightly-polluted); }
+.text-moderately-polluted { color: var(--color-moderately-polluted); }
+.text-heavily-polluted { color: var(--color-heavily-polluted); }
+.text-severely-polluted { color: var(--color-severely-polluted); }
+.text-extremely-polluted { color: var(--color-extremely-polluted); }
 
 .device-metrics {
     display: flex;
@@ -198,4 +236,375 @@ body {
 
 .chart-card .chart-legend {
     color: var(--card-text-secondary) !important;
+}
+
+/* Full-viewport page layout, used by the live device dashboard */
+
+body.iaq-fullscreen-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+body.iaq-fullscreen-page main.iaq-fullscreen-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+body.iaq-fullscreen-page .iaq-console {
+    flex: 1;
+    border-radius: 0;
+    border-width: 0;
+}
+
+/* Live device dashboard ("console") */
+
+.iaq-console {
+    --iaq-bg: #080d18;
+    --iaq-card: #0d1525;
+    --iaq-border: rgba(255, 255, 255, 0.07);
+    --iaq-fg: #dde4ef;
+    --iaq-fg-dim: rgba(255, 255, 255, 0.35);
+    --iaq-fg-faint: rgba(255, 255, 255, 0.25);
+    --iaq-accent: #22d3ee;
+    background-color: var(--iaq-bg);
+    color: var(--iaq-fg);
+    border: 1px solid var(--iaq-border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    font-family: 'Outfit', sans-serif;
+}
+
+.iaq-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.iaq-console-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--iaq-border);
+}
+
+.iaq-console-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.iaq-console-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: 0.5rem;
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--iaq-accent);
+}
+
+.iaq-console-title h2 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--iaq-fg);
+}
+
+.iaq-console-title p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--iaq-fg-dim);
+}
+
+.iaq-live-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.iaq-live-badge-on {
+    color: var(--color-good);
+    background: var(--color-good-bg);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.iaq-live-badge-off {
+    color: var(--color-hazardous);
+    background: var(--color-hazardous-bg);
+    border: 1px solid rgba(239, 68, 119, 0.35);
+}
+
+.iaq-live-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.iaq-live-dot-on {
+    background: var(--color-good);
+    box-shadow: 0 0 8px var(--color-good);
+    animation: iaq-pulse 2s ease-in-out infinite;
+}
+
+.iaq-live-dot-off {
+    background: var(--color-hazardous);
+    box-shadow: 0 0 8px var(--color-hazardous);
+}
+
+@keyframes iaq-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.iaq-console-body {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    align-items: start;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .iaq-console-body {
+        grid-template-columns: 1fr;
+    }
+}
+
+.iaq-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.iaq-panel {
+    background: var(--iaq-card);
+    border: 1px solid var(--iaq-border);
+    border-radius: 0.6rem;
+    padding: 1rem;
+}
+
+.iaq-panel-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--iaq-fg-faint);
+}
+
+.iaq-gauge-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.iaq-gauge {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+}
+
+.iaq-gauge-unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    fill: rgba(255, 255, 255, 0.35);
+}
+
+.iaq-status-pill {
+    display: inline-block;
+    margin: 0.5rem 0;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.iaq-gauge-sparkline {
+    width: 100%;
+    height: 40px;
+    margin-top: 0.5rem;
+}
+
+.iaq-panel-note {
+    margin: 0.5rem 0 0;
+    font-size: 0.7rem;
+    color: var(--iaq-fg-faint);
+}
+
+.iaq-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.iaq-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.iaq-info-item span:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--iaq-fg-faint);
+}
+
+.iaq-info-item span:last-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--iaq-fg);
+}
+
+.iaq-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.iaq-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.iaq-legend-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.iaq-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.iaq-metric-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.1rem;
+    border-radius: 0.6rem;
+    background: var(--iaq-card);
+    border: 1px solid var(--iaq-border);
+    overflow: hidden;
+}
+
+.iaq-metric-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--metric-color, var(--iaq-accent)), transparent);
+    opacity: 0.4;
+}
+
+.iaq-metric-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.iaq-metric-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--iaq-fg-dim);
+}
+
+.iaq-metric-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--metric-color, var(--iaq-fg-dim));
+    box-shadow: 0 0 6px var(--metric-color, transparent);
+}
+
+.iaq-metric-value {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--iaq-fg);
+}
+
+.iaq-metric-unit {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--iaq-fg-faint);
+}
+
+.iaq-metric-bar {
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+.iaq-metric-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--metric-color, var(--iaq-accent));
+}
+
+.iaq-sparkline {
+    display: block;
+    width: 100%;
+    height: 32px;
+}
+
+.iaq-metric-desc {
+    margin: 0;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--iaq-fg-faint);
+}
+
+.iaq-console-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--iaq-border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.2);
 }

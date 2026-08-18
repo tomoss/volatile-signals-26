@@ -65,28 +65,39 @@
         return deltas[deltaIndex] > localGapThreshold(deltaIndex);
     }
 
-    // Bosch BSEC IAQ scale (Excellent..Extremely polluted, 0-500+), collapsed
-    // into the app's 4-step status palette without splitting any of its bands:
-    // good = Excellent+Good, warning = Lightly+Moderately polluted,
-    // serious = Heavily+Severely polluted, critical = Extremely polluted.
+    // Bosch BSEC IAQ scale (Excellent..Extremely polluted, 0-500+).
+    // Keep in sync with iaq_extras.iaq_status and the status-* color
+    // variables in base.css.
     const IAQ_STATUS_COLORS = {
+        excellent: "#10b981",
         good: "#22c55e",
-        warning: "#f5a623",
-        serious: "#f97316",
-        critical: "#ef4477",
+        lightlyPolluted: "#eab308",
+        moderatelyPolluted: "#f97316",
+        heavilyPolluted: "#ef4444",
+        severelyPolluted: "#be123c",
+        extremelyPolluted: "#78350f",
     };
 
     function iaqStatusColor(value) {
+        if (value <= 50) {
+            return IAQ_STATUS_COLORS.excellent;
+        }
         if (value <= 100) {
             return IAQ_STATUS_COLORS.good;
         }
+        if (value <= 150) {
+            return IAQ_STATUS_COLORS.lightlyPolluted;
+        }
         if (value <= 200) {
-            return IAQ_STATUS_COLORS.warning;
+            return IAQ_STATUS_COLORS.moderatelyPolluted;
+        }
+        if (value <= 250) {
+            return IAQ_STATUS_COLORS.heavilyPolluted;
         }
         if (value <= 350) {
-            return IAQ_STATUS_COLORS.serious;
+            return IAQ_STATUS_COLORS.severelyPolluted;
         }
-        return IAQ_STATUS_COLORS.critical;
+        return IAQ_STATUS_COLORS.extremelyPolluted;
     }
 
     function iaqSegmentColor(ctx) {

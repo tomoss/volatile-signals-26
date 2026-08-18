@@ -21,6 +21,7 @@ from django.views.generic import (
     TemplateView,
 )
 
+from iaq.dashboard_data import build_dashboard_context
 from iaq.models import Device, DeviceClaim, DeviceStatus
 from mqtt.publisher import publish_command
 
@@ -63,10 +64,20 @@ class IaqDeviceDashboardView(DetailView):
     context_object_name = "device"
 
     def get_queryset(self):
-        qs = Device.objects.select_related("latest_sensor_reading")
+        qs = Device.objects.select_related(
+            "latest_sensor_reading",
+            "latest_health_reading",
+            "device_info",
+            "device_status",
+        )
         if self.request.user.is_authenticated:
             return qs.filter(Q(is_public=True) | Q(user=self.request.user))
         return qs.filter(is_public=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(build_dashboard_context(self.object))
+        return context
 
     def get_template_names(self):
         if self.request.headers.get("HX-Request") == "true":
