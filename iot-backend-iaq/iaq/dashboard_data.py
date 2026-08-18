@@ -24,8 +24,6 @@ IAQ_STATUS_COLORS = {
     "unknown": "#8b93a7",
 }
 
-HISTORY_POINTS = 30
-
 METRIC_DEFS = [
     {
         "key": "temperature",
@@ -63,7 +61,7 @@ METRIC_DEFS = [
         "unit": "ppm",
         "icon": "bi-cloud-haze2",
         "description": "Outdoor baseline ~420 ppm; >1000 impairs cognition",
-        "thresholds": (600, 1000, 1500),
+        "status": "unknown",
         "range": (400, 2000),
         "decimals": 0,
     },
@@ -73,7 +71,7 @@ METRIC_DEFS = [
         "unit": "ppb",
         "icon": "bi-activity",
         "description": "Volatile organic compounds from surfaces & products",
-        "thresholds": (150, 300, 400),
+        "status": "unknown",
         "range": (0, 500),
         "decimals": 0,
     },
@@ -93,60 +91,24 @@ GAUGE_TICKS = [
 ]
 
 
-def _status_for(value, thresholds):
-    good, moderate, poor = thresholds
-    if value <= good:
-        return "good"
-    if value <= moderate:
-        return "moderate"
-    if value <= poor:
-        return "poor"
-    return "hazardous"
-
-
 def _band_status(value, band):
     low, high = band
     return "good" if low <= value <= high else "poor"
 
 
-def sparkline(values, width=100.0, height=32.0):
-    """Build SVG polyline/polygon point strings for a small trend chart."""
-    if not values:
-        return {"line": "", "area": ""}
-    vals = values if len(values) > 1 else values * 2
-    vmin, vmax = min(vals), max(vals)
-    rng = (vmax - vmin) or 1.0
-    step = width / (len(vals) - 1)
-    coords = [
-        (i * step, height - ((v - vmin) / rng) * height) for i, v in enumerate(vals)
-    ]
-    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in coords)
-    area = f"0,{height:.1f} {line} {width:.1f},{height:.1f}"
-    return {"line": line, "area": area}
-
-
 def build_dashboard_context(device):
-    readings = list(
-        device.sensor_readings.filter(accuracy=3).order_by("-timestamp")[
-            :HISTORY_POINTS
-        ]
-    )
-    readings.reverse()
     latest = device.latest_sensor_reading
 
     metrics = []
     for metric_def in METRIC_DEFS:
         key = metric_def["key"]
-        values = [getattr(r, key) for r in readings]
         value = getattr(latest, key) if latest else None
         if value is None:
             status = "unknown"
         elif "status" in metric_def:
             status = metric_def["status"]
-        elif "band" in metric_def:
-            status = _band_status(value, metric_def["band"])
         else:
-            status = _status_for(value, metric_def["thresholds"])
+            status = _band_status(value, metric_def["band"])
         color = STATUS_COLORS[status]
         lo, hi = metric_def["range"]
         percent = (
@@ -156,6 +118,7 @@ def build_dashboard_context(device):
         )
         metrics.append(
             {
+                "key": key,
                 "label": metric_def["label"],
                 "unit": metric_def["unit"],
                 "icon": metric_def["icon"],
@@ -164,20 +127,18 @@ def build_dashboard_context(device):
                 "status": status,
                 "color": color,
                 "percent": percent,
-                "sparkline": sparkline(values),
             }
         )
 
-    score = latest.iaq if latest else None
+    score = round(latest.iaq) if latest else None
     gauge_status = iaq_status(score)
     pct = min(score / GAUGE_MAX, 1) if score is not None else 0
     gauge = {
-        "score": round(score) if score is not None else None,
+        "score": score,
         "status_label": gauge_status["label"],
         "color": IAQ_STATUS_COLORS[gauge_status["css_class"]],
         "arc": round(GAUGE_ARC, 2),
         "dash_offset": round(GAUGE_ARC * (1 - pct), 2),
-        "sparkline": sparkline([r.iaq for r in readings]),
     }
 
     return {

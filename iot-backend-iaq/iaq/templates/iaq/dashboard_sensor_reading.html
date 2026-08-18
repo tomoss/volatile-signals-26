@@ -42,12 +42,8 @@
                 <span class="iaq-status-pill" style="color: {{ gauge.color }}; background: {{ gauge.color }}1a; border: 1px solid {{ gauge.color }}55;">
                     {{ gauge.status_label }}
                 </span>
-                <svg class="iaq-sparkline iaq-gauge-sparkline" viewBox="0 0 100 32" preserveAspectRatio="none">
-                    {% if gauge.sparkline.line %}
-                    <polygon points="{{ gauge.sparkline.area }}" fill="{{ gauge.color }}" opacity="0.12"></polygon>
-                    <polyline points="{{ gauge.sparkline.line }}" fill="none" stroke="{{ gauge.color }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
-                    {% endif %}
-                </svg>
+                <svg class="iaq-sparkline iaq-gauge-sparkline" data-sparkline="iaq" data-value="{{ gauge.score|default_if_none:'' }}" data-color="{{ gauge.color }}"
+                     viewBox="0 0 100 32" preserveAspectRatio="none"></svg>
                 <p class="iaq-panel-note">Bosch BSEC IAQ index · see scale reference</p>
             </div>
 
@@ -81,12 +77,8 @@
                     {{ metric.value|default_if_none:"N/A" }}{% if metric.value is not None %}<span class="iaq-metric-unit">{{ metric.unit }}</span>{% endif %}
                 </div>
                 <div class="iaq-metric-bar"><div class="iaq-metric-bar-fill" style="width: {{ metric.percent }}%;"></div></div>
-                <svg class="iaq-sparkline" viewBox="0 0 100 32" preserveAspectRatio="none">
-                    {% if metric.sparkline.line %}
-                    <polygon points="{{ metric.sparkline.area }}" fill="{{ metric.color }}" opacity="0.12"></polygon>
-                    <polyline points="{{ metric.sparkline.line }}" fill="none" stroke="{{ metric.color }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
-                    {% endif %}
-                </svg>
+                <svg class="iaq-sparkline" data-sparkline="{{ metric.key }}" data-value="{{ metric.value|default_if_none:'' }}" data-color="{{ metric.color }}"
+                     viewBox="0 0 100 32" preserveAspectRatio="none"></svg>
                 <p class="iaq-metric-desc">{{ metric.description }}</p>
             </div>
             {% endfor %}
@@ -95,6 +87,5 @@
 
     <div class="iaq-console-footer">
         <span>{{ device.mac }}</span>
-        <span>{{ device.latest_sensor_reading.timestamp|date:"M j, Y, g:i:s A"|default:"No readings yet" }}</span>
     </div>
 </div>

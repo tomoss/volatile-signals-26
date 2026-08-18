@@ -1,4 +1,5 @@
 {% extends "iaq/base.html" %}
+{% load static %}
 
 {% block title %}IAQ - Dashboard{% endblock %}
 
@@ -7,4 +8,8 @@
 
 {% block content %}
     {% include "iaq/dashboard_sensor_reading.html" %}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'iaq/dashboard.js' %}"></script>
 {% endblock %}
