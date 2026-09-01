@@ -1,12 +1,98 @@
-<div id="device-sensor-reading"
+{% load iaq_extras %}
+<div id="device-sensor-reading" class="iaq-console"
      hx-get="{% url 'dashboard' device.id %}"
      hx-trigger="every 5s [document.visibilityState == 'visible']"
      hx-swap="outerHTML">
-    <p>IAQ: {{ device.latest_sensor_reading.iaq|default:"N/A" }}</p>
-    <p>CO2 equivalent: {{ device.latest_sensor_reading.co2_equivalent|default:"N/A" }} ppm</p>
-    <p>VOC equivalent: {{ device.latest_sensor_reading.voc_equivalent|default:"N/A" }} ppb</p>
-    <p>Temperature: {{ device.latest_sensor_reading.temperature|default:"N/A" }} °C</p>
-    <p>Humidity: {{ device.latest_sensor_reading.humidity|default:"N/A" }} %</p>
-    <p>Pressure: {{ device.latest_sensor_reading.pressure|default:"N/A" }} hPa</p>
-    <p>Last updated: {{ device.latest_sensor_reading.timestamp|default:"N/A" }}</p>
+
+    <div class="iaq-console-header">
+        <div class="iaq-console-title">
+            <span class="iaq-console-icon"><i class="bi bi-wind"></i></span>
+            <h2>{{ device.name|default:device.mac }}</h2>
+            {% if is_online %}
+            <span class="iaq-live-badge iaq-live-badge-on">
+                <span class="iaq-live-dot iaq-live-dot-on"></span>
+                <span class="iaq-mono">Online</span>
+            </span>
+            {% else %}
+            <span class="iaq-live-badge iaq-live-badge-off">
+                <span class="iaq-live-dot iaq-live-dot-off"></span>
+                <span class="iaq-mono">Offline</span>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="iaq-console-body">
+        <aside class="iaq-sidebar">
+            <div class="iaq-panel iaq-gauge-panel">
+                <span class="iaq-panel-label">Indoor Air Quality</span>
+                <svg class="iaq-gauge" viewBox="0 0 180 110">
+                    <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10" stroke-linecap="round"></path>
+                    <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="{{ gauge.color }}" stroke-width="25" stroke-linecap="round"
+                          stroke-dasharray="{{ gauge.arc }}" stroke-dashoffset="{{ gauge.dash_offset }}" opacity="0.12"></path>
+                    <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="{{ gauge.color }}" stroke-width="10" stroke-linecap="round"
+                          stroke-dasharray="{{ gauge.arc }}" stroke-dashoffset="{{ gauge.dash_offset }}"></path>
+                    {% for tick in gauge_ticks %}
+                    <line x1="{{ tick.x1|floatformat:1 }}" y1="{{ tick.y1|floatformat:1 }}" x2="{{ tick.x2|floatformat:1 }}" y2="{{ tick.y2|floatformat:1 }}"
+                          stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-linecap="round"></line>
+                    {% endfor %}
+                    <text x="90" y="78" text-anchor="middle" fill="{{ gauge.color }}" font-size="32" font-weight="600" class="iaq-mono">{{ gauge.score|default_if_none:"—" }}</text>
+                    <text x="90" y="96" text-anchor="middle" class="iaq-gauge-unit">IAQ</text>
+                </svg>
+                <span class="iaq-status-pill" style="color: {{ gauge.color }}; background: {{ gauge.color }}1a; border: 1px solid {{ gauge.color }}55;">
+                    {{ gauge.status_label }}
+                </span>
+                <svg class="iaq-sparkline iaq-gauge-sparkline" data-sparkline="iaq" data-value="{{ gauge.score|default_if_none:'' }}" data-color="{{ gauge.color }}"
+                     viewBox="0 0 100 32" preserveAspectRatio="none"></svg>
+                <p class="iaq-panel-note">Bosch BSEC IAQ index · see scale reference</p>
+            </div>
+
+            <div class="iaq-panel iaq-info-grid">
+                {% if is_online %}
+                <div class="iaq-info-item"><span>Accuracy</span><span>{{ device.latest_sensor_reading.accuracy|accuracy_label }}</span></div>
+                <div class="iaq-info-item"><span>Sensor mode</span><span>{{ device.device_info.sensor_mode|sensor_mode_label }}</span></div>
+                <div class="iaq-info-item"><span>Signal</span><span>{{ device.latest_health_reading.rssi|rssi_signal }}</span></div>
+                <div class="iaq-info-item"><span>Uptime</span><span>{{ device.latest_health_reading.uptime|format_uptime }}</span></div>
+                {% else %}
+                <div class="iaq-info-item"><span>Accuracy</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Sensor mode</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Signal</span><span>N/A</span></div>
+                <div class="iaq-info-item"><span>Uptime</span><span>N/A</span></div>
+                {% endif %}
+            </div>
+
+            <div class="iaq-panel iaq-legend">
+                <span class="iaq-panel-label">Scale reference</span>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #10b981;"></span>0–50 Excellent</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #22c55e;"></span>51–100 Good</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #eab308;"></span>101–150 Lightly polluted</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #f97316;"></span>151–200 Moderately polluted</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #ef4444;"></span>201–250 Heavily polluted</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #be123c;"></span>251–350 Severely polluted</div>
+                <div class="iaq-legend-item"><span class="iaq-legend-dot" style="background: #78350f;"></span>351+ Extremely polluted</div>
+            </div>
+        </aside>
+
+        <div class="iaq-metric-grid">
+            {% for metric in metrics %}
+            <div class="iaq-metric-card" style="--metric-color: {{ metric.color }};">
+                <div class="iaq-metric-head">
+                    <span class="iaq-metric-label"><i class="bi {{ metric.icon }}"></i>{{ metric.label }}</span>
+                    <span class="iaq-metric-dot"></span>
+                </div>
+                <div class="iaq-metric-value">
+                    {{ metric.value|default_if_none:"N/A" }}{% if metric.value is not None %}<span class="iaq-metric-unit">{{ metric.unit }}</span>{% endif %}
+                </div>
+                <div class="iaq-metric-bar"><div class="iaq-metric-bar-fill" style="width: {{ metric.percent }}%;"></div></div>
+                <svg class="iaq-sparkline" data-sparkline="{{ metric.key }}" data-value="{{ metric.value|default_if_none:'' }}" data-color="{{ metric.color }}"
+                     viewBox="0 0 100 32" preserveAspectRatio="none"></svg>
+                <p class="iaq-metric-desc">{{ metric.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="iaq-console-footer">
+        <span>{{ device.mac }}</span>
+    </div>
 </div>

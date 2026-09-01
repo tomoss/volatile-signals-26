@@ -65,8 +65,64 @@
         return deltas[deltaIndex] > localGapThreshold(deltaIndex);
     }
 
-    const gridColor = "#e1e0d9";
-    const tickColor = "#898781";
+    // Bosch BSEC IAQ scale (Excellent..Extremely polluted, 0-500+).
+    // Keep in sync with iaq_extras.iaq_status and the status-* color
+    // variables in base.css.
+    const IAQ_STATUS_COLORS = {
+        excellent: "#10b981",
+        good: "#22c55e",
+        lightlyPolluted: "#eab308",
+        moderatelyPolluted: "#f97316",
+        heavilyPolluted: "#ef4444",
+        severelyPolluted: "#be123c",
+        extremelyPolluted: "#78350f",
+    };
+
+    function iaqStatusColor(value) {
+        if (value <= 50) {
+            return IAQ_STATUS_COLORS.excellent;
+        }
+        if (value <= 100) {
+            return IAQ_STATUS_COLORS.good;
+        }
+        if (value <= 150) {
+            return IAQ_STATUS_COLORS.lightlyPolluted;
+        }
+        if (value <= 200) {
+            return IAQ_STATUS_COLORS.moderatelyPolluted;
+        }
+        if (value <= 250) {
+            return IAQ_STATUS_COLORS.heavilyPolluted;
+        }
+        if (value <= 350) {
+            return IAQ_STATUS_COLORS.severelyPolluted;
+        }
+        return IAQ_STATUS_COLORS.extremelyPolluted;
+    }
+
+    function iaqSegmentColor(ctx) {
+        if (isGapSegment(ctx)) {
+            return "transparent";
+        }
+        return iaqStatusColor(sensorReadings[ctx.p1DataIndex].iaq);
+    }
+
+    function hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+    }
+
+    function iaqSegmentFillColor(ctx) {
+        if (isGapSegment(ctx)) {
+            return "transparent";
+        }
+        return hexToRgba(iaqStatusColor(sensorReadings[ctx.p1DataIndex].iaq), 0.2);
+    }
+
+    const gridColor = "#232c42";
+    const tickColor = "#8b93a7";
 
     const metrics = [
         {key: "iaq", canvasId: "chart-iaq", label: "IAQ", color: "#2a78d6"},
@@ -91,19 +147,27 @@
                     data: sensorReadings.map(function (r) { return r[metric.key]; }),
                     borderColor: metric.color,
                     backgroundColor: metric.color,
+                    pointBackgroundColor: metric.key === "iaq"
+                        ? sensorReadings.map(function (r) { return iaqStatusColor(r.iaq); })
+                        : metric.color,
                     borderWidth: 2,
                     pointRadius: showMarkers ? 4 : 0,
                     pointHoverRadius: 5,
                     tension: 0.2,
+                    fill: metric.key === "iaq" ? "start" : false,
                     segment: {
-                        borderColor: function (ctx) {
-                            return isGapSegment(ctx) ? "transparent" : undefined;
-                        },
+                        borderColor: metric.key === "iaq"
+                            ? iaqSegmentColor
+                            : function (ctx) {
+                                return isGapSegment(ctx) ? "transparent" : undefined;
+                            },
+                        backgroundColor: metric.key === "iaq" ? iaqSegmentFillColor : undefined,
                     },
                 }],
             },
             options: {
                 responsive: true,
+                aspectRatio: metric.key === "iaq" ? 4 : 2,
                 interaction: {mode: "index", intersect: false},
                 plugins: {
                     legend: {display: false},
@@ -112,7 +176,7 @@
                 scales: {
                     x: {
                         grid: {color: gridColor},
-                        ticks: {color: tickColor, maxRotation: 0, autoSkip: true},
+                        ticks: {color: tickColor, maxRotation: 0, autoSkip: true, autoSkipPadding: 30},
                     },
                     y: {
                         grid: {color: gridColor},

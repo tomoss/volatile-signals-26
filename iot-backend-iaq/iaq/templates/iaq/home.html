@@ -1,28 +1,54 @@
 {% extends "iaq/base.html" %}
+{% load iaq_extras %}
 
 {% block title %}IAQ - Home{% endblock %}
 
 {% block content %}
-    <p>Hello, you are at the home page.</p>
-    <hr>
-    {% for device in device_list %}
-      <p>Device id: {{device.id}}</p>
-      <p>Device name: {{ device.name }}</p>
-      {% if device.latest_sensor_reading %}
-        <p>Temperature: {{ device.latest_sensor_reading.temperature }} °C<br></p>
-        <p>Humidity: {{ device.latest_sensor_reading.humidity }} %<br></p>
-        <p>IAQ: {{ device.latest_sensor_reading.iaq }}<br></p>
-        <p>Last updated: {{ device.latest_sensor_reading.timestamp }}</p>
-      {% else %}
-        <p>No readings yet.</p>
-      {% endif %}
-      {% if device.device_info %}
-        <p>Firmware version: {{ device.device_info.firmware_version }}</p>
-      {% else %}
-        <p>No device info yet.</p>
-      {% endif %}
-      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'dashboard' device.id %}'">Dashboard</button>
-      <button type="button" class="btn btn-primary" onclick="location.href='{% url 'history' device.id %}'">History</button>
-      <hr>
-    {% endfor %}
+    <h1 class="h4 mb-3">Public devices</h1>
+    {% if device_list %}
+        <div class="device-grid">
+            {% for device in device_list %}
+                {% with reading=device.latest_sensor_reading status=device.latest_sensor_reading.iaq|iaq_status %}
+                <div class="device-card">
+                    <div class="device-card-header">
+                        <h3 class="device-name">{{ device.name }}</h3>
+                        <span class="status-badge status-{{ status.css_class }}">
+                            <span class="status-dot"></span>{{ status.label }}
+                        </span>
+                    </div>
+                    <div class="device-metrics">
+                        <div class="metric">
+                            <div class="metric-label"><i class="bi bi-thermometer-half"></i> Temp</div>
+                            <div class="metric-value">
+                                {% if reading %}{{ reading.temperature|floatformat:1 }}<span class="metric-unit">&deg;C</span>{% else %}N/A{% endif %}
+                            </div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label"><i class="bi bi-droplet"></i> Hum</div>
+                            <div class="metric-value">
+                                {% if reading %}{{ reading.humidity|floatformat:1 }}<span class="metric-unit">%</span>{% else %}N/A{% endif %}
+                            </div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label"><i class="bi bi-wind"></i> IAQ</div>
+                            <div class="metric-value{% if reading %} text-{{ status.css_class }}{% endif %}">
+                                {% if reading %}{{ reading.iaq|floatformat:0 }}{% else %}N/A{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="device-footer">
+                        <i class="bi bi-clock"></i>
+                        {% if reading %}Updated {{ reading.timestamp|date:"M j, Y, g:i A" }}{% else %}No readings yet{% endif %}
+                    </div>
+                    <div class="device-actions">
+                        <a class="btn-card" href="{% url 'dashboard' device.id %}">Dashboard</a>
+                        <a class="btn-card" href="{% url 'history' device.id %}">History</a>
+                    </div>
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No public devices to show yet.</p>
+    {% endif %}
 {% endblock %}

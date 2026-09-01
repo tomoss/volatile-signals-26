@@ -1,0 +1,41 @@
+{% load iaq_extras %}
+<div class="card chart-card h-100" id="device-health-card"
+     hx-get="{% url 'device_management' device.id %}"
+     hx-trigger="every 5s [document.visibilityState == 'visible']"
+     hx-swap="outerHTML">
+    <div class="card-body">
+        <h5 class="card-title">Health</h5>
+        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary-subtle py-2">
+            <span class="chart-legend">Status</span>
+            <span class="status-badge status-badge-lg {% if device.device_status.is_online %}status-good{% else %}status-hazardous{% endif %}">
+                <span class="status-dot"></span>{{ device.device_status.is_online|yesno:"Online,Offline" }}
+            </span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary-subtle py-2">
+            <span class="chart-legend">RSSI</span>
+            {% with rssi=device.latest_health_reading.rssi %}
+            {% if rssi %}
+                <span>{{ rssi }} dBm ({{ rssi|rssi_signal }})</span>
+            {% else %}
+                <span>N/A</span>
+            {% endif %}
+            {% endwith %}
+        </div>
+        <div class="d-flex justify-content-between border-bottom border-secondary-subtle py-2">
+            <span class="chart-legend">Uptime</span>
+            <span>{{ device.latest_health_reading.uptime|format_uptime }}</span>
+        </div>
+        <div class="d-flex justify-content-between border-bottom border-secondary-subtle py-2">
+            <span class="chart-legend">Heap</span>
+            <span>{{ device.latest_health_reading.heap|default:"N/A" }}</span>
+        </div>
+        <div class="d-flex justify-content-between border-bottom border-secondary-subtle py-2">
+            <span class="chart-legend">Min heap</span>
+            <span>{{ device.latest_health_reading.min_heap|default:"N/A" }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+            <span class="chart-legend">Last received</span>
+            <span>{{ device.latest_health_reading.received_at|default:"N/A" }}</span>
+        </div>
+    </div>
+</div>
