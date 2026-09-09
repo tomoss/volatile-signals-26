@@ -31,7 +31,7 @@
     // Readings closer together than this are connected with a line (e.g. LowPower
     // mode, sampling every ~3s); readings farther apart (e.g. UltraLowPower mode,
     // sampling every ~5min) are shown as unconnected points instead.
-    const GAP_THRESHOLD_MS = 30000;
+    const GAP_THRESHOLD_MS = 240000;
 
     const deltas = [];
     for (let i = 1; i < readingTimes.length; i++) {
