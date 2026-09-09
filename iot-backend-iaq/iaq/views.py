@@ -327,7 +327,7 @@ class IaqDeviceSetVisibilityView(LoginRequiredMixin, View):
 
 
 class IaqDeviceRebootView(IaqDeviceCommandView):
-    command = "reboot"
+    command = "device_reboot"
     success_message = "Reboot command sent."
     error_message = "Failed to send reboot command; broker unreachable."
 
