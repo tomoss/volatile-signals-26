@@ -24,45 +24,40 @@
             minute: "2-digit",
         });
     });
-    const showMarkers = sensorReadings.length <= 60;
-
     const readingTimes = sensorReadings.map(function (r) {
         return new Date(r.timestamp).getTime();
     });
 
-    const GAP_WINDOW_SIZE = 5;
+    // Readings closer together than this are connected with a line (e.g. LowPower
+    // mode, sampling every ~3s); readings farther apart (e.g. UltraLowPower mode,
+    // sampling every ~5min) are shown as unconnected points instead.
+    const GAP_THRESHOLD_MS = 5000;
 
     const deltas = [];
     for (let i = 1; i < readingTimes.length; i++) {
         deltas.push(readingTimes[i] - readingTimes[i - 1]);
     }
 
-    function median(values) {
-        const sorted = values.slice().sort(function (a, b) { return a - b; });
-        return sorted[Math.floor(sorted.length / 2)];
-    }
-
-    function localGapThreshold(deltaIndex) {
-        const window = [];
-        for (let i = Math.max(0, deltaIndex - GAP_WINDOW_SIZE); i < deltaIndex; i++) {
-            window.push(deltas[i]);
-        }
-        for (
-            let i = deltaIndex + 1;
-            i <= Math.min(deltas.length - 1, deltaIndex + GAP_WINDOW_SIZE);
-            i++
-        ) {
-            window.push(deltas[i]);
-        }
-        if (window.length === 0) {
-            return Infinity;
-        }
-        return median(window) * 2;
-    }
-
     function isGapSegment(ctx) {
         const deltaIndex = ctx.p0DataIndex;
-        return deltas[deltaIndex] > localGapThreshold(deltaIndex);
+        return deltas[deltaIndex] > GAP_THRESHOLD_MS;
+    }
+
+    // A point is rendered as a visible marker when it isn't densely connected on
+    // both sides, so isolated (sparse) readings are still visible even though
+    // dense runs are drawn as a plain line without markers.
+    function isSparsePoint(index) {
+        const prevDelta = index > 0 ? deltas[index - 1] : null;
+        const nextDelta = index < deltas.length ? deltas[index] : null;
+        if (prevDelta === null && nextDelta === null) {
+            return true;
+        }
+        return (prevDelta !== null && prevDelta > GAP_THRESHOLD_MS) ||
+            (nextDelta !== null && nextDelta > GAP_THRESHOLD_MS);
+    }
+
+    function pointRadius(ctx) {
+        return isSparsePoint(ctx.dataIndex) ? 4 : 0;
     }
 
     // Bosch BSEC IAQ scale (Excellent..Extremely polluted, 0-500+).
@@ -151,7 +146,7 @@
                         ? sensorReadings.map(function (r) { return iaqStatusColor(r.iaq); })
                         : metric.color,
                     borderWidth: 2,
-                    pointRadius: showMarkers ? 4 : 0,
+                    pointRadius: pointRadius,
                     pointHoverRadius: 5,
                     tension: 0.2,
                     fill: metric.key === "iaq" ? "start" : false,
