@@ -19,19 +19,21 @@ public:
     RealTimeClock(RealTimeClock&&) = delete;
     RealTimeClock& operator=(RealTimeClock&&) = delete;
 
-    // Probes the PCF8563 on the I2C bus; returns false if it does not respond.
-    [[nodiscard]] bool init();
-
-    // Returns the RTC's held time as a UTC epoch, or nullopt if the RTC isn't present or its
-    // voltage-low flag is set (battery never installed, dead, or was disconnected - the held
-    // time can't be trusted).
-    std::optional<time_t> read();
+    // Probes the PCF8563 on the I2C bus
+    void init();
 
     // Writes p_epoch (UTC) to the RTC so it survives the next power loss. No-op if init()
     // didn't find the chip.
     void write(time_t p_epoch);
 
+    void seedSystemClock();
+
 private:
+    // Returns the RTC's held time as a UTC epoch, or nullopt if the RTC isn't present or its
+    // voltage-low flag is set (battery never installed, dead, or was disconnected - the held
+    // time can't be trusted).
+    std::optional<time_t> read();
+
     WireWrapper& m_wire;
     RTC_PCF8563 m_rtc;
     bool m_present = false;

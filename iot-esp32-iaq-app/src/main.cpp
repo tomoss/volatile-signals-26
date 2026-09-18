@@ -16,6 +16,7 @@
 #include "04_mqtt/mqtt_types.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
+#include "07_utils/claim_code_manager.hpp"
 #include "07_utils/command.hpp"
 #include "07_utils/device_health.hpp"
 #include "07_utils/device_info.hpp"
@@ -316,9 +317,9 @@ void setup() {
     static MqttBridge mqttBridge(storage);
     static TimeSync timeSync;
     static RealTimeClock rtc(wireWrapper);
+    static ClaimCodeManager claimCodeManager(storage);
 
-    static const DeviceInfo deviceInfo = collectDeviceInfo();
-
+    // Mandatory modules initialization
     if (!wireWrapper.init() || !storage.init() || !envSensor.init(SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
         !mqttBridge.init(true)) {
         Serial.println("Mandatory module init failed, restarting the board...");
@@ -327,28 +328,13 @@ void setup() {
         esp_restart();
     }
 
-    const bool l_hasRtc = rtc.init();
-    if (!l_hasRtc) {
-        Serial.println("RTC not found (continuing without RTC-backed boot time)");
-    } else if (const auto l_rtcTime = rtc.read()) {
-        const struct timeval l_tv{*l_rtcTime, 0};
-        settimeofday(&l_tv, nullptr);
-        Serial.println("[RTC] Seeded system clock from RTC");
-    } else {
-        Serial.println("[RTC] No valid time on RTC (battery low/never set)");
-    }
+    // Not mandatory, so not required to succeed
+    rtc.init();
+    rtc.seedSystemClock();
 
     // Generated once, ever
-    static ClaimCode claim_code{};
-    if (const auto l_savedClaimCode = storage.loadClaimCode()) {
-        claim_code = *l_savedClaimCode;
-    } else {
-        const uint32_t l_random = esp_random() % 1000000;
-        snprintf(claim_code.data(), claim_code.size(), "%06lu", static_cast<unsigned long>(l_random));
-        if (!storage.saveClaimCode(claim_code)) {
-            Serial.println("Failed to save claim code");
-        }
-    }
+    claimCodeManager.init();
+    const ClaimCode& claim_code = claimCodeManager.get();
 
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
@@ -368,12 +354,12 @@ void setup() {
         displayController.setClaimingCode(claim_code);
     }
 
-    wifiAdapter.setConnectedCallback([l_hasDisplay, l_hasRtc] {
+    wifiAdapter.setConnectedCallback([l_hasDisplay] {
         Serial.println("WiFi connected callback called");
         if (l_hasDisplay) {
             displayController.setWifiStatus(true);
         }
-        if (timeSync.sync() && l_hasRtc) {
+        if (timeSync.sync()) {
             rtc.write(time(nullptr));
         }
         mqttBridge.connect();
@@ -420,6 +406,8 @@ void setup() {
         Serial.println("[BLE] New credentials saved");
         wifiManager.credentialsUpdated();
     });
+
+    static const DeviceInfo deviceInfo = collectDeviceInfo();
 
     mqttBridge.setOnConnectedCallback([l_hasDisplay] {
         if (l_hasDisplay) {
