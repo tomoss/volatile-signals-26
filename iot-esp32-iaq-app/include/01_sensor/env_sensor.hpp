@@ -7,13 +7,12 @@
 #include "00_vendor/freertos.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
-
-class TwoWire;
+#include "07_utils/wire_wrapper.hpp"
 
 class EnvSensor {
 public:
     // p_bus is injected (begun + clocked by main) so it is shared with the display.
-    EnvSensor(Storage& p_storage, TwoWire& p_bus) : m_storage(p_storage), m_bus(p_bus) {}
+    EnvSensor(Storage& p_storage, WireWrapper& p_bus) : m_storage(p_storage), m_bus(p_bus) {}
     ~EnvSensor();
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
@@ -63,7 +62,7 @@ private:
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
-    TwoWire& m_bus;
+    WireWrapper& m_bus;
     QueueHandle_t m_modeRequestQueue = nullptr;
     TaskHandle_t m_task = nullptr;
 };

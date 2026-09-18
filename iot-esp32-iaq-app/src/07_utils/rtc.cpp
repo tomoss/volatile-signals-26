@@ -2,7 +2,7 @@
 
 bool RealTimeClock::init() {
     // The bus is begun and clocked by main; begin() here only probes for the PCF8563.
-    m_present = m_rtc.begin(&m_wire);
+    m_present = m_rtc.begin(&m_wire.getRaw());
     return m_present;
 }
 

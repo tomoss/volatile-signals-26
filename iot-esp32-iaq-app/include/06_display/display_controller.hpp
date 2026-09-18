@@ -10,7 +10,7 @@
 // can drive the panel directly without ever overlapping its I2C traffic with the worker task.
 class DisplayController {
 public:
-    explicit DisplayController(TwoWire& p_wire) : m_display(p_wire) {}
+    explicit DisplayController(WireWrapper& p_wire) : m_display(p_wire) {}
     ~DisplayController();
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;

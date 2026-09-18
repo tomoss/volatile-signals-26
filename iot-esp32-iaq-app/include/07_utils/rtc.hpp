@@ -5,13 +5,14 @@
 #include <optional>
 
 #include "00_vendor/rtclib.hpp"
+#include "07_utils/wire_wrapper.hpp"
 
 // PCF8563 RTC on the Seeed XIAO Expansion Base, battery-backed so it holds time across power loss/reset.
 class RealTimeClock {
 public:
-    // p_wire must be `Wire`, already begun and clocked by main; it's injected (rather than
+    // p_wire must wrap `Wire`, already begun and clocked by main; it's injected (rather than
     // begun here) so main owns the shared bus's lifecycle.
-    explicit RealTimeClock(TwoWire& p_wire) : m_wire(p_wire) {}
+    explicit RealTimeClock(WireWrapper& p_wire) : m_wire(p_wire) {}
     ~RealTimeClock() = default;
     RealTimeClock(const RealTimeClock&) = delete;
     RealTimeClock& operator=(const RealTimeClock&) = delete;
@@ -31,7 +32,7 @@ public:
     void write(time_t p_epoch);
 
 private:
-    TwoWire& m_wire;
+    WireWrapper& m_wire;
     RTC_PCF8563 m_rtc;
     bool m_present = false;
 };

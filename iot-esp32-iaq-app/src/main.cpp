@@ -21,6 +21,7 @@
 #include "07_utils/device_info.hpp"
 #include "07_utils/rtc.hpp"
 #include "07_utils/time_sync.hpp"
+#include "07_utils/wire_wrapper.hpp"
 
 #include <esp_system.h>
 
@@ -29,10 +30,6 @@ constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 
 // Delay duration for reboot after failed init
 constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
-
-// I2C Fast-mode clock for the bus shared by the display and sensor. 400 kHz keeps each
-// display refresh's bus-hold short so it barely perturbs sensor reads.
-constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
 // How often to publish device health (RSSI/heap/uptime) - diagnostic data
 constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
@@ -70,6 +67,12 @@ struct ClaimButtonTaskParams {
     const ClaimCode* claimCode;
 };
 
+struct OtaTaskParams {
+    const char* url;
+    EnvSensor* envSensor;
+    DisplayController* displayController; // nullptr if no display
+};
+
 // Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
 // s_otaInProgress guards it: only one OTA can be in flight at a time, so the buffer is
 // never written by a new "ota" MQTT message while otaTask is still reading it.
@@ -101,12 +104,12 @@ static void IRAM_ATTR claimButtonIsr() {
 /* Tasks                                                         */
 /*****************************************************************/
 static void otaTask(void* pvParameters) {
-    const char* const l_url = static_cast<const char*>(pvParameters);
+    auto* const l_params = static_cast<OtaTaskParams*>(pvParameters);
 
     WiFiClient l_client;
-    Serial.printf("[OTA] Starting update from %s\n", l_url);
+    Serial.printf("[OTA] Starting update from %s\n", l_params->url);
 
-    const t_httpUpdate_return l_result = httpUpdate.update(l_client, l_url);
+    const t_httpUpdate_return l_result = httpUpdate.update(l_client, l_params->url);
 
     switch (l_result) {
     case HTTP_UPDATE_OK:
@@ -118,6 +121,15 @@ static void otaTask(void* pvParameters) {
     case HTTP_UPDATE_FAILED:
         Serial.printf("[OTA] Failed: %s\n", httpUpdate.getLastErrorString().c_str());
         break;
+    }
+
+    if (l_result != HTTP_UPDATE_OK) {
+        // Nothing was flashed (or there was no reboot), so undo the pre-OTA prep in
+        // setOnOtaCallback instead of leaving the sensor disabled and display off.
+        l_params->envSensor->requestModeChange(SensorMode::LowPower);
+        if (l_params->displayController) {
+            l_params->displayController->enableDisplay();
+        }
     }
 
     s_otaInProgress.store(false);
@@ -294,28 +306,16 @@ void setup() {
     delay(DELAY_UNTIL_STABLE); // Wait for board to stabilize
     Serial.println("Firmware version: " FIRMWARE_VERSION);
 
-    // Own the shared I2C bus here, then inject it into every device on it (display + sensor)
-    // so they share one consistently-clocked bus instead of each calling Wire.begin().
-    TwoWire& l_wire = Wire;
-
-    if (!l_wire.begin()) {
-        Serial.println("I2C bus init failed, restarting...");
-        Serial.flush();
-        delay(DELAY_UNTIL_RESTART);
-        esp_restart();
-    }
-
-    l_wire.setClock(I2C_BUS_CLOCK_HZ);
-
+    static WireWrapper wireWrapper;
     static Storage storage;
-    static EnvSensor envSensor(storage, l_wire);
+    static EnvSensor envSensor(storage, wireWrapper);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
-    static DisplayController displayController(l_wire);
+    static DisplayController displayController(wireWrapper);
     static MqttBridge mqttBridge(storage);
     static TimeSync timeSync;
-    static RealTimeClock rtc(l_wire);
+    static RealTimeClock rtc(wireWrapper);
 
     static DeviceInfo deviceInfo;
     deviceInfo.firmwareVersion = FIRMWARE_VERSION;
@@ -324,6 +324,12 @@ void setup() {
     deviceInfo.chipCores = ESP.getChipCores();
     deviceInfo.resetReason = static_cast<uint8_t>(esp_reset_reason());
     deviceInfo.totalHeap = ESP.getHeapSize();
+
+    if (!wireWrapper.init()) {
+        Serial.flush();
+        delay(DELAY_UNTIL_RESTART);
+        esp_restart();
+    }
 
     if (storage.init() == false) {
         Serial.println("Storage init failed, restarting...");
@@ -461,6 +467,8 @@ void setup() {
         }
     });
 
+    static OtaTaskParams otaTaskParams{s_otaUrl.data(), &envSensor, l_hasDisplay ? &displayController : nullptr};
+
     mqttBridge.setOnOtaCallback([l_hasDisplay](std::string_view p_url) {
         if (s_otaInProgress.exchange(true)) {
             Serial.println("[OTA] Update already in progress, ignoring");
@@ -477,8 +485,12 @@ void setup() {
         std::memcpy(s_otaUrl.data(), p_url.data(), l_len);
         s_otaUrl[l_len] = '\0';
 
-        if (xTaskCreate(otaTask, "ota", 8192, s_otaUrl.data(), 1, nullptr) != pdPASS) {
+        if (xTaskCreate(otaTask, "ota", 8192, &otaTaskParams, 1, nullptr) != pdPASS) {
             Serial.println("[OTA] Failed to create OTA task");
+            envSensor.requestModeChange(SensorMode::LowPower);
+            if (l_hasDisplay) {
+                displayController.enableDisplay();
+            }
             s_otaInProgress.store(false);
             return;
         }

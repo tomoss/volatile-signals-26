@@ -172,7 +172,7 @@ bool EnvSensor::init(SensorMode p_mode) {
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
 
-    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus)) {
+    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus.getRaw())) {
         Serial.println("BME688 initialization failed");
         checkBsecStatus();
         return false;

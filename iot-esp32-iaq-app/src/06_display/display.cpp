@@ -22,7 +22,7 @@ static bool probeI2cAddress(TwoWire& p_wire, uint8_t p_address) {
 
 bool Display::init() {
     // The bus is begun and clocked by main; here we only probe for the OLED.
-    if (!probeI2cAddress(m_wire, I2C_ADDRESS)) {
+    if (!probeI2cAddress(m_wire.getRaw(), I2C_ADDRESS)) {
         return false;
     }
 
