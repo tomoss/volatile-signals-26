@@ -9,13 +9,16 @@ constexpr uint32_t I2C_BUS_CLOCK_HZ = 400000;
 
 class WireWrapper {
 public:
-    bool init() {
-        if (m_wire.begin() && m_wire.setClock(I2C_BUS_CLOCK_HZ)) {
-            return true;
+    [[nodiscard]] bool init() {
+        if (!m_wire.begin()) {
+            Serial.println("I2C BUS begin failed");
+            return false;
         }
-
-        Serial.println("I2C BUS init failed");
-        return false;
+        if (!m_wire.setClock(I2C_BUS_CLOCK_HZ)) {
+            Serial.println("I2C BUS set clock failed");
+            return false;
+        }
+        return true;
     }
 
     TwoWire& getRaw() { return m_wire; }

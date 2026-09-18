@@ -53,10 +53,12 @@ bool BleProvisioner::init() {
     m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(BleAction));
 
     if (m_queue == nullptr) {
+        Serial.println("BleProvisioner queue creation failed");
         return false;
     }
 
     if (pdPASS != xTaskCreate(taskEntry, "ble", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
+        Serial.println("BleProvisioner task creation failed");
         return false;
     }
 

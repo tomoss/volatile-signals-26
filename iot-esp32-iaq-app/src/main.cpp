@@ -317,22 +317,11 @@ void setup() {
     static TimeSync timeSync;
     static RealTimeClock rtc(wireWrapper);
 
-    static DeviceInfo deviceInfo;
-    deviceInfo.firmwareVersion = FIRMWARE_VERSION;
-    deviceInfo.chipModel = ESP.getChipModel();
-    deviceInfo.chipRevision = ESP.getChipRevision();
-    deviceInfo.chipCores = ESP.getChipCores();
-    deviceInfo.resetReason = static_cast<uint8_t>(esp_reset_reason());
-    deviceInfo.totalHeap = ESP.getHeapSize();
+    static const DeviceInfo deviceInfo = collectDeviceInfo();
 
-    if (!wireWrapper.init()) {
-        Serial.flush();
-        delay(DELAY_UNTIL_RESTART);
-        esp_restart();
-    }
-
-    if (storage.init() == false) {
-        Serial.println("Storage init failed, restarting...");
+    if (!wireWrapper.init() || !storage.init() || !envSensor.init(SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
+        !mqttBridge.init(true)) {
+        Serial.println("Mandatory module init failed, restarting the board...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
@@ -347,13 +336,6 @@ void setup() {
         Serial.println("[RTC] Seeded system clock from RTC");
     } else {
         Serial.println("[RTC] No valid time on RTC (battery low/never set)");
-    }
-
-    if (!envSensor.init(SensorMode::LowPower)) {
-        Serial.println("EnvSensor init failed, restarting...");
-        Serial.flush();
-        delay(DELAY_UNTIL_RESTART);
-        esp_restart();
     }
 
     // Generated once, ever
@@ -371,23 +353,8 @@ void setup() {
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
     s_commandQueue = xQueueCreate(COMMAND_QUEUE_SIZE, sizeof(Command));
-
-    if (!wifiManager.init()) {
-        Serial.println("WiFiManager init failed, restarting...");
-        Serial.flush();
-        delay(DELAY_UNTIL_RESTART);
-        esp_restart();
-    }
-
-    if (!bleProvisioner.init()) {
-        Serial.println("BleProvisioner init failed, restarting...");
-        Serial.flush();
-        delay(DELAY_UNTIL_RESTART);
-        esp_restart();
-    }
-
-    if (!mqttBridge.init(true)) {
-        Serial.println("MqttBridge init failed, restarting...");
+    if (s_commandQueue == nullptr) {
+        Serial.println("Command queue creation failed, restarting the board...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();

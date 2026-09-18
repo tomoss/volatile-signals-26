@@ -170,18 +170,29 @@ EnvSensor::~EnvSensor() {
 
 bool EnvSensor::init(SensorMode p_mode) {
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
+    if (s_sensorQueue == nullptr) {
+        Serial.println("Sensor queue creation failed");
+        return false;
+    }
+
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
+    if (m_modeRequestQueue == nullptr) {
+        Serial.println("Mode request queue creation failed");
+        return false;
+    }
 
     if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus.getRaw())) {
-        Serial.println("BME688 initialization failed");
+        Serial.println("BME688 init failed");
         checkBsecStatus();
         return false;
     }
 
     m_bsec.setTemperatureOffset(BME68X_TEMPERATURE_OFFSET);
 
-    if (!applyMode(p_mode))
+    if (!applyMode(p_mode)) {
+        Serial.println("Applying sensor mode failed");
         return false;
+    }
 
     m_bsec.attachCallback([](const bme68xData p_data, const bsecOutputs p_outputs, Bsec2 p_bsec) {
         if (!p_outputs.nOutputs) {

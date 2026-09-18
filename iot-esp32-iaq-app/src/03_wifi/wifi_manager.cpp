@@ -23,6 +23,7 @@ bool WifiManager::init() {
     m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(WifiQueueEvent));
 
     if (m_queue == nullptr) {
+        Serial.println("WiFiManager queue creation failed");
         return false;
     }
 
@@ -60,10 +61,12 @@ bool WifiManager::init() {
     });
 
     if (!m_adapter.init()) {
+        Serial.println("WiFiAdapter init failed");
         return false;
     }
 
     if (pdPASS != xTaskCreate(taskEntry, "wifi_manager", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
+        Serial.println("WiFiManager task creation failed");
         return false;
     }
 

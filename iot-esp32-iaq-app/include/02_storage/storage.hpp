@@ -23,6 +23,7 @@ public:
 
     [[nodiscard]] bool init() {
         if (!m_mutex.init()) {
+            Serial.println("Storage init failed");
             return false;
         }
         return true;
