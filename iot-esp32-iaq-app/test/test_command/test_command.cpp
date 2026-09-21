@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "07_utils/command.hpp"
+#include "09_utils/command.hpp"
 
 TEST(ParseCommandTest, RebootParses) {
     EXPECT_EQ(Command::DeviceReboot, parseCommand("device_reboot"));

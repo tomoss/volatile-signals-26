@@ -3,7 +3,7 @@
 
 #include "06_display/display.hpp"
 #include "06_display/display_types.hpp"
-#include "07_utils/mutex.hpp"
+#include "09_utils/mutex.hpp"
 
 // Single owner of the Display: every touch of m_display - power toggles and frame draws
 // alike - happens under m_mutex, so callers on any task context (button, BLE, WiFi, sensor)

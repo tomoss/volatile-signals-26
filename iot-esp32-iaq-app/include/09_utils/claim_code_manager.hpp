@@ -3,7 +3,7 @@
 
 #include "00_vendor/arduino.hpp"
 #include "02_storage/storage.hpp"
-#include "07_utils/claim_code.hpp"
+#include "09_utils/claim_code.hpp"
 
 #include <cstdio>
 #include <esp_random.h>

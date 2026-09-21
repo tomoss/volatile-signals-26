@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "07_utils/claim_code.hpp"
+#include "09_utils/claim_code.hpp"
 
 // Which full-screen overlay, if any, currently takes precedence over the normal WiFi/MQTT/env
 // status screen. At most one is shown at a time.

@@ -7,7 +7,7 @@
 #include "00_vendor/freertos.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
-#include "07_utils/wire_wrapper.hpp"
+#include "09_utils/wire_wrapper.hpp"
 
 class EnvSensor {
 public:

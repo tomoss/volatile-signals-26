@@ -2,7 +2,7 @@
 #define DISPLAY_HPP
 
 #include "00_vendor/u8g2.hpp"
-#include "07_utils/wire_wrapper.hpp"
+#include "09_utils/wire_wrapper.hpp"
 
 // On: panel stays powered and renders frames.
 // Off: panel sleeps and rendering calls become no-ops.

@@ -16,13 +16,13 @@
 #include "04_mqtt/mqtt_types.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
-#include "07_utils/claim_code_manager.hpp"
-#include "07_utils/command.hpp"
-#include "07_utils/device_health.hpp"
-#include "07_utils/device_info.hpp"
-#include "07_utils/rtc.hpp"
-#include "07_utils/time_sync.hpp"
-#include "07_utils/wire_wrapper.hpp"
+#include "09_utils/claim_code_manager.hpp"
+#include "09_utils/command.hpp"
+#include "09_utils/device_health.hpp"
+#include "09_utils/device_info.hpp"
+#include "09_utils/rtc.hpp"
+#include "09_utils/time_sync.hpp"
+#include "09_utils/wire_wrapper.hpp"
 
 #include <esp_system.h>
 

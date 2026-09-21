@@ -9,8 +9,8 @@
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
 #include "04_mqtt/mqtt_types.hpp"
-#include "07_utils/claim_code.hpp"
-#include "07_utils/mutex.hpp"
+#include "09_utils/claim_code.hpp"
+#include "09_utils/mutex.hpp"
 
 class Storage {
 public:

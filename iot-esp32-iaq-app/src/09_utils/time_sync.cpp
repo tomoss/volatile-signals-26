@@ -1,4 +1,4 @@
-#include "07_utils/time_sync.hpp"
+#include "09_utils/time_sync.hpp"
 
 constexpr const char* NTP_SERVER = "pool.ntp.org";
 constexpr long GMT_OFFSET_SEC = 0; // keep the system clock in UTC
