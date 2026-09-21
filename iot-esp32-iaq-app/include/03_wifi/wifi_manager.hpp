@@ -37,11 +37,6 @@ public:
     void stop();
     void credentialsUpdated();
 
-    int getRSSI() const;
-    WifiTypes::IpAddr getIPAddress() const;
-    WifiTypes::MacAddr getMACAddress() const;
-    WifiTypes::Ssid getSSID() const;
-
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
 

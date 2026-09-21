@@ -74,28 +74,11 @@ bool WifiManager::init() {
 }
 
 void WifiManager::start() {
-    WifiQueueEvent event{WifiQueueEventType::Start};
-    postQueueEvent(event);
+    postQueueEvent(WifiQueueEventType::Start);
 }
 
 void WifiManager::stop() {
     postQueueEvent(WifiQueueEventType::Stop);
-}
-
-int WifiManager::getRSSI() const {
-    return m_adapter.getRSSI();
-}
-
-WifiTypes::IpAddr WifiManager::getIPAddress() const {
-    return m_adapter.getIPAddress();
-}
-
-WifiTypes::MacAddr WifiManager::getMACAddress() const {
-    return m_adapter.getMACAddress();
-}
-
-WifiTypes::Ssid WifiManager::getSSID() const {
-    return m_adapter.getSSID();
 }
 
 void WifiManager::credentialsUpdated() {
