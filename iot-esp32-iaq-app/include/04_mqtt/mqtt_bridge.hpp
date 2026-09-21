@@ -11,8 +11,8 @@
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
 #include "04_mqtt/mqtt_types.hpp"
+#include "08_health/device_health.hpp"
 #include "09_utils/claim_code.hpp"
-#include "09_utils/device_health.hpp"
 #include "09_utils/device_info.hpp"
 
 class MqttBridge {

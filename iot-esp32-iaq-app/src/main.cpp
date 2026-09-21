@@ -17,8 +17,8 @@
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
 #include "07_command/command_handler.hpp"
+#include "08_health/health_reporter.hpp"
 #include "09_utils/claim_code_manager.hpp"
-#include "09_utils/device_health.hpp"
 #include "09_utils/device_info.hpp"
 #include "09_utils/rtc.hpp"
 #include "09_utils/time_sync.hpp"
@@ -32,9 +32,6 @@ constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 // Delay duration for reboot after failed init
 constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 
-// How often to publish device health (RSSI/heap/uptime) - diagnostic data
-constexpr uint32_t HEALTH_PUBLISH_INTERVAL_MS = 60000; // 60 seconds
-
 // Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
 constexpr int CLAIM_BUTTON_PIN = D1;
 constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
@@ -43,11 +40,6 @@ struct ConsumerTaskParams {
     EnvSensor* envSensor;
     DisplayController* displayController;
     MqttBridge* mqttBridge;
-};
-
-struct HealthTaskParams {
-    MqttBridge* mqttBridge;
-    WifiAdapter* wifiAdapter;
 };
 
 struct ClaimButtonTaskParams {
@@ -162,24 +154,6 @@ static void claimButtonTask(void* pvParameters) {
     }
 }
 
-static void healthTask(void* pvParameters) {
-    auto* const l_params = static_cast<HealthTaskParams*>(pvParameters);
-    auto* const l_mqttBridge = l_params->mqttBridge;
-    auto* const l_wifiAdapter = l_params->wifiAdapter;
-
-    for (;;) {
-        DeviceHealth l_health;
-        l_health.rssi = l_wifiAdapter->getRSSI();
-        l_health.heap = ESP.getFreeHeap();
-        l_health.minHeap = ESP.getMinFreeHeap();
-        l_health.uptime = millis() / 1000;
-        l_health.timestamp = time(nullptr);
-
-        l_mqttBridge->sendDeviceHealth(l_health);
-        vTaskDelay(pdMS_TO_TICKS(HEALTH_PUBLISH_INTERVAL_MS));
-    }
-}
-
 static void consumerTask(void* pvParameters) {
     auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
     auto* const l_envSensor = l_params->envSensor;
@@ -253,6 +227,7 @@ void setup() {
     static RealTimeClock rtc;
     static ClaimCodeManager claimCodeManager(storage);
     static CommandHandler commandHandler(envSensor, mqttBridge, storage, claimCodeManager);
+    static HealthReporter healthReporter(mqttBridge, wifiAdapter);
 
     // Mandatory modules initialization
     if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper, SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
@@ -389,8 +364,7 @@ void setup() {
     static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr, &mqttBridge};
     xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
 
-    static HealthTaskParams healthTaskParams{&mqttBridge, &wifiAdapter};
-    xTaskCreate(healthTask, "health", 4096, &healthTaskParams, 1, nullptr);
+    healthReporter.start();
 
     vTaskDelete(nullptr);
 }
