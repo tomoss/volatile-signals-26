@@ -17,8 +17,8 @@ void DisplayController::taskEntry(void* parameter) {
     static_cast<DisplayController*>(parameter)->taskLoop();
 }
 
-bool DisplayController::init() {
-    if (!m_display.init()) {
+bool DisplayController::init(WireWrapper& p_wire) {
+    if (!m_display.init(p_wire)) {
         return false;
     }
 

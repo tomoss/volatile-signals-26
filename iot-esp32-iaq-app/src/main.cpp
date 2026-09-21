@@ -309,18 +309,18 @@ void setup() {
 
     static WireWrapper wireWrapper;
     static Storage storage;
-    static EnvSensor envSensor(storage, wireWrapper);
+    static EnvSensor envSensor(storage);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
-    static DisplayController displayController(wireWrapper);
+    static DisplayController displayController;
     static MqttBridge mqttBridge(storage);
     static TimeSync timeSync;
-    static RealTimeClock rtc(wireWrapper);
+    static RealTimeClock rtc;
     static ClaimCodeManager claimCodeManager(storage);
 
     // Mandatory modules initialization
-    if (!wireWrapper.init() || !storage.init() || !envSensor.init(SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
+    if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper, SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
         !mqttBridge.init(true) || !claimCodeManager.init()) {
         Serial.println("Mandatory module init failed, restarting the board...");
         Serial.flush();
@@ -329,7 +329,7 @@ void setup() {
     }
 
     // Not mandatory, so not required to succeed
-    rtc.init();
+    rtc.init(wireWrapper);
     rtc.seedSystemClock();
 
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
@@ -342,7 +342,7 @@ void setup() {
         esp_restart();
     }
 
-    const bool l_hasDisplay = displayController.init();
+    const bool l_hasDisplay = displayController.init(wireWrapper);
     if (!l_hasDisplay) {
         Serial.println("Display init failed (continuing without display)");
     } else {
@@ -454,7 +454,8 @@ void setup() {
         }
     });
 
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claimCodeManager.get()};
+    static CommandTaskParams commandTaskParams{
+        &envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claimCodeManager.get()};
     xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
     static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claimCodeManager.get()};

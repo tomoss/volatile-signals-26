@@ -1,7 +1,7 @@
 #include "07_utils/rtc.hpp"
 
-void RealTimeClock::init() {
-    if (!m_rtc.begin(&m_wire.getRaw())) {
+void RealTimeClock::init(WireWrapper& p_wire) {
+    if (!m_rtc.begin(&p_wire.getRaw())) {
         Serial.println("RTC not found (continuing without RTC-backed boot time)");
         m_present = false;
         return;

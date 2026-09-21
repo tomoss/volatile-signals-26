@@ -168,7 +168,7 @@ EnvSensor::~EnvSensor() {
     }
 }
 
-bool EnvSensor::init(SensorMode p_mode) {
+bool EnvSensor::init(WireWrapper& p_bus, SensorMode p_mode) {
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
     if (s_sensorQueue == nullptr) {
         Serial.println("Sensor queue creation failed");
@@ -181,7 +181,7 @@ bool EnvSensor::init(SensorMode p_mode) {
         return false;
     }
 
-    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus.getRaw())) {
+    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, p_bus.getRaw())) {
         Serial.println("BME688 init failed");
         checkBsecStatus();
         return false;

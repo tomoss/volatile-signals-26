@@ -11,16 +11,16 @@
 
 class EnvSensor {
 public:
-    // p_bus is injected (begun + clocked by main) so it is shared with the display.
-    EnvSensor(Storage& p_storage, WireWrapper& p_bus) : m_storage(p_storage), m_bus(p_bus) {}
+    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
     ~EnvSensor();
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
 
+    // p_bus is already begun + clocked by main, so it is shared with the display.
     // Default Sensor Mode is Low Power (3s)
-    [[nodiscard]] bool init(SensorMode p_mode = SensorMode::LowPower);
+    [[nodiscard]] bool init(WireWrapper& p_bus, SensorMode p_mode = SensorMode::LowPower);
 
     // Starts the background task that owns run()/maybeSaveStateToStorage()
     // Called once, after a successful init().
@@ -62,7 +62,6 @@ private:
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
-    WireWrapper& m_bus;
     QueueHandle_t m_modeRequestQueue = nullptr;
     TaskHandle_t m_task = nullptr;
 };

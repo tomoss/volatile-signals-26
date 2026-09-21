@@ -10,14 +10,14 @@
 // can drive the panel directly without ever overlapping its I2C traffic with the worker task.
 class DisplayController {
 public:
-    explicit DisplayController(WireWrapper& p_wire) : m_display(p_wire) {}
+    DisplayController() = default;
     ~DisplayController();
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;
     DisplayController(DisplayController&&) = delete;
     DisplayController& operator=(DisplayController&&) = delete;
 
-    [[nodiscard]] bool init();
+    [[nodiscard]] bool init(WireWrapper& p_wire);
 
     // Thread-safe: safe to call from any task context.
     void enableDisplay();
