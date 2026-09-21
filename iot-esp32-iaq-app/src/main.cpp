@@ -321,7 +321,7 @@ void setup() {
 
     // Mandatory modules initialization
     if (!wireWrapper.init() || !storage.init() || !envSensor.init(SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
-        !mqttBridge.init(true)) {
+        !mqttBridge.init(true) || !claimCodeManager.init()) {
         Serial.println("Mandatory module init failed, restarting the board...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
@@ -331,10 +331,6 @@ void setup() {
     // Not mandatory, so not required to succeed
     rtc.init();
     rtc.seedSystemClock();
-
-    // Generated once, ever
-    claimCodeManager.init();
-    const ClaimCode& claim_code = claimCodeManager.get();
 
     // Created before wifiManager/mqttBridge can connect, since a command could otherwise
     // arrive (and be enqueued from the MQTT task) before this exists.
@@ -351,7 +347,7 @@ void setup() {
         Serial.println("Display init failed (continuing without display)");
     } else {
         displayController.enableDisplay();
-        displayController.setClaimingCode(claim_code);
+        displayController.setClaimingCode(claimCodeManager.get());
     }
 
     wifiAdapter.setConnectedCallback([l_hasDisplay] {
@@ -458,10 +454,10 @@ void setup() {
         }
     });
 
-    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claim_code};
+    static CommandTaskParams commandTaskParams{&envSensor, &mqttBridge, &storage, l_hasDisplay ? &displayController : nullptr, &claimCodeManager.get()};
     xTaskCreate(commandTask, "command", 4096, &commandTaskParams, 1, nullptr);
 
-    static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claim_code};
+    static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claimCodeManager.get()};
     xTaskCreate(claimButtonTask, "claim_button", 4096, &claimButtonTaskParams, 1, &s_claimButtonTaskHandle);
 
     pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);

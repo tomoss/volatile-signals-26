@@ -21,17 +21,19 @@ public:
 
     // Loads the stored code, or generates + persists a new random one if none exists yet.
     // Meant to be called once, in setup().
-    void init() {
+    bool init() {
         if (const auto l_saved = m_storage.loadClaimCode()) {
             m_code = *l_saved;
-            return;
+            return true;
         }
 
         const uint32_t l_random = esp_random() % 1000000;
         snprintf(m_code.data(), m_code.size(), "%06lu", static_cast<unsigned long>(l_random));
         if (!m_storage.saveClaimCode(m_code)) {
             Serial.println("Failed to save claim code");
+            return false;
         }
+        return true;
     }
 
     const ClaimCode& get() const { return m_code; }
