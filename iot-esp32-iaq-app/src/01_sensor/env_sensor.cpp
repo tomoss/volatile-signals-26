@@ -168,7 +168,7 @@ EnvSensor::~EnvSensor() {
     }
 }
 
-bool EnvSensor::init(WireWrapper& p_bus, SensorMode p_mode) {
+bool EnvSensor::init(WireWrapper& p_bus) {
     s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
     if (s_sensorQueue == nullptr) {
         Serial.println("Sensor queue creation failed");
@@ -189,7 +189,9 @@ bool EnvSensor::init(WireWrapper& p_bus, SensorMode p_mode) {
 
     m_bsec.setTemperatureOffset(BME68X_TEMPERATURE_OFFSET);
 
-    if (!applyMode(p_mode)) {
+    SensorMode l_mode = m_storage.loadSensorMode().value_or(SensorMode::LowPower);
+
+    if (!applyMode(l_mode)) {
         Serial.println("Applying sensor mode failed");
         return false;
     }

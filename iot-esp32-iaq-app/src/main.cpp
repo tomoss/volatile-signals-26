@@ -53,7 +53,7 @@ void setup() {
     static OtaUpdater otaUpdater(envSensor, displayController);
 
     // Mandatory modules initialization
-    if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper, SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
+    if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper) || !wifiManager.init() || !bleProvisioner.init() ||
         !mqttBridge.init(true) || !claimCodeManager.init() || !commandHandler.init()) {
         Serial.println("Mandatory module init failed, restarting the board...");
         Serial.flush();

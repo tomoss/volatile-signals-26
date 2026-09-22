@@ -67,10 +67,12 @@ void CommandHandler::handle(Command p_cmd) {
         break;
     case Command::SensorLowPower:
         Serial.println("[CMD] Switching sensor to Low Power mode");
+        m_storage.saveSensorMode(SensorMode::LowPower);
         m_envSensor.requestModeChange(SensorMode::LowPower);
         break;
     case Command::SensorUltraLowPower:
         Serial.println("[CMD] Switching sensor to Ultra Low Power mode");
+        m_storage.saveSensorMode(SensorMode::UltraLowPower);
         m_envSensor.requestModeChange(SensorMode::UltraLowPower);
         break;
     case Command::DeviceClaimed:

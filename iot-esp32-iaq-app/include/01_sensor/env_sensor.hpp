@@ -20,7 +20,7 @@ public:
 
     // p_bus is already begun + clocked by main, so it is shared with the display.
     // Default Sensor Mode is Low Power (3s)
-    [[nodiscard]] bool init(WireWrapper& p_bus, SensorMode p_mode = SensorMode::LowPower);
+    [[nodiscard]] bool init(WireWrapper& p_bus);
 
     // Starts the background task that owns run()/maybeSaveStateToStorage()
     // Called once, after a successful init().

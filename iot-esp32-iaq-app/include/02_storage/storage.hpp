@@ -32,6 +32,9 @@ public:
     std::optional<SensorState> loadBsecState(SensorMode p_mode);
     bool saveBsecState(SensorMode p_mode, const SensorState& p_state);
 
+    std::optional<SensorMode> loadSensorMode();
+    bool saveSensorMode(SensorMode p_mode);
+
     std::optional<WifiTypes::Ssid> loadWifiSSID();
     bool saveWifiSSID(const WifiTypes::Ssid& p_ssid);
 
