@@ -18,12 +18,9 @@ public:
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
 
-    // p_bus is already begun + clocked by main, so it is shared with the display.
-    // Default Sensor Mode is Low Power (3s)
     [[nodiscard]] bool init(WireWrapper& p_bus);
 
-    // Starts the background task that owns run()/maybeSaveStateToStorage()
-    // Called once, after a successful init().
+    // Starts the background task
     void start();
 
     // Thread-safe: queues a mode change to be applied on the next run() call (which always
@@ -34,10 +31,9 @@ public:
     QueueHandle_t getQueue() const;
 
 private:
-    // Get the BME688 sensor state from BSEC lib
-    std::optional<SensorState> getBsecState();
+    std::optional<SensorState> getStateFromBsec();
     // set the BME688 sensor state to BSEC lib
-    bool setBsecState(const SensorState& p_state);
+    bool setStateToBsec(const SensorState& p_state);
 
     bool setMode(SensorMode p_mode);
     SensorMode getMode() const { return m_mode; }

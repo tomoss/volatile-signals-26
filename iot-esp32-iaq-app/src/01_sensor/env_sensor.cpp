@@ -242,7 +242,7 @@ QueueHandle_t EnvSensor::getQueue() const {
     return s_sensorQueue;
 }
 
-std::optional<SensorState> EnvSensor::getBsecState() {
+std::optional<SensorState> EnvSensor::getStateFromBsec() {
     SensorState buf{};
     if (!m_bsec.getState(buf.data())) {
         Serial.printf("Failed to get BME688 state from BSEC: (%d)\n", m_bsec.status);
@@ -251,7 +251,7 @@ std::optional<SensorState> EnvSensor::getBsecState() {
     return buf;
 }
 
-bool EnvSensor::setBsecState(const SensorState& p_state) {
+bool EnvSensor::setStateToBsec(const SensorState& p_state) {
     if (!m_bsec.setState(const_cast<uint8_t*>(p_state.data()))) {
         Serial.printf("Failed to set BME688 state to BSEC: (%d)\n", m_bsec.status);
         return false;
@@ -295,7 +295,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     // Don't restore any state from storage if mode is Disabled
     if (p_mode != SensorMode::Disabled) {
         if (auto state = m_storage.loadBsecState(p_mode)) {
-            if (!setBsecState(*state))
+            if (!setStateToBsec(*state))
                 Serial.println("Failed to restore BME688 state from storage");
             else {
                 Serial.println("BME688 state restored from storage");
@@ -341,7 +341,7 @@ void EnvSensor::maybeSaveStateToStorage() {
     }
 
     if (l_shouldSave) {
-        if (auto state = this->getBsecState()) {
+        if (auto state = this->getStateFromBsec()) {
             if (m_storage.saveBsecState(m_mode, *state)) {
                 Serial.println("BME688 state saved in storage");
                 m_hasSavedStateForMode = true;
