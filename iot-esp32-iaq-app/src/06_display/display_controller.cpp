@@ -30,12 +30,13 @@ bool DisplayController::init(WireWrapper& p_wire) {
         return false;
     }
 
+    m_available = true;
     return true;
 }
 
 void DisplayController::enableDisplay() {
     {
-        if (m_displayEnabled) {
+        if (!m_available || m_displayEnabled) {
             return;
         }
         const MutexGuard l_guard(m_mutex);
@@ -47,7 +48,7 @@ void DisplayController::enableDisplay() {
 
 void DisplayController::disableDisplay() {
     {
-        if (!m_displayEnabled) {
+        if (!m_available || !m_displayEnabled) {
             return;
         }
         const MutexGuard l_guard(m_mutex);

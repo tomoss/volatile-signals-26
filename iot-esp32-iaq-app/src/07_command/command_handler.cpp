@@ -29,9 +29,7 @@ bool CommandHandler::init() {
     return true;
 }
 
-void CommandHandler::start(DisplayController* p_displayController) {
-    m_displayController = p_displayController;
-
+void CommandHandler::start() {
     if (pdPASS != xTaskCreate(taskEntry, "command", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
         Serial.println("CommandHandler task creation failed");
     }
@@ -78,16 +76,12 @@ void CommandHandler::handle(Command p_cmd) {
     case Command::DeviceClaimed:
         Serial.println("[CMD] Device claimed");
         m_storage.saveDeviceClaimStatus(true);
-        if (m_displayController != nullptr) {
-            m_displayController->setClaimedStatus(true);
-        }
+        m_displayController.setClaimedStatus(true);
         break;
     case Command::DeviceUnclaimed:
         Serial.println("[CMD] Device unclaimed");
         m_storage.saveDeviceClaimStatus(false);
-        if (m_displayController != nullptr) {
-            m_displayController->setClaimedStatus(false);
-        }
+        m_displayController.setClaimedStatus(false);
         Serial.printf("Claim code: %s\n", m_claimCodeManager.get().data());
         break;
     case Command::Unknown:

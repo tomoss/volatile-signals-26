@@ -1,25 +1,20 @@
 #include "00_vendor/arduino.hpp"
 #include "00_vendor/freertos.hpp"
-#include "00_vendor/http_update.hpp"
-
-#include <algorithm>
-#include <atomic>
-#include <cstring>
-#include <variant>
 
 #include "01_sensor/env_sensor.hpp"
-#include "01_sensor/sensor_data.hpp"
+#include "01_sensor/sensor_reporter.hpp"
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
 #include "04_mqtt/mqtt_bridge.hpp"
-#include "04_mqtt/mqtt_types.hpp"
 #include "05_ble/ble_provisioner.hpp"
 #include "06_display/display_controller.hpp"
 #include "07_command/command_handler.hpp"
 #include "08_health/health_reporter.hpp"
+#include "09_utils/claim_button_handler.hpp"
 #include "09_utils/claim_code_manager.hpp"
 #include "09_utils/device_info.hpp"
+#include "09_utils/ota_updater.hpp"
 #include "09_utils/rtc.hpp"
 #include "09_utils/time_sync.hpp"
 #include "09_utils/wire_wrapper.hpp"
@@ -31,181 +26,6 @@ constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 
 // Delay duration for reboot after failed init
 constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
-
-// Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
-constexpr int CLAIM_BUTTON_PIN = D1;
-constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
-
-struct ConsumerTaskParams {
-    EnvSensor* envSensor;
-    DisplayController* displayController;
-    MqttBridge* mqttBridge;
-};
-
-struct ClaimButtonTaskParams {
-    DisplayController* displayController;
-    Storage* storage;
-    MqttBridge* mqttBridge;
-    const ClaimCode* claimCode;
-};
-
-struct OtaTaskParams {
-    const char* url;
-    EnvSensor* envSensor;
-    DisplayController* displayController; // nullptr if no display
-};
-
-// Fixed-size storage for the in-flight OTA URL, avoiding a heap allocation per request.
-// s_otaInProgress guards it: only one OTA can be in flight at a time, so the buffer is
-// never written by a new "ota" MQTT message while otaTask is still reading it.
-static MqttTypes::Payload s_otaUrl{};
-static std::atomic<bool> s_otaInProgress{false};
-
-static TaskHandle_t s_claimButtonTaskHandle = nullptr;
-
-// Runs on the interrupt level: debounces in-place (via a static timestamp) and only wakes
-// claimButtonTask on an actual press, so nothing on the button path spins a polling loop.
-static void IRAM_ATTR claimButtonIsr() {
-    static uint32_t s_lastIsrMs = 0;
-    const uint32_t l_now = millis();
-    if (l_now - s_lastIsrMs < CLAIM_BUTTON_DEBOUNCE_MS) {
-        return;
-    }
-    s_lastIsrMs = l_now;
-
-    BaseType_t l_higherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(s_claimButtonTaskHandle, &l_higherPriorityTaskWoken);
-    portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
-}
-
-/*****************************************************************/
-/* Tasks                                                         */
-/*****************************************************************/
-static void otaTask(void* pvParameters) {
-    auto* const l_params = static_cast<OtaTaskParams*>(pvParameters);
-
-    WiFiClient l_client;
-    Serial.printf("[OTA] Starting update from %s\n", l_params->url);
-
-    const t_httpUpdate_return l_result = httpUpdate.update(l_client, l_params->url);
-
-    switch (l_result) {
-    case HTTP_UPDATE_OK:
-        Serial.println("[OTA] Update OK, rebooting..."); // httpUpdate reboots automatically on success
-        break;
-    case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("[OTA] No update available");
-        break;
-    case HTTP_UPDATE_FAILED:
-        Serial.printf("[OTA] Failed: %s\n", httpUpdate.getLastErrorString().c_str());
-        break;
-    }
-
-    if (l_result != HTTP_UPDATE_OK) {
-        // Nothing was flashed (or there was no reboot), so undo the pre-OTA prep in
-        // setOnOtaCallback instead of leaving the sensor disabled and display off.
-        l_params->envSensor->requestModeChange(SensorMode::LowPower);
-        if (l_params->displayController) {
-            l_params->displayController->enableDisplay();
-        }
-    }
-
-    s_otaInProgress.store(false);
-    vTaskDelete(nullptr);
-}
-
-static void claimButtonTask(void* pvParameters) {
-    auto* const l_params = static_cast<ClaimButtonTaskParams*>(pvParameters);
-    bool l_showing = false;
-
-    for (;;) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        l_showing = !l_showing;
-
-        const bool l_claimed = l_params->storage->loadDeviceClaimStatus();
-
-        if (!l_showing) {
-            if (l_params->displayController != nullptr) {
-                l_params->displayController->setActiveOverlay(DisplayOverlay::None);
-            }
-            if (!l_claimed) {
-                l_params->mqttBridge->clearClaimCode();
-                Serial.println("Stopped claiming process on server");
-            }
-            continue;
-        }
-
-        if (l_claimed) {
-            Serial.println("Device is already registered");
-            if (l_params->displayController != nullptr) {
-                l_params->displayController->setClaimedStatus(true);
-                l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
-            }
-            continue;
-        }
-
-        if (l_params->displayController != nullptr) {
-            l_params->displayController->setClaimedStatus(false);
-            l_params->displayController->setActiveOverlay(DisplayOverlay::Claim);
-        }
-        l_params->mqttBridge->sendClaimCode(*l_params->claimCode);
-        Serial.println("Started claiming process on server");
-        Serial.printf("Claim code: %s\n", l_params->claimCode->data());
-    }
-}
-
-static void consumerTask(void* pvParameters) {
-    auto* const l_params = static_cast<ConsumerTaskParams*>(pvParameters);
-    auto* const l_envSensor = l_params->envSensor;
-    auto* const l_displayController = l_params->displayController;
-    auto* const l_mqttBridge = l_params->mqttBridge;
-
-    for (;;) {
-        SensorEvent l_event;
-        if (!xQueueReceive(l_envSensor->getQueue(), &l_event, pdMS_TO_TICKS(100))) {
-            continue;
-        }
-
-        if (const auto* l_mode = std::get_if<SensorMode>(&l_event)) {
-            l_mqttBridge->sendSensorInfo(*l_mode);
-            continue;
-        }
-
-        const auto& l_data = std::get<SensorData>(l_event);
-        Serial.printf("[%lld] "
-                      "IAQ=%.1f(acc:%d) "
-                      "CO2eq=%.0fppm "
-                      "VOCeq=%.2fppm "
-                      "Gas=%.0fΩ "
-                      "T=%.2fC "
-                      "RH=%.2f%% "
-                      "RawT=%.2fC "
-                      "RawRH=%.2f%% "
-                      "P=%.2fhPa\n",
-                      l_data.timestamp,
-                      l_data.iaq,
-                      static_cast<int>(l_data.iaqAccuracy),
-                      l_data.co2,
-                      l_data.voc,
-                      l_data.gas,
-                      l_data.temp,
-                      l_data.hum,
-                      l_data.rawTemp,
-                      l_data.rawHum,
-                      l_data.pressure);
-
-        if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
-            !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
-            l_mqttBridge->sendSensorData(l_data);
-
-            if (l_displayController != nullptr) {
-                l_displayController->setEnvironment(static_cast<uint16_t>(std::round(l_data.iaq)),
-                                                    static_cast<int8_t>(std::round(l_data.temp)),
-                                                    static_cast<uint8_t>(l_data.iaqAccuracy));
-            }
-        }
-    }
-}
 
 /*****************************************************************/
 /* Setup                                                         */
@@ -226,8 +46,11 @@ void setup() {
     static TimeSync timeSync;
     static RealTimeClock rtc;
     static ClaimCodeManager claimCodeManager(storage);
-    static CommandHandler commandHandler(envSensor, mqttBridge, storage, claimCodeManager);
+    static CommandHandler commandHandler(envSensor, mqttBridge, storage, claimCodeManager, displayController);
     static HealthReporter healthReporter(mqttBridge, wifiAdapter);
+    static ClaimButtonHandler claimButtonHandler(displayController, storage, mqttBridge, claimCodeManager);
+    static SensorReporter sensorReporter(envSensor, mqttBridge, displayController);
+    static OtaUpdater otaUpdater(envSensor, displayController);
 
     // Mandatory modules initialization
     if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper, SensorMode::LowPower) || !wifiManager.init() || !bleProvisioner.init() ||
@@ -242,52 +65,41 @@ void setup() {
     rtc.init(wireWrapper);
     rtc.seedSystemClock();
 
-    const bool l_hasDisplay = displayController.init(wireWrapper);
-    if (!l_hasDisplay) {
+    if (!displayController.init(wireWrapper)) {
         Serial.println("Display init failed (continuing without display)");
     } else {
         displayController.enableDisplay();
         displayController.setClaimingCode(claimCodeManager.get());
     }
 
-    wifiAdapter.setConnectedCallback([l_hasDisplay] {
+    wifiAdapter.setConnectedCallback([] {
         Serial.println("WiFi connected callback called");
-        if (l_hasDisplay) {
-            displayController.setWifiStatus(true);
-        }
+        displayController.setWifiStatus(true);
         if (timeSync.sync()) {
             rtc.write(time(nullptr));
         }
         mqttBridge.connect();
     });
 
-    wifiAdapter.setDisconnectedCallback([l_hasDisplay] {
+    wifiAdapter.setDisconnectedCallback([] {
         Serial.println("WiFi disconnected callback called");
-        if (l_hasDisplay) {
-            displayController.setWifiStatus(false);
-        }
+        displayController.setWifiStatus(false);
     });
 
-    wifiAdapter.setStartProvisioningCallback([l_hasDisplay] {
+    wifiAdapter.setStartProvisioningCallback([] {
         bleProvisioner.start();
-        if (l_hasDisplay) {
-            displayController.setProvisioningStatus(0);
-            displayController.setActiveOverlay(DisplayOverlay::Provisioning);
-        }
+        displayController.setProvisioningStatus(0);
+        displayController.setActiveOverlay(DisplayOverlay::Provisioning);
     });
 
-    wifiAdapter.setStopProvisioningCallback([l_hasDisplay] {
+    wifiAdapter.setStopProvisioningCallback([] {
         bleProvisioner.stop();
-        if (l_hasDisplay) {
-            displayController.setActiveOverlay(DisplayOverlay::None);
-        }
+        displayController.setActiveOverlay(DisplayOverlay::None);
     });
 
-    bleProvisioner.setPasskeyDisplayCallback([l_hasDisplay](uint32_t p_passkey) {
+    bleProvisioner.setPasskeyDisplayCallback([](uint32_t p_passkey) {
         Serial.printf("[BLE] Pairing passkey: %06lu\n", p_passkey);
-        if (l_hasDisplay) {
-            displayController.setProvisioningStatus(p_passkey);
-        }
+        displayController.setProvisioningStatus(p_passkey);
     });
 
     bleProvisioner.setCredentialsCallback([](const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
@@ -305,65 +117,28 @@ void setup() {
 
     static const DeviceInfo deviceInfo = collectDeviceInfo();
 
-    mqttBridge.setOnConnectedCallback([l_hasDisplay] {
-        if (l_hasDisplay) {
-            displayController.setMqttStatus(true);
-        }
+    mqttBridge.setOnConnectedCallback([] {
+        displayController.setMqttStatus(true);
         mqttBridge.sendDeviceInfo(deviceInfo);
     });
 
-    mqttBridge.setOnDisconnectedCallback([l_hasDisplay] {
-        if (l_hasDisplay) {
-            displayController.setMqttStatus(false);
-        }
+    mqttBridge.setOnDisconnectedCallback([] {
+        displayController.setMqttStatus(false);
     });
 
-    static OtaTaskParams otaTaskParams{s_otaUrl.data(), &envSensor, l_hasDisplay ? &displayController : nullptr};
-
-    mqttBridge.setOnOtaCallback([l_hasDisplay](std::string_view p_url) {
-        if (s_otaInProgress.exchange(true)) {
-            Serial.println("[OTA] Update already in progress, ignoring");
-            return;
-        }
-
-        Serial.println("[OTA] Preparing for update...");
-        envSensor.requestModeChange(SensorMode::Disabled);
-        if (l_hasDisplay) {
-            displayController.disableDisplay();
-        }
-
-        const size_t l_len = std::min(p_url.size(), s_otaUrl.size() - 1);
-        std::memcpy(s_otaUrl.data(), p_url.data(), l_len);
-        s_otaUrl[l_len] = '\0';
-
-        if (xTaskCreate(otaTask, "ota", 8192, &otaTaskParams, 1, nullptr) != pdPASS) {
-            Serial.println("[OTA] Failed to create OTA task");
-            envSensor.requestModeChange(SensorMode::LowPower);
-            if (l_hasDisplay) {
-                displayController.enableDisplay();
-            }
-            s_otaInProgress.store(false);
-            return;
-        }
+    mqttBridge.setOnOtaCallback([](std::string_view p_url) {
+        otaUpdater.onOtaRequested(p_url);
     });
 
     mqttBridge.setOnCommandCallback([](std::string_view p_data) {
         commandHandler.enqueue(p_data);
     });
-    commandHandler.start(l_hasDisplay ? &displayController : nullptr);
-
-    static ClaimButtonTaskParams claimButtonTaskParams{l_hasDisplay ? &displayController : nullptr, &storage, &mqttBridge, &claimCodeManager.get()};
-    xTaskCreate(claimButtonTask, "claim_button", 4096, &claimButtonTaskParams, 1, &s_claimButtonTaskHandle);
-
-    pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), claimButtonIsr, FALLING);
+    commandHandler.start();
+    claimButtonHandler.start();
 
     envSensor.start();
     wifiManager.start();
-
-    static ConsumerTaskParams consumerTaskParams{&envSensor, l_hasDisplay ? &displayController : nullptr, &mqttBridge};
-    xTaskCreate(consumerTask, "consumer", 4096, &consumerTaskParams, 1, nullptr);
-
+    sensorReporter.start();
     healthReporter.start();
 
     vTaskDelete(nullptr);

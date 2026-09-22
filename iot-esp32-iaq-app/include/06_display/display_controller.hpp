@@ -17,9 +17,12 @@ public:
     DisplayController(DisplayController&&) = delete;
     DisplayController& operator=(DisplayController&&) = delete;
 
+    // Returns false if the display could not be found/initialized. Callers don't need to check
+    // the result before using the controller afterwards: every method below becomes a no-op
+    // when init() didn't succeed, so there's no "is there a display" branching for callers to do.
     [[nodiscard]] bool init(WireWrapper& p_wire);
 
-    // Thread-safe: safe to call from any task context.
+    // Thread-safe: safe to call from any task context. No-ops if init() failed or wasn't called.
     void enableDisplay();
     void disableDisplay();
     void setWifiStatus(bool p_connected);
@@ -38,6 +41,9 @@ private:
     // p_mutator returns true if it changed any value, in which case the worker task is woken.
     template<typename Mutator>
     void updateState(Mutator p_mutator) {
+        if (!m_available) {
+            return;
+        }
         bool l_anychanged = false;
         {
             const MutexGuard l_guard(m_mutex);
@@ -56,6 +62,7 @@ private:
     Display m_display;
     TaskHandle_t m_task = nullptr;
     Mutex m_mutex;
+    bool m_available = false; // True once init() has succeeded; gates every public method.
     bool m_displayEnabled = false;
     DisplayState m_state;
 };
