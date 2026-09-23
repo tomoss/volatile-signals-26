@@ -9,7 +9,7 @@ constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 1;
 
 void HealthReporter::start() {
-    m_task.start("health", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
+    m_task.createAndStart("health", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
 }
 
 void HealthReporter::taskLoop() {

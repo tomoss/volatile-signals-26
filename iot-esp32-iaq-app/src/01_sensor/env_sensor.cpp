@@ -6,16 +6,13 @@
 
 QueueHandle_t EnvSensor::s_consumerQueue = nullptr;
 
-constexpr TickType_t CONSUMER_QUEUE_TICKS_TO_WAIT = 0;
-
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
 // Temperature offset for BME688 sensor - measured with a calibrated thermometer
 constexpr float BME68X_TEMPERATURE_OFFSET = 1.5f;
 
-constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 2;
-constexpr uint32_t TASK_LOOP_DELAY_MS = 100;
+constexpr uint32_t TASK_PERIOD = 100;
 
 // AI configurations for BME688, one per supported sample rate. Each must match the rate
 // requested via updateSubscription() below; otherwise BSEC runs on a mismatched config
@@ -189,7 +186,7 @@ bool EnvSensor::init(WireWrapper& p_bus) {
 
         if (s_consumerQueue != nullptr) {
             SensorEvent l_event{convertOutputs(p_outputs)};
-            xQueueSend(s_consumerQueue, &l_event, CONSUMER_QUEUE_TICKS_TO_WAIT);
+            xQueueSend(s_consumerQueue, &l_event, 0);
         }
     });
 
@@ -197,9 +194,12 @@ bool EnvSensor::init(WireWrapper& p_bus) {
 }
 
 void EnvSensor::start() {
-    m_task.start("sensor_task", TASK_STACK_SIZE, TASK_PRIORITY, [this] {
-        loop();
-    });
+    m_task.createAndStart(
+        "sensor_task",
+        [this] {
+            loop();
+        },
+        TASK_PRIORITY);
 }
 
 void EnvSensor::checkModeChangeRequest() {
@@ -221,7 +221,7 @@ void EnvSensor::loop() {
         checkModeChangeRequest();
         run();
         maybeSaveStateToStorage();
-        vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
+        vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD));
     }
 }
 
@@ -294,7 +294,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
 
     if (s_consumerQueue != nullptr) {
         SensorEvent l_event{m_mode};
-        xQueueSend(s_consumerQueue, &l_event, CONSUMER_QUEUE_TICKS_TO_WAIT);
+        xQueueSend(s_consumerQueue, &l_event, 0);
     }
 
     return true;

@@ -53,7 +53,7 @@ bool BleProvisioner::init() {
         return false;
     }
 
-    if (!m_task.start("ble", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
+    if (!m_task.createAndStart("ble", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY)) {
         return false;
     }
 

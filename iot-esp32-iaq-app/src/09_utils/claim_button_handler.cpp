@@ -24,7 +24,7 @@ void IRAM_ATTR ClaimButtonHandler::isr() {
 }
 
 void ClaimButtonHandler::start() {
-    if (!m_task.start("claim_button", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
+    if (!m_task.createAndStart("claim_button", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY)) {
         return;
     }
     s_taskHandle = m_task.handle();

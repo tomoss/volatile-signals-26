@@ -60,8 +60,7 @@ private:
     QueueHandle_t m_modeRequestQueue = nullptr;
     Task m_task;
 
-    // Set from setQueue()'s p_consumerQueue. Static because Bsec2::attachCallback only takes a
-    // plain (capture-less) function pointer, which can't reach an instance member.
+    // Static because Bsec2::attachCallback only takes a plain function pointer
     static QueueHandle_t s_consumerQueue;
 };
 

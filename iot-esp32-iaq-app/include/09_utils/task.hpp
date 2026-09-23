@@ -8,7 +8,7 @@
 
 class Task {
 public:
-    using Loop = std::function<void()>;
+    using TaskLoop = std::function<void()>;
 
     Task() = default;
     ~Task() {
@@ -22,8 +22,8 @@ public:
     Task(Task&&) = delete;
     Task& operator=(Task&&) = delete;
 
-    bool start(const char* p_name, uint32_t p_stackSize, UBaseType_t p_priority, Loop p_loop) {
-        m_loop = std::move(p_loop);
+    bool createAndStart(const char* p_name, TaskLoop p_taskLoop, UBaseType_t p_priority = 1, uint32_t p_stackSize = 4096) {
+        m_taskLoop = std::move(p_taskLoop);
         if (pdPASS != xTaskCreate(taskEntry, p_name, p_stackSize, this, p_priority, &m_handle)) {
             Serial.printf("%s task creation failed\n", p_name);
             return false;
@@ -31,13 +31,12 @@ public:
         return true;
     }
 
-    // For callers that need the raw handle - e.g. to notify it from an ISR.
     TaskHandle_t handle() const { return m_handle; }
 
 private:
-    static void taskEntry(void* p_parameter) { static_cast<Task*>(p_parameter)->m_loop(); }
+    static void taskEntry(void* p_parameter) { static_cast<Task*>(p_parameter)->m_taskLoop(); }
 
-    Loop m_loop;
+    TaskLoop m_taskLoop;
     TaskHandle_t m_handle = nullptr;
 };
 

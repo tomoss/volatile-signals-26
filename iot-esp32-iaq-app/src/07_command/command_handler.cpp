@@ -26,7 +26,7 @@ bool CommandHandler::init() {
 }
 
 void CommandHandler::start() {
-    m_task.start("command", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
+    m_task.createAndStart("command", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
 }
 
 void CommandHandler::enqueue(std::string_view p_data) {

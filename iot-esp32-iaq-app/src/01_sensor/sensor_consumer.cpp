@@ -27,13 +27,13 @@ bool SensorConsumer::init() {
 }
 
 void SensorConsumer::start() {
-    m_task.start("sensor_consumer", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
+    m_task.createAndStart("sensor_consumer", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
 }
 
 void SensorConsumer::taskLoop() {
     for (;;) {
         SensorEvent l_event;
-        if (!xQueueReceive(m_queue, &l_event, portMAX_DELAY)) {
+        if (xQueueReceive(m_queue, &l_event, portMAX_DELAY) != pdTRUE) {
             continue;
         }
 
