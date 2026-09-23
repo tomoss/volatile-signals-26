@@ -4,6 +4,7 @@
 #include "06_display/display.hpp"
 #include "06_display/display_types.hpp"
 #include "09_utils/mutex.hpp"
+#include "09_utils/task.hpp"
 
 // Single owner of the Display: every touch of m_display - power toggles and frame draws
 // alike - happens under m_mutex, so callers on any task context (button, BLE, WiFi, sensor)
@@ -11,7 +12,7 @@
 class DisplayController {
 public:
     DisplayController() = default;
-    ~DisplayController();
+    ~DisplayController() = default;
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;
     DisplayController(DisplayController&&) = delete;
@@ -36,8 +37,6 @@ public:
     void setActiveOverlay(DisplayOverlay p_overlay);
 
 private:
-    static void taskEntry(void* parameter);
-
     // p_mutator returns true if it changed any value, in which case the worker task is woken.
     template<typename Mutator>
     void updateState(Mutator p_mutator) {
@@ -60,7 +59,7 @@ private:
     void wait();
 
     Display m_display;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
     Mutex m_mutex;
     bool m_available = false; // True once init() has succeeded; gates every public method.
     bool m_displayEnabled = false;

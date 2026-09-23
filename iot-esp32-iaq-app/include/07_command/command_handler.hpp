@@ -10,6 +10,7 @@
 #include "06_display/display_controller.hpp"
 #include "07_command/command.hpp"
 #include "09_utils/claim_code_manager.hpp"
+#include "09_utils/task.hpp"
 
 // Executes the commands received over MQTT. The MQTT event callback (called on esp-mqtt's own
 // task) only parses and enqueues; the actual handling runs on this class's own task so it
@@ -37,7 +38,6 @@ public:
     void enqueue(std::string_view p_data);
 
 private:
-    static void taskEntry(void* p_parameter);
     void taskLoop();
     void handle(Command p_cmd);
 
@@ -47,7 +47,7 @@ private:
     const ClaimCodeManager& m_claimCodeManager;
     DisplayController& m_displayController;
     QueueHandle_t m_queue = nullptr;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
 };
 
 #endif // COMMAND_HANDLER_HPP

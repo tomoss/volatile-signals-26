@@ -4,6 +4,7 @@
 #include "00_vendor/arduino.hpp"
 #include "00_vendor/sml.hpp"
 #include "02_storage/storage.hpp"
+#include "09_utils/task.hpp"
 #include "wifi_adapter.hpp"
 #include "wifi_sm.hpp"
 
@@ -40,7 +41,6 @@ public:
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
 
-    static void taskEntry(void* parameter);
     void taskLoop();
 
     void handleQueueEvent(const WifiQueueEvent& event);
@@ -53,7 +53,7 @@ private:
     StateMachine m_sm;
 
     QueueHandle_t m_queue = nullptr;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
 };
 
 #endif // WIFI_MANAGER_HPP

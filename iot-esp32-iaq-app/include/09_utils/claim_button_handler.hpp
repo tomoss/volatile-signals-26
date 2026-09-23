@@ -6,6 +6,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "06_display/display_controller.hpp"
 #include "09_utils/claim_code_manager.hpp"
+#include "09_utils/task.hpp"
 
 // Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
 constexpr int CLAIM_BUTTON_PIN = D1;
@@ -17,7 +18,7 @@ class ClaimButtonHandler {
 public:
     ClaimButtonHandler(DisplayController& p_displayController, Storage& p_storage, MqttBridge& p_mqttBridge, const ClaimCodeManager& p_claimCodeManager)
         : m_displayController(p_displayController), m_storage(p_storage), m_mqttBridge(p_mqttBridge), m_claimCodeManager(p_claimCodeManager) {}
-    ~ClaimButtonHandler();
+    ~ClaimButtonHandler() = default;
     ClaimButtonHandler(const ClaimButtonHandler&) = delete;
     ClaimButtonHandler& operator=(const ClaimButtonHandler&) = delete;
     ClaimButtonHandler(ClaimButtonHandler&&) = delete;
@@ -28,14 +29,13 @@ public:
 
 private:
     static void IRAM_ATTR isr();
-    static void taskEntry(void* p_parameter);
     void taskLoop();
 
     DisplayController& m_displayController;
     Storage& m_storage;
     MqttBridge& m_mqttBridge;
     const ClaimCodeManager& m_claimCodeManager;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
 
     // The ISR (a plain function pointer, no user data) reaches the task through this.
     static TaskHandle_t s_taskHandle;

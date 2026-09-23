@@ -8,21 +8,8 @@ constexpr uint32_t PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 1;
 
-HealthReporter::~HealthReporter() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
-}
-
 void HealthReporter::start() {
-    if (pdPASS != xTaskCreate(taskEntry, "health", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("HealthReporter task creation failed");
-    }
-}
-
-void HealthReporter::taskEntry(void* p_parameter) {
-    static_cast<HealthReporter*>(p_parameter)->taskLoop();
+    m_task.start("health", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
 }
 
 void HealthReporter::taskLoop() {

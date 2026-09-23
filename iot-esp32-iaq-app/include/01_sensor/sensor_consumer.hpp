@@ -1,0 +1,41 @@
+#ifndef SENSOR_CONSUMER_HPP
+#define SENSOR_CONSUMER_HPP
+
+#include "00_vendor/freertos.hpp"
+#include "01_sensor/sensor_data.hpp"
+#include "04_mqtt/mqtt_bridge.hpp"
+#include "06_display/display_controller.hpp"
+#include "09_utils/task.hpp"
+
+// Owns the queue EnvSensor's events are pushed into (via the handle from getQueue(), passed
+// to EnvSensor::setQueue()), drains it from its own task, and forwards each reading to MQTT
+// and the display, logging every sample to Serial along the way.
+class SensorConsumer {
+public:
+    SensorConsumer(MqttBridge& p_mqttBridge, DisplayController& p_displayController)
+        : m_mqttBridge(p_mqttBridge), m_displayController(p_displayController) {}
+    ~SensorConsumer();
+    SensorConsumer(const SensorConsumer&) = delete;
+    SensorConsumer& operator=(const SensorConsumer&) = delete;
+    SensorConsumer(SensorConsumer&&) = delete;
+    SensorConsumer& operator=(SensorConsumer&&) = delete;
+
+    // Creates the queue. Call before EnvSensor::init(), which needs getQueue()'s result.
+    [[nodiscard]] bool init();
+
+    // Starts the task that drains the queue. Call after init().
+    void start();
+
+    QueueHandle_t getQueue() const { return m_queue; }
+
+private:
+    void taskLoop();
+    void handle(const SensorEvent& p_event);
+
+    MqttBridge& m_mqttBridge;
+    DisplayController& m_displayController;
+    QueueHandle_t m_queue = nullptr;
+    Task m_task;
+};
+
+#endif // SENSOR_CONSUMER_HPP

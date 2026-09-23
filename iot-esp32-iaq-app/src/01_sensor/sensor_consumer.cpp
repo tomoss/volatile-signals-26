@@ -1,35 +1,39 @@
-#include "01_sensor/sensor_reporter.hpp"
+#include "01_sensor/sensor_consumer.hpp"
 
 #include "00_vendor/arduino.hpp"
 
 #include <cmath>
 #include <variant>
 
+constexpr uint32_t QUEUE_SIZE = 10;
 constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 1;
-constexpr uint32_t QUEUE_WAIT_MS = 100;
 
-SensorReporter::~SensorReporter() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
+SensorConsumer::~SensorConsumer() {
+    if (m_queue != nullptr) {
+        vQueueDelete(m_queue);
+        m_queue = nullptr;
     }
 }
 
-void SensorReporter::start() {
-    if (pdPASS != xTaskCreate(taskEntry, "sensor_reporter", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("SensorReporter task creation failed");
+bool SensorConsumer::init() {
+    m_queue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
+    if (m_queue == nullptr) {
+        Serial.println("SensorConsumer queue creation failed");
+        return false;
     }
+
+    return true;
 }
 
-void SensorReporter::taskEntry(void* p_parameter) {
-    static_cast<SensorReporter*>(p_parameter)->taskLoop();
+void SensorConsumer::start() {
+    m_task.start("sensor_consumer", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
 }
 
-void SensorReporter::taskLoop() {
+void SensorConsumer::taskLoop() {
     for (;;) {
         SensorEvent l_event;
-        if (!xQueueReceive(m_envSensor.getQueue(), &l_event, pdMS_TO_TICKS(QUEUE_WAIT_MS))) {
+        if (!xQueueReceive(m_queue, &l_event, portMAX_DELAY)) {
             continue;
         }
 
@@ -37,7 +41,7 @@ void SensorReporter::taskLoop() {
     }
 }
 
-void SensorReporter::handle(const SensorEvent& p_event) {
+void SensorConsumer::handle(const SensorEvent& p_event) {
     if (const auto* l_mode = std::get_if<SensorMode>(&p_event)) {
         m_mqttBridge.sendSensorInfo(*l_mode);
         return;

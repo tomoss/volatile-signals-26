@@ -31,10 +31,6 @@ static void addUserDescription(NimBLECharacteristic* p_characteristic, const cha
 }
 
 BleProvisioner::~BleProvisioner() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
     if (m_queue != nullptr) {
         vQueueDelete(m_queue);
         m_queue = nullptr;
@@ -57,8 +53,7 @@ bool BleProvisioner::init() {
         return false;
     }
 
-    if (pdPASS != xTaskCreate(taskEntry, "ble", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("BleProvisioner task creation failed");
+    if (!m_task.start("ble", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
         return false;
     }
 
@@ -78,10 +73,6 @@ void BleProvisioner::enqueueAction(BleAction action) {
         return;
     }
     xQueueSend(m_queue, &action, 0);
-}
-
-void BleProvisioner::taskEntry(void* parameter) {
-    static_cast<BleProvisioner*>(parameter)->taskLoop();
 }
 
 void BleProvisioner::taskLoop() {

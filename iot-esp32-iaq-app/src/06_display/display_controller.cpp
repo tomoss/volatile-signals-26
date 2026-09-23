@@ -6,17 +6,6 @@ constexpr UBaseType_t TASK_PRIORITY = 1;
 constexpr std::size_t FIRST_HALF_TEXT_SIZE = 32;
 constexpr std::size_t SECOND_HALF_TEXT_SIZE = 16;
 
-DisplayController::~DisplayController() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
-}
-
-void DisplayController::taskEntry(void* parameter) {
-    static_cast<DisplayController*>(parameter)->taskLoop();
-}
-
 bool DisplayController::init(WireWrapper& p_wire) {
     if (!m_display.init(p_wire)) {
         return false;
@@ -26,7 +15,7 @@ bool DisplayController::init(WireWrapper& p_wire) {
         return false;
     }
 
-    if (pdPASS != xTaskCreate(taskEntry, "display", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
+    if (!m_task.start("display", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
         return false;
     }
 
@@ -130,7 +119,7 @@ void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
 }
 
 void DisplayController::notify() {
-    xTaskNotifyGive(m_task);
+    xTaskNotifyGive(m_task.handle());
 }
 
 void DisplayController::wait() {

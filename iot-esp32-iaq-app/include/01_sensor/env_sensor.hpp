@@ -7,12 +7,13 @@
 #include "00_vendor/freertos.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
+#include "09_utils/task.hpp"
 #include "09_utils/wire_wrapper.hpp"
 
 class EnvSensor {
 public:
     explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
-    ~EnvSensor();
+    ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
@@ -23,12 +24,10 @@ public:
     // Starts the background task
     void start();
 
-    // Thread-safe: queues a mode change to be applied on the next run() call (which always
-    // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
-    // MQTT message callback) never touch m_bsec/m_mode directly.
+    // Thread-safe: queues a mode change to be applied on the next run() call
     bool requestModeChange(SensorMode p_mode);
 
-    QueueHandle_t getQueue() const;
+    void setConsumerQueue(QueueHandle_t p_consumerQueue) { s_consumerQueue = p_consumerQueue; }
 
 private:
     std::optional<SensorState> getStateFromBsec();
@@ -42,6 +41,7 @@ private:
     bool applyMode(SensorMode p_mode);
 
     void run();
+    void checkModeChangeRequest();
 
     // Save state to storage once accuracy first reaches High for this mode, then every STATE_SAVE_PERIOD_MS as long as
     // accuracy remains High
@@ -50,8 +50,7 @@ private:
     void checkBsecStatus();
     void printMode();
 
-    static void taskEntry(void* p_parameter);
-    void taskLoop();
+    void loop();
 
     Bsec2 m_bsec;
     SensorMode m_mode = SensorMode::LowPower;
@@ -59,7 +58,11 @@ private:
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
     QueueHandle_t m_modeRequestQueue = nullptr;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
+
+    // Set from setQueue()'s p_consumerQueue. Static because Bsec2::attachCallback only takes a
+    // plain (capture-less) function pointer, which can't reach an instance member.
+    static QueueHandle_t s_consumerQueue;
 };
 
 #endif // ENV_SENSOR_HPP

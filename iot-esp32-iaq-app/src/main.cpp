@@ -2,7 +2,7 @@
 #include "00_vendor/freertos.hpp"
 
 #include "01_sensor/env_sensor.hpp"
-#include "01_sensor/sensor_reporter.hpp"
+#include "01_sensor/sensor_consumer.hpp"
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
@@ -49,17 +49,19 @@ void setup() {
     static CommandHandler commandHandler(envSensor, mqttBridge, storage, claimCodeManager, displayController);
     static HealthReporter healthReporter(mqttBridge, wifiAdapter);
     static ClaimButtonHandler claimButtonHandler(displayController, storage, mqttBridge, claimCodeManager);
-    static SensorReporter sensorReporter(envSensor, mqttBridge, displayController);
+    static SensorConsumer sensorConsumer(mqttBridge, displayController);
     static OtaUpdater otaUpdater(envSensor, displayController);
 
     // Mandatory modules initialization
-    if (!wireWrapper.init() || !storage.init() || !envSensor.init(wireWrapper) || !wifiManager.init() || !bleProvisioner.init() ||
-        !mqttBridge.init(true) || !claimCodeManager.init() || !commandHandler.init()) {
+    if (!wireWrapper.init() || !storage.init() || !sensorConsumer.init() || !envSensor.init(wireWrapper) || !wifiManager.init() ||
+        !bleProvisioner.init() || !mqttBridge.init(true) || !claimCodeManager.init() || !commandHandler.init()) {
         Serial.println("Mandatory module init failed, restarting the board...");
         Serial.flush();
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
+
+    envSensor.setConsumerQueue(sensorConsumer.getQueue());
 
     // Not mandatory, so not required to succeed
     rtc.init(wireWrapper);
@@ -138,7 +140,7 @@ void setup() {
 
     envSensor.start();
     wifiManager.start();
-    sensorReporter.start();
+    sensorConsumer.start();
     healthReporter.start();
 
     vTaskDelete(nullptr);

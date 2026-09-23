@@ -9,10 +9,6 @@ constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 1;
 
 CommandHandler::~CommandHandler() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
     if (m_queue != nullptr) {
         vQueueDelete(m_queue);
         m_queue = nullptr;
@@ -30,9 +26,7 @@ bool CommandHandler::init() {
 }
 
 void CommandHandler::start() {
-    if (pdPASS != xTaskCreate(taskEntry, "command", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("CommandHandler task creation failed");
-    }
+    m_task.start("command", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); });
 }
 
 void CommandHandler::enqueue(std::string_view p_data) {
@@ -40,10 +34,6 @@ void CommandHandler::enqueue(std::string_view p_data) {
     if (xQueueSend(m_queue, &l_cmd, 0) != pdTRUE) {
         Serial.println("[CMD] Command queue full, dropping command");
     }
-}
-
-void CommandHandler::taskEntry(void* p_parameter) {
-    static_cast<CommandHandler*>(p_parameter)->taskLoop();
 }
 
 void CommandHandler::taskLoop() {

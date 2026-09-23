@@ -4,17 +4,14 @@
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
 
+QueueHandle_t EnvSensor::s_consumerQueue = nullptr;
+
+constexpr TickType_t CONSUMER_QUEUE_TICKS_TO_WAIT = 0;
+
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
 // Temperature offset for BME688 sensor - measured with a calibrated thermometer
 constexpr float BME68X_TEMPERATURE_OFFSET = 1.5f;
-
-// Static queue handle for sensor data because it needs to be accessible from the callback function
-static QueueHandle_t s_sensorQueue = nullptr;
-
-// The call will return immediately if the queue is full and xTicksToWait is set to 0.
-constexpr const TickType_t TICKS_TO_WAIT = 0;
-constexpr const int QUEUE_SIZE = 10;
 
 constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 2;
@@ -161,20 +158,7 @@ void EnvSensor::printMode() {
     }
 }
 
-EnvSensor::~EnvSensor() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
-}
-
 bool EnvSensor::init(WireWrapper& p_bus) {
-    s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
-    if (s_sensorQueue == nullptr) {
-        Serial.println("Sensor queue creation failed");
-        return false;
-    }
-
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
     if (m_modeRequestQueue == nullptr) {
         Serial.println("Mode request queue creation failed");
@@ -203,43 +187,42 @@ bool EnvSensor::init(WireWrapper& p_bus) {
             return;
         }
 
-        SensorEvent l_event{convertOutputs(p_outputs)};
-        xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
+        if (s_consumerQueue != nullptr) {
+            SensorEvent l_event{convertOutputs(p_outputs)};
+            xQueueSend(s_consumerQueue, &l_event, CONSUMER_QUEUE_TICKS_TO_WAIT);
+        }
     });
 
     return true;
 }
 
 void EnvSensor::start() {
-    xTaskCreate(taskEntry, "sensor", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task);
+    m_task.start("sensor_task", TASK_STACK_SIZE, TASK_PRIORITY, [this] {
+        loop();
+    });
 }
 
-void EnvSensor::taskEntry(void* p_parameter) {
-    static_cast<EnvSensor*>(p_parameter)->taskLoop();
-}
-
-void EnvSensor::taskLoop() {
-    for (;;) {
-        run();
-        maybeSaveStateToStorage();
-        vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
-    }
-}
-
-void EnvSensor::run() {
+void EnvSensor::checkModeChangeRequest() {
     SensorMode l_requestedMode;
     if (xQueueReceive(m_modeRequestQueue, &l_requestedMode, 0) == pdTRUE) {
         setMode(l_requestedMode);
     }
+}
 
+void EnvSensor::run() {
     if (!m_bsec.run()) {
         Serial.println("BSEC run failed..");
         checkBsecStatus();
     }
 }
 
-QueueHandle_t EnvSensor::getQueue() const {
-    return s_sensorQueue;
+void EnvSensor::loop() {
+    for (;;) {
+        checkModeChangeRequest();
+        run();
+        maybeSaveStateToStorage();
+        vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
+    }
 }
 
 std::optional<SensorState> EnvSensor::getStateFromBsec() {
@@ -309,8 +292,10 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_mode = p_mode;
     printMode();
 
-    SensorEvent l_event{m_mode};
-    xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
+    if (s_consumerQueue != nullptr) {
+        SensorEvent l_event{m_mode};
+        xQueueSend(s_consumerQueue, &l_event, CONSUMER_QUEUE_TICKS_TO_WAIT);
+    }
 
     return true;
 }

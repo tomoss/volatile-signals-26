@@ -9,10 +9,6 @@ constexpr UBaseType_t TASK_PRIORITY = 1;
 WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
 WifiManager::~WifiManager() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
     if (m_queue != nullptr) {
         vQueueDelete(m_queue);
         m_queue = nullptr;
@@ -65,8 +61,7 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (pdPASS != xTaskCreate(taskEntry, "wifi_manager", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("WiFiManager task creation failed");
+    if (!m_task.start("wifi_manager", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
         return false;
     }
 
@@ -83,10 +78,6 @@ void WifiManager::stop() {
 
 void WifiManager::credentialsUpdated() {
     postQueueEvent(WifiQueueEventType::CredentialsReceived);
-}
-
-void WifiManager::taskEntry(void* parameter) {
-    static_cast<WifiManager*>(parameter)->taskLoop();
 }
 
 void WifiManager::taskLoop() {

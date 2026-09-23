@@ -8,13 +8,6 @@ constexpr UBaseType_t TASK_PRIORITY = 1;
 
 TaskHandle_t ClaimButtonHandler::s_taskHandle = nullptr;
 
-ClaimButtonHandler::~ClaimButtonHandler() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
-}
-
 // Runs on the interrupt level: debounces in-place (via a static timestamp) and only wakes
 // taskLoop on an actual press, so nothing on the button path spins a polling loop.
 void IRAM_ATTR ClaimButtonHandler::isr() {
@@ -30,16 +23,11 @@ void IRAM_ATTR ClaimButtonHandler::isr() {
     portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
 }
 
-void ClaimButtonHandler::taskEntry(void* p_parameter) {
-    static_cast<ClaimButtonHandler*>(p_parameter)->taskLoop();
-}
-
 void ClaimButtonHandler::start() {
-    if (pdPASS != xTaskCreate(taskEntry, "claim_button", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
-        Serial.println("ClaimButtonHandler task creation failed");
+    if (!m_task.start("claim_button", TASK_STACK_SIZE, TASK_PRIORITY, [this] { taskLoop(); })) {
         return;
     }
-    s_taskHandle = m_task;
+    s_taskHandle = m_task.handle();
 
     pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), isr, FALLING);
