@@ -25,21 +25,6 @@ constexpr const uint8_t s_bsecConfigUlp[] = {
 #include "config/bme688/bme688_sel_33v_300s_4d/bsec_selectivity.txt"
 };
 
-static const uint8_t* modeToConfig(const SensorMode p_mode) {
-    switch (p_mode) {
-    case SensorMode::UltraLowPower:
-        return s_bsecConfigUlp;
-    case SensorMode::LowPower:
-        return s_bsecConfigLp;
-    case SensorMode::Continuous:
-        Serial.println("No bundled BSEC config matches BSEC_SAMPLE_RATE_CONT; the LP config is the closest fit");
-        return s_bsecConfigLp;
-    default:
-        // Let the LowPower config be used as a fallback
-        return s_bsecConfigLp;
-    }
-}
-
 static float modeToSampleRate(const SensorMode p_mode) {
     switch (p_mode) {
     case SensorMode::Disabled:
@@ -260,10 +245,35 @@ bool EnvSensor::setMode(SensorMode p_mode) {
     return applyMode(p_mode);
 }
 
-bool EnvSensor::applyMode(SensorMode p_mode) {
-    if (!m_bsec.setConfig(modeToConfig(p_mode))) {
+bool EnvSensor::setConfig(SensorMode p_mode) {
+    const uint8_t* l_config = s_bsecConfigLp;
+    switch (p_mode) {
+    case SensorMode::UltraLowPower:
+        l_config = s_bsecConfigUlp;
+        break;
+    case SensorMode::LowPower:
+        l_config = s_bsecConfigLp;
+        break;
+    case SensorMode::Continuous:
+        Serial.println("No bundled BSEC config matches BSEC_SAMPLE_RATE_CONT; the LP config is the closest fit");
+        l_config = s_bsecConfigLp;
+        break;
+    default:
+        // Let the LowPower config be used as a fallback
+        break;
+    }
+
+    if (!m_bsec.setConfig(l_config)) {
         Serial.println("Setting the AI config to BSEC failed");
         checkBsecStatus();
+        return false;
+    }
+
+    return true;
+}
+
+bool EnvSensor::applyMode(SensorMode p_mode) {
+    if (!setConfig(p_mode)) {
         return false;
     }
 

@@ -31,14 +31,14 @@ public:
 
 private:
     std::optional<SensorState> getStateFromBsec();
-    // set the BME688 sensor state to BSEC lib
     bool setStateToBsec(const SensorState& p_state);
 
     bool setMode(SensorMode p_mode);
-    SensorMode getMode() const { return m_mode; }
-
-    // Applies config/subscription/state-restore for p_mode and updates m_mode. Shared by init() and setMode().
+    // Applies config/subscription/state-restore for p_mode and updates m_mode.
     bool applyMode(SensorMode p_mode);
+
+    // Picks the bundled AI config for p_mode and sets it on m_bsec.
+    bool setConfig(SensorMode p_mode);
 
     void run();
     void checkModeChangeRequest();
