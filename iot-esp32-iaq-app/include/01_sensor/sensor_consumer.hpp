@@ -7,13 +7,11 @@
 #include "06_display/display_controller.hpp"
 #include "09_utils/task.hpp"
 
-// Owns the queue EnvSensor's events are pushed into (via the handle from getQueue(), passed
-// to EnvSensor::setQueue()), drains it from its own task, and forwards each reading to MQTT
-// and the display, logging every sample to Serial along the way.
 class SensorConsumer {
 public:
     SensorConsumer(MqttBridge& p_mqttBridge, DisplayController& p_displayController)
-        : m_mqttBridge(p_mqttBridge), m_displayController(p_displayController) {}
+        : m_mqttBridge(p_mqttBridge)
+        , m_displayController(p_displayController) {}
     ~SensorConsumer();
     SensorConsumer(const SensorConsumer&) = delete;
     SensorConsumer& operator=(const SensorConsumer&) = delete;
@@ -29,7 +27,7 @@ public:
     QueueHandle_t getQueue() const { return m_queue; }
 
 private:
-    void taskLoop();
+    void loop();
     void handle(const SensorEvent& p_event);
 
     MqttBridge& m_mqttBridge;

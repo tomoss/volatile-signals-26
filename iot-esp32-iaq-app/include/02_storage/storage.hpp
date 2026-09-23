@@ -53,7 +53,6 @@ public:
     std::optional<MqttTypes::Password> loadMqttPassword();
     bool saveMqttPassword(const MqttTypes::Password& p_password);
 
-    // Whether the device has been claimed by a user account yet. Defaults to false (unset).
     bool loadDeviceClaimStatus();
     bool saveDeviceClaimStatus(bool p_claimed);
 

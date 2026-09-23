@@ -23,7 +23,7 @@ bool WifiManager::init() {
         return false;
     }
 
-    m_adapter.setReconnectTimerCallback([this] {
+    m_adapter.setReconnectCallback([this] {
         postQueueEvent(WifiQueueEventType::Connect);
     });
 
@@ -61,7 +61,13 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (!m_task.createAndStart("wifi_manager", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY)) {
+    if (!m_task.createAndStart(
+            "wifi_manager",
+            [this] {
+                loop();
+            },
+            TASK_STACK_SIZE,
+            TASK_PRIORITY)) {
         return false;
     }
 
@@ -80,7 +86,7 @@ void WifiManager::credentialsUpdated() {
     postQueueEvent(WifiQueueEventType::CredentialsReceived);
 }
 
-void WifiManager::taskLoop() {
+void WifiManager::loop() {
     for (;;) {
         WifiQueueEvent event;
         if (xQueueReceive(m_queue, &event, portMAX_DELAY) == pdTRUE) {

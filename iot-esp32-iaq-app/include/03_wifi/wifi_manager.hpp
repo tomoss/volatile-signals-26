@@ -41,7 +41,7 @@ public:
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
 
-    void taskLoop();
+    void loop();
 
     void handleQueueEvent(const WifiQueueEvent& event);
     void postQueueEvent(WifiQueueEventType type);

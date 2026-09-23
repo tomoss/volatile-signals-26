@@ -17,14 +17,14 @@ namespace sml = boost::sml;
 template<typename T>
 concept WifiAdaptable = requires(T& adapter) {
     { adapter.loadCredentials() } -> std::convertible_to<bool>;
-    { adapter.maxReconnectAttemptsReached() } -> std::convertible_to<bool>;
+    { adapter.hasReachedMaxReconnectAttempts() } -> std::convertible_to<bool>;
     { adapter.connect() } -> std::convertible_to<bool>;
     { adapter.getSSID() } -> std::convertible_to<WifiTypes::Ssid>;
     { adapter.getIPAddress() } -> std::convertible_to<WifiTypes::IpAddr>;
     { adapter.resetReconnectAttempts() };
     { adapter.notifyConnected() };
     { adapter.notifyDisconnected() };
-    { adapter.recordReconnectAttempt() };
+    { adapter.increaseReconnectAttempts() };
     { adapter.startReconnectTimer() } -> std::convertible_to<bool>;
     { adapter.getReconnectAttempts() } -> std::convertible_to<uint8_t>;
     { adapter.notifyStartProvisioning() };
@@ -94,7 +94,7 @@ struct GuCredentialsLoad {
 
 template<WifiAdaptable TAdapter>
 struct GuMaxAttemptsReached {
-    bool operator()(TAdapter& p_wifi) const { return p_wifi.maxReconnectAttemptsReached(); }
+    bool operator()(TAdapter& p_wifi) const { return p_wifi.hasReachedMaxReconnectAttempts(); }
 };
 
 // ****** ACTIONS ******
@@ -130,7 +130,7 @@ struct DoNotifyDisconnect {
 template<WifiAdaptable TAdapter>
 struct DoStartTimer {
     void operator()(TAdapter& p_wifi) const {
-        p_wifi.recordReconnectAttempt();
+        p_wifi.increaseReconnectAttempts();
         if (p_wifi.startReconnectTimer()) {
             Serial.printf("[WiFi SM] Action: Start timer for reconnecting (Attempt %d)\n", p_wifi.getReconnectAttempts());
         } else {

@@ -27,16 +27,17 @@ bool SensorConsumer::init() {
 }
 
 void SensorConsumer::start() {
-    m_task.createAndStart("sensor_consumer", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
+    m_task.createAndStart("consumer_task", [this] {
+        loop();
+    });
 }
 
-void SensorConsumer::taskLoop() {
+void SensorConsumer::loop() {
     for (;;) {
         SensorEvent l_event;
         if (xQueueReceive(m_queue, &l_event, portMAX_DELAY) != pdTRUE) {
             continue;
         }
-
         handle(l_event);
     }
 }
@@ -70,12 +71,11 @@ void SensorConsumer::handle(const SensorEvent& p_event) {
                   l_data.rawHum,
                   l_data.pressure);
 
-    if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) &&
-        !std::isnan(l_data.co2) && !std::isnan(l_data.voc)) {
-        m_mqttBridge.sendSensorData(l_data);
+    if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) && !std::isnan(l_data.co2) &&
+        !std::isnan(l_data.voc)) {
 
-        m_displayController.setEnvironment(static_cast<uint16_t>(std::round(l_data.iaq)),
-                                           static_cast<int8_t>(std::round(l_data.temp)),
-                                           static_cast<uint8_t>(l_data.iaqAccuracy));
+        m_mqttBridge.sendSensorData(l_data);
+        m_displayController.setEnvironment(
+            static_cast<uint16_t>(std::round(l_data.iaq)), static_cast<int8_t>(std::round(l_data.temp)), static_cast<uint8_t>(l_data.iaqAccuracy));
     }
 }
