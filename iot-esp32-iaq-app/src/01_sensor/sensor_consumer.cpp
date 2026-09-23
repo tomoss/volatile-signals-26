@@ -6,8 +6,6 @@
 #include <variant>
 
 constexpr uint32_t QUEUE_SIZE = 10;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 SensorConsumer::~SensorConsumer() {
     if (m_queue != nullptr) {

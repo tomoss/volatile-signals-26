@@ -45,7 +45,6 @@ private:
 
     void handleQueueEvent(const WifiQueueEvent& event);
     void postQueueEvent(WifiQueueEventType type);
-    void postQueueEvent(const WifiQueueEvent& event);
 
 private:
     WifiAdapter& m_adapter;

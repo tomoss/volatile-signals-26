@@ -3,8 +3,6 @@
 #include <cstring>
 
 constexpr uint32_t QUEUE_LENGTH = 10;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
@@ -61,13 +59,9 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (!m_task.createAndStart(
-            "wifi_manager",
-            [this] {
-                loop();
-            },
-            TASK_STACK_SIZE,
-            TASK_PRIORITY)) {
+    if (!m_task.createAndStart("wifi_manager", [this] {
+            loop();
+        })) {
         return false;
     }
 
@@ -141,12 +135,10 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
 }
 
 void WifiManager::postQueueEvent(WifiQueueEventType type) {
-    postQueueEvent(WifiQueueEvent{type});
-}
-
-void WifiManager::postQueueEvent(const WifiQueueEvent& event) {
     if (m_queue == nullptr) {
+        Serial.println("WiFiManager queue is not initialized");
         return;
     }
-    xQueueSend(m_queue, &event, 0);
+    const WifiQueueEvent l_event{type};
+    xQueueSend(m_queue, &l_event, 0);
 }
