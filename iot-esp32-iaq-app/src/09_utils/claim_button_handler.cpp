@@ -3,8 +3,6 @@
 #include "00_vendor/arduino.hpp"
 
 constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 TaskHandle_t ClaimButtonHandler::s_taskHandle = nullptr;
 
@@ -24,7 +22,7 @@ void IRAM_ATTR ClaimButtonHandler::isr() {
 }
 
 void ClaimButtonHandler::start() {
-    if (!m_task.createAndStart("claim_button", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY)) {
+    if (!m_task.createAndStart("claim_button_task", [this] { taskLoop(); })) {
         return;
     }
     s_taskHandle = m_task.handle();

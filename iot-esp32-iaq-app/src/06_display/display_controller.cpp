@@ -1,8 +1,5 @@
 #include "06_display/display_controller.hpp"
 
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
-
 constexpr std::size_t FIRST_HALF_TEXT_SIZE = 32;
 constexpr std::size_t SECOND_HALF_TEXT_SIZE = 16;
 
@@ -15,7 +12,7 @@ bool DisplayController::init(WireWrapper& p_wire) {
         return false;
     }
 
-    if (!m_task.createAndStart("display", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY)) {
+    if (!m_task.createAndStart("display_task", [this] { taskLoop(); })) {
         return false;
     }
 

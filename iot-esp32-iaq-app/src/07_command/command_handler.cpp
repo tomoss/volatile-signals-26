@@ -5,8 +5,6 @@
 #include <esp_system.h>
 
 constexpr uint32_t QUEUE_LENGTH = 8;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 CommandHandler::~CommandHandler() {
     if (m_queue != nullptr) {
@@ -26,7 +24,7 @@ bool CommandHandler::init() {
 }
 
 void CommandHandler::start() {
-    m_task.createAndStart("command", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
+    m_task.createAndStart("command_task", [this] { taskLoop(); });
 }
 
 void CommandHandler::enqueue(std::string_view p_data) {

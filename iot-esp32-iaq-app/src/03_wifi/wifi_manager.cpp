@@ -59,7 +59,7 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (!m_task.createAndStart("wifi_manager", [this] {
+    if (!m_task.createAndStart("wifi_task", [this] {
             loop();
         })) {
         return false;

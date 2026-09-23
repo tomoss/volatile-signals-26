@@ -5,11 +5,9 @@
 
 // How often to publish device health (RSSI/heap/uptime) - diagnostic data
 constexpr uint32_t PUBLISH_INTERVAL_MS = 60000; // 60 seconds
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 void HealthReporter::start() {
-    m_task.createAndStart("health", [this] { taskLoop(); }, TASK_STACK_SIZE, TASK_PRIORITY);
+    m_task.createAndStart("health_task", [this] { taskLoop(); });
 }
 
 void HealthReporter::taskLoop() {

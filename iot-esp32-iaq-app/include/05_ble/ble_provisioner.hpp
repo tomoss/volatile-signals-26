@@ -37,7 +37,7 @@ public:
 private:
     enum class BleAction : uint8_t { Start = 0, Stop = 1 };
 
-    void taskLoop();
+    void loop();
     void enqueueAction(BleAction action);
 
     void begin();
@@ -66,6 +66,9 @@ private:
 
     WifiTypes::Ssid m_ssid{};
     WifiTypes::Password m_password{};
+
+    bool m_ssidReceived = false;
+    bool m_passwordReceived = false;
 };
 
 #endif // BLE_PROVISIONER_HPP
