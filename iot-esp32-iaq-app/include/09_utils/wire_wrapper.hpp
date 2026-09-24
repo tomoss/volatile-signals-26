@@ -15,8 +15,7 @@ public:
             return false;
         }
         if (!m_wire.setClock(I2C_BUS_CLOCK_HZ)) {
-            Serial.println("I2C BUS set clock failed");
-            return false;
+            Serial.println("I2C BUS set clock reported failure, continuing");
         }
         return true;
     }
