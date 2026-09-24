@@ -134,9 +134,9 @@ void setup() {
 
     commandHandler.start();
     claimButtonHandler.start();
+    sensorConsumer.start();
     envSensor.start();
     wifiManager.start();
-    sensorConsumer.start();
     healthReporter.start();
 
     vTaskDelete(nullptr);

@@ -18,10 +18,8 @@ public:
     SensorConsumer(SensorConsumer&&) = delete;
     SensorConsumer& operator=(SensorConsumer&&) = delete;
 
-    // Creates the queue. Call before EnvSensor::init(), which needs getQueue()'s result.
     [[nodiscard]] bool init();
 
-    // Starts the task that drains the queue. Call after init().
     void start();
 
     QueueHandle_t getQueue() const { return m_queue; }
