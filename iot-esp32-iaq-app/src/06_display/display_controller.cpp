@@ -5,14 +5,19 @@ constexpr std::size_t SECOND_HALF_TEXT_SIZE = 16;
 
 bool DisplayController::init(WireWrapper& p_wire) {
     if (!m_display.init(p_wire)) {
+        Serial.println("Display init failed (continuing without display)");
         return false;
     }
 
     if (!m_mutex.init()) {
+        Serial.println("Display mutex init failed (continuing without display)");
         return false;
     }
 
-    if (!m_task.createAndStart("display_task", [this] { taskLoop(); })) {
+    if (!m_task.createAndStart("display_task", [this] {
+            loop();
+        })) {
+        Serial.println("Display task creation failed (continuing without display)");
         return false;
     }
 
@@ -21,98 +26,81 @@ bool DisplayController::init(WireWrapper& p_wire) {
 }
 
 void DisplayController::enableDisplay() {
+    if (!m_available) {
+        return;
+    }
     {
-        if (!m_available || m_displayEnabled) {
+        const MutexGuard l_guard(m_mutex);
+        if (m_enabled) {
             return;
         }
-        const MutexGuard l_guard(m_mutex);
-        m_displayEnabled = true;
+        m_enabled = true;
         m_display.setMode(DisplayMode::On);
     }
     notify();
 }
 
 void DisplayController::disableDisplay() {
-    {
-        if (!m_available || !m_displayEnabled) {
-            return;
-        }
-        const MutexGuard l_guard(m_mutex);
-        m_displayEnabled = false;
-        m_display.setMode(DisplayMode::Off);
+    if (!m_available) {
+        return;
     }
+    const MutexGuard l_guard(m_mutex);
+    if (!m_enabled) {
+        return;
+    }
+    m_enabled = false;
+    m_display.setMode(DisplayMode::Off);
 }
 
 void DisplayController::setWifiStatus(bool p_connected) {
     updateState([p_connected](DisplayState& p_outState) {
-        if (p_outState.wifiConnected == p_connected) {
-            return false; // No change.
-        }
         p_outState.wifiConnected = p_connected;
-        return true;
     });
 }
 
 void DisplayController::setMqttStatus(bool p_connected) {
     updateState([p_connected](DisplayState& p_outState) {
-        if (p_outState.mqttConnected == p_connected) {
-            return false; // No change.
-        }
         p_outState.mqttConnected = p_connected;
-        return true;
     });
 }
 
 void DisplayController::setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy) {
     updateState([p_iaq, p_temperatureC, p_accuracy](DisplayState& p_outState) {
-        if (p_outState.iaq == p_iaq && p_outState.temperatureC == p_temperatureC && p_outState.accuracy == p_accuracy) {
-            return false; // No change.
-        }
         p_outState.iaq = p_iaq;
         p_outState.temperatureC = p_temperatureC;
         p_outState.accuracy = p_accuracy;
-        return true;
     });
 }
 
 void DisplayController::setProvisioningStatus(uint32_t p_passkey) {
     updateState([p_passkey](DisplayState& p_outState) {
-        if (p_outState.provisionPasskey == p_passkey) {
-            return false; // No change.
-        }
         p_outState.provisionPasskey = p_passkey;
-        return true;
     });
 }
 
 void DisplayController::setClaimingCode(const ClaimCode& p_code) {
     updateState([p_code](DisplayState& p_outState) {
-        if (p_outState.claimCode == p_code) {
-            return false; // No change.
-        }
         p_outState.claimCode = p_code;
-        return true;
     });
 }
 
 void DisplayController::setClaimedStatus(bool p_claimed) {
     updateState([p_claimed](DisplayState& p_outState) {
-        if (p_outState.claimed == p_claimed) {
-            return false; // No change.
-        }
         p_outState.claimed = p_claimed;
-        return true;
     });
 }
 
 void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
-    updateState([p_overlay](DisplayState& p_outState) {
-        if (p_outState.overlay == p_overlay) {
-            return false; // No change.
-        }
-        p_outState.overlay = p_overlay;
-        return true;
-    });
+    if (!m_available) {
+        return;
+    }
+    {
+        const MutexGuard l_guard(m_mutex);
+        m_overlay = p_overlay;
+    }
+    if (m_enabled) {
+        notify();
+    }
 }
 
 void DisplayController::notify() {
@@ -123,7 +111,7 @@ void DisplayController::wait() {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 }
 
-void DisplayController::taskLoop() {
+void DisplayController::loop() {
     // Initial render
     render();
 
@@ -136,7 +124,7 @@ void DisplayController::taskLoop() {
 void DisplayController::render() {
     const MutexGuard l_guard(m_mutex);
 
-    switch (m_state.overlay) {
+    switch (m_overlay) {
     case DisplayOverlay::Provisioning: {
         char l_passkey[SECOND_HALF_TEXT_SIZE];
 

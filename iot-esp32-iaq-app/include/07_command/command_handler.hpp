@@ -17,10 +17,16 @@
 // never blocks the MQTT client task.
 class CommandHandler {
 public:
-    CommandHandler(EnvSensor& p_envSensor, MqttBridge& p_mqttBridge, Storage& p_storage, const ClaimCodeManager& p_claimCodeManager,
+    CommandHandler(EnvSensor& p_envSensor,
+                   MqttBridge& p_mqttBridge,
+                   Storage& p_storage,
+                   const ClaimCodeManager& p_claimCodeManager,
                    DisplayController& p_displayController)
-        : m_envSensor(p_envSensor), m_mqttBridge(p_mqttBridge), m_storage(p_storage), m_claimCodeManager(p_claimCodeManager),
-          m_displayController(p_displayController) {}
+        : m_envSensor(p_envSensor)
+        , m_mqttBridge(p_mqttBridge)
+        , m_storage(p_storage)
+        , m_claimCodeManager(p_claimCodeManager)
+        , m_displayController(p_displayController) {}
     ~CommandHandler();
     CommandHandler(const CommandHandler&) = delete;
     CommandHandler& operator=(const CommandHandler&) = delete;
@@ -38,7 +44,7 @@ public:
     void enqueue(std::string_view p_data);
 
 private:
-    void taskLoop();
+    void loop();
     void handle(Command p_cmd);
 
     EnvSensor& m_envSensor;

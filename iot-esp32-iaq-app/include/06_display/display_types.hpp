@@ -8,13 +8,12 @@
 // Which full-screen overlay, if any, currently takes precedence over the normal WiFi/MQTT/env
 // status screen. At most one is shown at a time.
 enum class DisplayOverlay : uint8_t {
-    None,
-    Provisioning,
-    Claim,
+    None = 0,
+    Provisioning = 1,
+    Claim = 2,
 };
 
 struct DisplayState {
-    DisplayOverlay overlay{DisplayOverlay::None};
     uint32_t provisionPasskey{0};
     ClaimCode claimCode{};
     bool claimed{false};

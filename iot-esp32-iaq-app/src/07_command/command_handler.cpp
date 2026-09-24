@@ -24,7 +24,9 @@ bool CommandHandler::init() {
 }
 
 void CommandHandler::start() {
-    m_task.createAndStart("command_task", [this] { taskLoop(); });
+    m_task.createAndStart("command_task", [this] {
+        loop();
+    });
 }
 
 void CommandHandler::enqueue(std::string_view p_data) {
@@ -34,7 +36,7 @@ void CommandHandler::enqueue(std::string_view p_data) {
     }
 }
 
-void CommandHandler::taskLoop() {
+void CommandHandler::loop() {
     for (;;) {
         Command l_cmd;
         if (xQueueReceive(m_queue, &l_cmd, portMAX_DELAY) != pdTRUE) {

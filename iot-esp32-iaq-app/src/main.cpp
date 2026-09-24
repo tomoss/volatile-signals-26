@@ -66,16 +66,12 @@ void setup() {
     // Not mandatory, so not required to succeed
     rtc.init(wireWrapper);
     rtc.seedSystemClock();
-
-    if (!displayController.init(wireWrapper)) {
-        Serial.println("Display init failed (continuing without display)");
-    } else {
-        displayController.enableDisplay();
-        displayController.setClaimingCode(claimCodeManager.get());
-    }
+    displayController.init(wireWrapper);
+    displayController.enableDisplay();
+    displayController.setClaimingCode(claimCodeManager.get());
 
     wifiAdapter.setConnectedCallback([] {
-        Serial.println("WiFi connected callback called");
+        Serial.println("WiFi ConnectedCallback called");
         displayController.setWifiStatus(true);
         if (timeSync.sync()) {
             rtc.write(time(nullptr));
@@ -84,7 +80,7 @@ void setup() {
     });
 
     wifiAdapter.setDisconnectedCallback([] {
-        Serial.println("WiFi disconnected callback called");
+        Serial.println("WiFi DisconnectedCallback called");
         displayController.setWifiStatus(false);
     });
 
@@ -135,9 +131,9 @@ void setup() {
     mqttBridge.setOnCommandCallback([](std::string_view p_data) {
         commandHandler.enqueue(p_data);
     });
+
     commandHandler.start();
     claimButtonHandler.start();
-
     envSensor.start();
     wifiManager.start();
     sensorConsumer.start();
