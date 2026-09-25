@@ -26,7 +26,7 @@ public:
     void start();
 
     // Thread-safe: queues a mode change to be applied on the next run() call
-    bool requestModeChange(SensorMode p_mode);
+    void requestModeChange(SensorMode p_mode);
 
 private:
     std::optional<SensorState> getStateFromBsec();
@@ -56,7 +56,7 @@ private:
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
-    QueueHandle_t m_modeRequestQueue = nullptr;
+    SensorModeRequestQueue m_modeRequestQueue;
     Task m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer

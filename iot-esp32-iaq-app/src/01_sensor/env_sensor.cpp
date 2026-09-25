@@ -140,8 +140,7 @@ void EnvSensor::printMode() {
 }
 
 bool EnvSensor::init(WireWrapper& p_bus) {
-    m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
-    if (m_modeRequestQueue == nullptr) {
+    if (!m_modeRequestQueue.init()) {
         Serial.println("Mode request queue creation failed");
         return false;
     }
@@ -185,7 +184,7 @@ void EnvSensor::start() {
 
 void EnvSensor::checkModeChangeRequest() {
     SensorMode l_requestedMode;
-    if (xQueueReceive(m_modeRequestQueue, &l_requestedMode, 0) == pdTRUE) {
+    if (m_modeRequestQueue.receive(l_requestedMode, 0)) {
         setMode(l_requestedMode);
     }
 }
@@ -303,11 +302,8 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     return true;
 }
 
-bool EnvSensor::requestModeChange(SensorMode p_mode) {
-    if (m_modeRequestQueue == nullptr) {
-        return false;
-    }
-    return xQueueOverwrite(m_modeRequestQueue, &p_mode) == pdPASS;
+void EnvSensor::requestModeChange(SensorMode p_mode) {
+    m_modeRequestQueue.overwrite(p_mode);
 }
 
 void EnvSensor::maybeSaveStateToStorage() {

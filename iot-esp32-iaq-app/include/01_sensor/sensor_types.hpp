@@ -36,4 +36,7 @@ constexpr std::size_t SENSOR_EVENT_QUEUE_LENGTH = 10;
 
 using SensorEventQueue = Queue<SensorEvent, SENSOR_EVENT_QUEUE_LENGTH>;
 
+// Length 1 so a newer request overwrites one not yet applied
+using SensorModeRequestQueue = Queue<SensorMode, 1>;
+
 #endif // SENSOR_TYPES_HPP
