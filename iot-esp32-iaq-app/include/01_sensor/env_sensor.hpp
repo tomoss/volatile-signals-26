@@ -7,12 +7,13 @@
 #include "00_vendor/freertos.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
+#include "09_utils/queue.hpp"
 #include "09_utils/task.hpp"
 #include "09_utils/wire_wrapper.hpp"
 
 class EnvSensor {
 public:
-    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
+    EnvSensor(Storage& p_storage, SensorEventQueue& p_sensorEventQueue) : m_storage(p_storage) { s_sensorEventQueue = &p_sensorEventQueue; }
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
@@ -26,8 +27,6 @@ public:
 
     // Thread-safe: queues a mode change to be applied on the next run() call
     bool requestModeChange(SensorMode p_mode);
-
-    void setConsumerQueue(QueueHandle_t p_consumerQueue) { s_consumerQueue = p_consumerQueue; }
 
 private:
     std::optional<SensorState> getStateFromBsec();
@@ -61,7 +60,7 @@ private:
     Task m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer
-    static QueueHandle_t s_consumerQueue;
+    static SensorEventQueue* s_sensorEventQueue;
 };
 
 #endif // ENV_SENSOR_HPP

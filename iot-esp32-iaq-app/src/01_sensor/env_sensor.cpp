@@ -1,10 +1,9 @@
 #include "01_sensor/env_sensor.hpp"
 
 #include "00_vendor/arduino.hpp"
-#include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
 
-QueueHandle_t EnvSensor::s_consumerQueue = nullptr;
+SensorEventQueue* EnvSensor::s_sensorEventQueue = nullptr;
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -169,10 +168,7 @@ bool EnvSensor::init(WireWrapper& p_bus) {
             return;
         }
 
-        if (s_consumerQueue != nullptr) {
-            SensorEvent l_event{convertOutputs(p_outputs)};
-            xQueueSend(s_consumerQueue, &l_event, 0);
-        }
+        s_sensorEventQueue->send(SensorEvent{convertOutputs(p_outputs)});
     });
 
     return true;
@@ -302,10 +298,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_mode = p_mode;
     printMode();
 
-    if (s_consumerQueue != nullptr) {
-        SensorEvent l_event{m_mode};
-        xQueueSend(s_consumerQueue, &l_event, 0);
-    }
+    s_sensorEventQueue->send(SensorEvent{m_mode});
 
     return true;
 }
