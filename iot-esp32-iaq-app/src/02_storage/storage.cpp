@@ -18,6 +18,7 @@ constexpr char STORAGE_KEY_MQTT_PASS[] = "mqtt-pass";
 constexpr char STORAGE_DEVICE_NAMESPACE[] = "device";
 constexpr char STORAGE_KEY_CLAIM_STATUS[] = "claim-status";
 constexpr char STORAGE_KEY_CLAIM_CODE[] = "claim-code";
+constexpr char STORAGE_KEY_SENSOR_MODE[] = "sensor-mode";
 
 static const char* sensorModeToKey(SensorMode p_mode) {
     switch (p_mode) {
@@ -42,6 +43,18 @@ std::optional<SensorState> Storage::loadBsecState(SensorMode p_mode) {
 
 bool Storage::saveBsecState(SensorMode p_mode, const SensorState& p_state) {
     return put(STORAGE_BSEC_NAMESPACE, sensorModeToKey(p_mode), p_state.data(), p_state.size());
+}
+
+std::optional<SensorMode> Storage::loadSensorMode() {
+    uint16_t l_raw = get(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_SENSOR_MODE);
+    if (l_raw == 0) {
+        return std::nullopt;
+    }
+    return static_cast<SensorMode>(l_raw);
+}
+
+bool Storage::saveSensorMode(SensorMode p_mode) {
+    return put(STORAGE_DEVICE_NAMESPACE, STORAGE_KEY_SENSOR_MODE, static_cast<uint16_t>(p_mode));
 }
 
 std::optional<WifiTypes::Ssid> Storage::loadWifiSSID() {

@@ -9,8 +9,8 @@
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
 #include "04_mqtt/mqtt_types.hpp"
-#include "07_utils/claim_code.hpp"
-#include "07_utils/mutex.hpp"
+#include "09_utils/claim_code.hpp"
+#include "09_utils/mutex.hpp"
 
 class Storage {
 public:
@@ -23,6 +23,7 @@ public:
 
     [[nodiscard]] bool init() {
         if (!m_mutex.init()) {
+            Serial.println("Storage init failed");
             return false;
         }
         return true;
@@ -30,6 +31,9 @@ public:
 
     std::optional<SensorState> loadBsecState(SensorMode p_mode);
     bool saveBsecState(SensorMode p_mode, const SensorState& p_state);
+
+    std::optional<SensorMode> loadSensorMode();
+    bool saveSensorMode(SensorMode p_mode);
 
     std::optional<WifiTypes::Ssid> loadWifiSSID();
     bool saveWifiSSID(const WifiTypes::Ssid& p_ssid);
@@ -49,7 +53,6 @@ public:
     std::optional<MqttTypes::Password> loadMqttPassword();
     bool saveMqttPassword(const MqttTypes::Password& p_password);
 
-    // Whether the device has been claimed by a user account yet. Defaults to false (unset).
     bool loadDeviceClaimStatus();
     bool saveDeviceClaimStatus(bool p_claimed);
 

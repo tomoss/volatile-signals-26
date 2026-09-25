@@ -7,6 +7,7 @@
 #include "00_vendor/freertos.hpp"
 #include "00_vendor/nimble.hpp"
 #include "03_wifi/wifi_types.hpp"
+#include "09_utils/task.hpp"
 
 class BleProvisioner : private NimBLECharacteristicCallbacks, private NimBLEServerCallbacks {
 public:
@@ -36,8 +37,7 @@ public:
 private:
     enum class BleAction : uint8_t { Start = 0, Stop = 1 };
 
-    static void taskEntry(void* parameter);
-    void taskLoop();
+    void loop();
     void enqueueAction(BleAction action);
 
     void begin();
@@ -62,10 +62,13 @@ private:
     NimBLECharacteristic* m_passwordChar = nullptr;
 
     QueueHandle_t m_queue = nullptr;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
 
     WifiTypes::Ssid m_ssid{};
     WifiTypes::Password m_password{};
+
+    bool m_ssidReceived = false;
+    bool m_passwordReceived = false;
 };
 
 #endif // BLE_PROVISIONER_HPP

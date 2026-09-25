@@ -4,21 +4,15 @@
 #include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
 
+QueueHandle_t EnvSensor::s_consumerQueue = nullptr;
+
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
 // Temperature offset for BME688 sensor - measured with a calibrated thermometer
 constexpr float BME68X_TEMPERATURE_OFFSET = 1.5f;
 
-// Static queue handle for sensor data because it needs to be accessible from the callback function
-static QueueHandle_t s_sensorQueue = nullptr;
-
-// The call will return immediately if the queue is full and xTicksToWait is set to 0.
-constexpr const TickType_t TICKS_TO_WAIT = 0;
-constexpr const int QUEUE_SIZE = 10;
-
-constexpr uint32_t TASK_STACK_SIZE = 4096;
 constexpr UBaseType_t TASK_PRIORITY = 2;
-constexpr uint32_t TASK_LOOP_DELAY_MS = 100;
+constexpr uint32_t TASK_PERIOD = 100;
 
 // AI configurations for BME688, one per supported sample rate. Each must match the rate
 // requested via updateSubscription() below; otherwise BSEC runs on a mismatched config
@@ -30,21 +24,6 @@ constexpr const uint8_t s_bsecConfigLp[] = {
 constexpr const uint8_t s_bsecConfigUlp[] = {
 #include "config/bme688/bme688_sel_33v_300s_4d/bsec_selectivity.txt"
 };
-
-static const uint8_t* modeToConfig(const SensorMode p_mode) {
-    switch (p_mode) {
-    case SensorMode::UltraLowPower:
-        return s_bsecConfigUlp;
-    case SensorMode::LowPower:
-        return s_bsecConfigLp;
-    case SensorMode::Continuous:
-        Serial.println("No bundled BSEC config matches BSEC_SAMPLE_RATE_CONT; the LP config is the closest fit");
-        return s_bsecConfigLp;
-    default:
-        // Let the LowPower config be used as a fallback
-        return s_bsecConfigLp;
-    }
-}
 
 static float modeToSampleRate(const SensorMode p_mode) {
     switch (p_mode) {
@@ -161,27 +140,27 @@ void EnvSensor::printMode() {
     }
 }
 
-EnvSensor::~EnvSensor() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
-}
-
-bool EnvSensor::init(SensorMode p_mode) {
-    s_sensorQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
+bool EnvSensor::init(WireWrapper& p_bus) {
     m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
+    if (m_modeRequestQueue == nullptr) {
+        Serial.println("Mode request queue creation failed");
+        return false;
+    }
 
-    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, m_bus)) {
-        Serial.println("BME688 initialization failed");
+    if (!m_bsec.begin(BME68X_I2C_ADDR_HIGH, p_bus.getRaw())) {
+        Serial.println("BME688 init failed");
         checkBsecStatus();
         return false;
     }
 
     m_bsec.setTemperatureOffset(BME68X_TEMPERATURE_OFFSET);
 
-    if (!applyMode(p_mode))
+    SensorMode l_mode = m_storage.loadSensorMode().value_or(SensorMode::LowPower);
+
+    if (!applyMode(l_mode)) {
+        Serial.println("Applying sensor mode failed");
         return false;
+    }
 
     m_bsec.attachCallback([](const bme68xData p_data, const bsecOutputs p_outputs, Bsec2 p_bsec) {
         if (!p_outputs.nOutputs) {
@@ -190,46 +169,48 @@ bool EnvSensor::init(SensorMode p_mode) {
             return;
         }
 
-        SensorEvent l_event{convertOutputs(p_outputs)};
-        xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
+        if (s_consumerQueue != nullptr) {
+            SensorEvent l_event{convertOutputs(p_outputs)};
+            xQueueSend(s_consumerQueue, &l_event, 0);
+        }
     });
 
     return true;
 }
 
 void EnvSensor::start() {
-    xTaskCreate(taskEntry, "sensor", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task);
+    m_task.createAndStart(
+        "sensor_task",
+        [this] {
+            loop();
+        },
+        TASK_PRIORITY);
 }
 
-void EnvSensor::taskEntry(void* p_parameter) {
-    static_cast<EnvSensor*>(p_parameter)->taskLoop();
-}
-
-void EnvSensor::taskLoop() {
-    for (;;) {
-        run();
-        maybeSaveStateToStorage();
-        vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
-    }
-}
-
-void EnvSensor::run() {
+void EnvSensor::checkModeChangeRequest() {
     SensorMode l_requestedMode;
     if (xQueueReceive(m_modeRequestQueue, &l_requestedMode, 0) == pdTRUE) {
         setMode(l_requestedMode);
     }
+}
 
+void EnvSensor::run() {
     if (!m_bsec.run()) {
         Serial.println("BSEC run failed..");
         checkBsecStatus();
     }
 }
 
-QueueHandle_t EnvSensor::getQueue() const {
-    return s_sensorQueue;
+void EnvSensor::loop() {
+    for (;;) {
+        checkModeChangeRequest();
+        run();
+        maybeSaveStateToStorage();
+        vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD));
+    }
 }
 
-std::optional<SensorState> EnvSensor::getBsecState() {
+std::optional<SensorState> EnvSensor::getStateFromBsec() {
     SensorState buf{};
     if (!m_bsec.getState(buf.data())) {
         Serial.printf("Failed to get BME688 state from BSEC: (%d)\n", m_bsec.status);
@@ -238,7 +219,7 @@ std::optional<SensorState> EnvSensor::getBsecState() {
     return buf;
 }
 
-bool EnvSensor::setBsecState(const SensorState& p_state) {
+bool EnvSensor::setStateToBsec(const SensorState& p_state) {
     if (!m_bsec.setState(const_cast<uint8_t*>(p_state.data()))) {
         Serial.printf("Failed to set BME688 state to BSEC: (%d)\n", m_bsec.status);
         return false;
@@ -264,10 +245,35 @@ bool EnvSensor::setMode(SensorMode p_mode) {
     return applyMode(p_mode);
 }
 
-bool EnvSensor::applyMode(SensorMode p_mode) {
-    if (!m_bsec.setConfig(modeToConfig(p_mode))) {
+bool EnvSensor::setConfig(SensorMode p_mode) {
+    const uint8_t* l_config = s_bsecConfigLp;
+    switch (p_mode) {
+    case SensorMode::UltraLowPower:
+        l_config = s_bsecConfigUlp;
+        break;
+    case SensorMode::LowPower:
+        l_config = s_bsecConfigLp;
+        break;
+    case SensorMode::Continuous:
+        Serial.println("No bundled BSEC config matches BSEC_SAMPLE_RATE_CONT; the LP config is the closest fit");
+        l_config = s_bsecConfigLp;
+        break;
+    default:
+        // Let the LowPower config be used as a fallback
+        break;
+    }
+
+    if (!m_bsec.setConfig(l_config)) {
         Serial.println("Setting the AI config to BSEC failed");
         checkBsecStatus();
+        return false;
+    }
+
+    return true;
+}
+
+bool EnvSensor::applyMode(SensorMode p_mode) {
+    if (!setConfig(p_mode)) {
         return false;
     }
 
@@ -282,7 +288,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     // Don't restore any state from storage if mode is Disabled
     if (p_mode != SensorMode::Disabled) {
         if (auto state = m_storage.loadBsecState(p_mode)) {
-            if (!setBsecState(*state))
+            if (!setStateToBsec(*state))
                 Serial.println("Failed to restore BME688 state from storage");
             else {
                 Serial.println("BME688 state restored from storage");
@@ -296,8 +302,10 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_mode = p_mode;
     printMode();
 
-    SensorEvent l_event{m_mode};
-    xQueueSend(s_sensorQueue, &l_event, TICKS_TO_WAIT);
+    if (s_consumerQueue != nullptr) {
+        SensorEvent l_event{m_mode};
+        xQueueSend(s_consumerQueue, &l_event, 0);
+    }
 
     return true;
 }
@@ -328,7 +336,7 @@ void EnvSensor::maybeSaveStateToStorage() {
     }
 
     if (l_shouldSave) {
-        if (auto state = this->getBsecState()) {
+        if (auto state = this->getStateFromBsec()) {
             if (m_storage.saveBsecState(m_mode, *state)) {
                 Serial.println("BME688 state saved in storage");
                 m_hasSavedStateForMode = true;

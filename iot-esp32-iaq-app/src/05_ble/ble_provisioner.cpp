@@ -20,8 +20,6 @@ constexpr char DEVICE_NAME[] = "ESP32-BLE-SETUP";
 constexpr char USER_DESCRIPTION_UUID[] = "2901";
 
 constexpr uint32_t QUEUE_LENGTH = 2;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 // Attaches a 0x2901 (Characteristic User Description) descriptor to the given
 // characteristic, so scanner apps display p_description as its human-readable label.
@@ -31,10 +29,6 @@ static void addUserDescription(NimBLECharacteristic* p_characteristic, const cha
 }
 
 BleProvisioner::~BleProvisioner() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
     if (m_queue != nullptr) {
         vQueueDelete(m_queue);
         m_queue = nullptr;
@@ -53,10 +47,13 @@ bool BleProvisioner::init() {
     m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(BleAction));
 
     if (m_queue == nullptr) {
+        Serial.println("BleProvisioner queue creation failed");
         return false;
     }
 
-    if (pdPASS != xTaskCreate(taskEntry, "ble", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
+    if (!m_task.createAndStart("ble_task", [this] {
+            loop();
+        })) {
         return false;
     }
 
@@ -73,16 +70,13 @@ void BleProvisioner::stop() {
 
 void BleProvisioner::enqueueAction(BleAction action) {
     if (m_queue == nullptr) {
+        Serial.println("BleProvisioner queue is not initialized");
         return;
     }
     xQueueSend(m_queue, &action, 0);
 }
 
-void BleProvisioner::taskEntry(void* parameter) {
-    static_cast<BleProvisioner*>(parameter)->taskLoop();
-}
-
-void BleProvisioner::taskLoop() {
+void BleProvisioner::loop() {
     for (;;) {
         BleAction l_action;
         if (xQueueReceive(m_queue, &l_action, portMAX_DELAY) == pdTRUE) {
@@ -103,6 +97,9 @@ void BleProvisioner::begin() {
         return;
 
     m_ssid.fill(0);
+    m_password.fill(0);
+    m_ssidReceived = false;
+    m_passwordReceived = false;
 
     NimBLEDevice::init(DEVICE_NAME);
     // Authenticated, MITM-protected pairing using LE Secure Connections. DISPLAY_ONLY makes
@@ -177,9 +174,6 @@ void BleProvisioner::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_conn
 }
 
 uint32_t BleProvisioner::onPassKeyDisplay() {
-    // Draw the passkey from the hardware RNG so it's unpredictable per pairing. A hardcoded
-    // constant could be read straight out of the firmware image, letting an attacker pass the
-    // passkey check and defeat the MITM protection.
     uint32_t l_passkey = esp_random() % 1000000;
     if (m_passkeyDisplayCallback) {
         m_passkeyDisplayCallback(l_passkey);
@@ -205,23 +199,23 @@ void BleProvisioner::onWrite(NimBLECharacteristic* p_characteristic, NimBLEConnI
         }
         std::copy(l_value.begin(), l_value.end(), m_ssid.begin());
         m_ssid[l_value.size()] = '\0';
+        m_ssidReceived = true;
         Serial.printf("[BLE] SSID received: %s\n", m_ssid.data());
-        return;
-    }
-
-    if (p_characteristic == m_passwordChar) {
-        if (m_ssid[0] == '\0') {
-            Serial.println("[BLE] Password received before SSID, ignoring");
-            return;
-        }
+    } else if (p_characteristic == m_passwordChar) {
         if (l_value.size() >= m_password.size()) {
             Serial.println("[BLE] Password too long, ignoring");
             return;
         }
         std::copy(l_value.begin(), l_value.end(), m_password.begin());
         m_password[l_value.size()] = '\0';
-        Serial.println("[BLE] Password received, invoking callback");
-        if (m_callback)
-            m_callback(m_ssid, m_password);
+        m_passwordReceived = true;
+        Serial.println("[BLE] Password received");
+    } else {
+        return;
+    }
+
+    if (m_ssidReceived && m_passwordReceived && m_callback) {
+        Serial.println("[BLE] Credentials complete, invoking callback");
+        m_callback(m_ssid, m_password);
     }
 }

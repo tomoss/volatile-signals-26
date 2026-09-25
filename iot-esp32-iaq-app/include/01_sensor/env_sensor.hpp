@@ -7,46 +7,41 @@
 #include "00_vendor/freertos.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
-
-class TwoWire;
+#include "09_utils/task.hpp"
+#include "09_utils/wire_wrapper.hpp"
 
 class EnvSensor {
 public:
-    // p_bus is injected (begun + clocked by main) so it is shared with the display.
-    EnvSensor(Storage& p_storage, TwoWire& p_bus) : m_storage(p_storage), m_bus(p_bus) {}
-    ~EnvSensor();
+    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
+    ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
 
-    // Default Sensor Mode is Low Power (3s)
-    [[nodiscard]] bool init(SensorMode p_mode = SensorMode::LowPower);
+    [[nodiscard]] bool init(WireWrapper& p_bus);
 
-    // Starts the background task that owns run()/maybeSaveStateToStorage()
-    // Called once, after a successful init().
+    // Starts the background task
     void start();
 
-    // Thread-safe: queues a mode change to be applied on the next run() call (which always
-    // executes on the task that owns this EnvSensor), so callers on other tasks (e.g. the
-    // MQTT message callback) never touch m_bsec/m_mode directly.
+    // Thread-safe: queues a mode change to be applied on the next run() call
     bool requestModeChange(SensorMode p_mode);
 
-    QueueHandle_t getQueue() const;
+    void setConsumerQueue(QueueHandle_t p_consumerQueue) { s_consumerQueue = p_consumerQueue; }
 
 private:
-    // Get the BME688 sensor state from BSEC lib
-    std::optional<SensorState> getBsecState();
-    // set the BME688 sensor state to BSEC lib
-    bool setBsecState(const SensorState& p_state);
+    std::optional<SensorState> getStateFromBsec();
+    bool setStateToBsec(const SensorState& p_state);
 
     bool setMode(SensorMode p_mode);
-    SensorMode getMode() const { return m_mode; }
-
-    // Applies config/subscription/state-restore for p_mode and updates m_mode. Shared by init() and setMode().
+    // Applies config/subscription/state-restore for p_mode and updates m_mode.
     bool applyMode(SensorMode p_mode);
 
+    // Picks the bundled AI config for p_mode and sets it on m_bsec.
+    bool setConfig(SensorMode p_mode);
+
     void run();
+    void checkModeChangeRequest();
 
     // Save state to storage once accuracy first reaches High for this mode, then every STATE_SAVE_PERIOD_MS as long as
     // accuracy remains High
@@ -55,17 +50,18 @@ private:
     void checkBsecStatus();
     void printMode();
 
-    static void taskEntry(void* p_parameter);
-    void taskLoop();
+    void loop();
 
     Bsec2 m_bsec;
     SensorMode m_mode = SensorMode::LowPower;
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
     Storage& m_storage;
-    TwoWire& m_bus;
     QueueHandle_t m_modeRequestQueue = nullptr;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
+
+    // Static because Bsec2::attachCallback only takes a plain function pointer
+    static QueueHandle_t s_consumerQueue;
 };
 
 #endif // ENV_SENSOR_HPP

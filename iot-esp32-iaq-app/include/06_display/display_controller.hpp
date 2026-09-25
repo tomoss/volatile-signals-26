@@ -3,23 +3,21 @@
 
 #include "06_display/display.hpp"
 #include "06_display/display_types.hpp"
-#include "07_utils/mutex.hpp"
+#include "09_utils/mutex.hpp"
+#include "09_utils/task.hpp"
 
-// Single owner of the Display: every touch of m_display - power toggles and frame draws
-// alike - happens under m_mutex, so callers on any task context (button, BLE, WiFi, sensor)
-// can drive the panel directly without ever overlapping its I2C traffic with the worker task.
 class DisplayController {
 public:
-    explicit DisplayController(TwoWire& p_wire) : m_display(p_wire) {}
-    ~DisplayController();
+    DisplayController() = default;
+    ~DisplayController() = default;
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;
     DisplayController(DisplayController&&) = delete;
     DisplayController& operator=(DisplayController&&) = delete;
 
-    [[nodiscard]] bool init();
+    bool init(WireWrapper& p_wire);
 
-    // Thread-safe: safe to call from any task context.
+    // Thread-safe: safe to call from any task context. No-ops if init() failed or wasn't called.
     void enableDisplay();
     void disableDisplay();
     void setWifiStatus(bool p_connected);
@@ -33,30 +31,31 @@ public:
     void setActiveOverlay(DisplayOverlay p_overlay);
 
 private:
-    static void taskEntry(void* parameter);
-
-    // p_mutator returns true if it changed any value, in which case the worker task is woken.
     template<typename Mutator>
     void updateState(Mutator p_mutator) {
-        bool l_anychanged = false;
+        if (!m_available) {
+            return;
+        }
         {
             const MutexGuard l_guard(m_mutex);
-            l_anychanged = p_mutator(m_state);
+            p_mutator(m_state);
         }
-        if (m_displayEnabled && l_anychanged) {
+        if (m_enabled) {
             notify();
         }
     }
 
-    void taskLoop();
+    void loop();
     void render();
     void notify();
     void wait();
 
     Display m_display;
-    TaskHandle_t m_task = nullptr;
+    Task m_task;
     Mutex m_mutex;
-    bool m_displayEnabled = false;
+    bool m_available = false;
+    bool m_enabled = false;
+    DisplayOverlay m_overlay = DisplayOverlay::None;
     DisplayState m_state;
 };
 
