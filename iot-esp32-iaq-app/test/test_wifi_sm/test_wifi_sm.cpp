@@ -17,7 +17,6 @@ struct FakeWifiAdapter {
     int notifyConnectedCallCount = 0;
     int notifyDisconnectedCallCount = 0;
     int resetReconnectAttemptsCallCount = 0;
-    int increaseReconnectAttemptsCallCount = 0;
     int startReconnectTimerCallCount = 0;
     int notifyStartProvisioningCallCount = 0;
     int notifyStopProvisioningCallCount = 0;
@@ -30,10 +29,13 @@ struct FakeWifiAdapter {
     }
     WifiTypes::Ssid getSSID() const { return {}; }
     WifiTypes::IpAddr getIPAddress() const { return {}; }
-    void resetReconnectAttempts() { ++resetReconnectAttemptsCallCount; }
+    void resetReconnectAttempts() {
+        reconnectAttempts = 0;
+        ++resetReconnectAttemptsCallCount;
+    }
     void notifyConnected() { ++notifyConnectedCallCount; }
     void notifyDisconnected() { ++notifyDisconnectedCallCount; }
-    void increaseReconnectAttempts() { ++increaseReconnectAttemptsCallCount; }
+    void increaseReconnectAttempts() { ++reconnectAttempts; }
     bool startReconnectTimer() {
         ++startReconnectTimerCallCount;
         return reconnectTimerSucceeds;
@@ -118,7 +120,7 @@ TEST_F(WifiSmTest, DisconnectedReconnectUnderMaxStartsTimer) {
     sm.process_event(EvReqReconnect{});
 
     EXPECT_TRUE(sm.is(sml::state<StReconnectPending>));
-    EXPECT_EQ(1, adapter.increaseReconnectAttemptsCallCount);
+    EXPECT_EQ(1, adapter.reconnectAttempts);
     EXPECT_EQ(1, adapter.startReconnectTimerCallCount);
 }
 
