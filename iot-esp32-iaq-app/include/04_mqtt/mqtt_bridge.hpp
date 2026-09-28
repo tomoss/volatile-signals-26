@@ -13,15 +13,17 @@
 #include "08_health/device_health.hpp"
 #include "09_utils/claim_code.hpp"
 #include "09_utils/device_info.hpp"
+#include "09_utils/mac_address.hpp"
 
 class MqttBridge {
 public:
     using OnConnectedCallback = std::function<void()>;
     using OnDisconnectedCallback = std::function<void()>;
-    using OnCommandCallback = std::function<void(std::string_view p_data)>;
+    using OnSensorModeCallback = std::function<void(SensorMode p_mode)>;
+    using OnClaimStatusCallback = std::function<void(bool p_claimed)>;
     using OnOtaCallback = std::function<void(std::string_view p_url)>;
 
-    MqttBridge(Storage& p_storage) : m_storage(p_storage) {}
+    MqttBridge(Storage& p_storage, const MacAddress& p_mac) : m_storage(p_storage), m_mac(p_mac) {}
     ~MqttBridge();
 
     MqttBridge(const MqttBridge&) = delete;
@@ -37,7 +39,8 @@ public:
 
     void setOnConnectedCallback(OnConnectedCallback p_callback) { m_onConnectedCallback = std::move(p_callback); }
     void setOnDisconnectedCallback(OnDisconnectedCallback p_callback) { m_onDisconnectedCallback = std::move(p_callback); }
-    void setOnCommandCallback(OnCommandCallback p_callback) { m_onCommandCallback = std::move(p_callback); }
+    void setOnSensorModeCallback(OnSensorModeCallback p_callback) { m_onSensorModeCallback = std::move(p_callback); }
+    void setOnClaimStatusCallback(OnClaimStatusCallback p_callback) { m_onClaimStatusCallback = std::move(p_callback); }
     void setOnOtaCallback(OnOtaCallback p_callback) { m_onOtaCallback = std::move(p_callback); }
 
     // Will be sent also if not connected, messages will be queued into the outbox and sent when connected.
@@ -56,28 +59,40 @@ public:
 private:
     void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain = 0);
     void subscribe(const char* p_topic, int p_qos = 0);
+    void buildTopic(MqttTypes::Topic& p_topic, std::string_view p_suffix) const;
 
     static void eventHandler(void* p_arg, esp_event_base_t p_base, int32_t p_eventId, void* p_eventData);
     void onEvent(esp_mqtt_event_handle_t p_event);
+    void handleMessage(std::string_view p_topic, std::string_view p_payload);
+    void handleCommandMessage(std::string_view p_payload);
+    void handleSensorMessage(std::string_view p_payload);
+    void handleClaimStatusMessage(std::string_view p_payload);
+    void handleOtaMessage(std::string_view p_payload);
 
     void handleConnected(bool p_sessionPresent);
     void handleDisconnected();
 
     esp_mqtt_client_handle_t m_client = nullptr;
     Storage& m_storage;
+    const MacAddress m_mac;
+
     MqttTypes::Topic m_sensorDataPubTopic{};
     MqttTypes::Topic m_deviceHealthPubTopic{};
     MqttTypes::Topic m_deviceInfoPubTopic{};
     MqttTypes::Topic m_sensorInfoPubTopic{};
     MqttTypes::Topic m_deviceStatusPubTopic{};
-    MqttTypes::Topic m_deviceClaimPubTopic{};
+    MqttTypes::Topic m_claimRequestPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};
+    MqttTypes::Topic m_sensorSubTopic{};
+    MqttTypes::Topic m_claimStatusSubTopic{};
     MqttTypes::Topic m_otaSubTopic{};
+
     bool m_started = false;
     std::atomic<bool> m_connected{false};
     OnConnectedCallback m_onConnectedCallback;
     OnDisconnectedCallback m_onDisconnectedCallback;
-    OnCommandCallback m_onCommandCallback;
+    OnSensorModeCallback m_onSensorModeCallback;
+    OnClaimStatusCallback m_onClaimStatusCallback;
     OnOtaCallback m_onOtaCallback;
 };
 

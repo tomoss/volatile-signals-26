@@ -57,7 +57,6 @@ public:
     WifiTypes::Rssi getRSSI() const;
     WifiTypes::Ssid getSSID() const;
     WifiTypes::IpAddr getIPAddress() const;
-    WifiTypes::MacAddr getMACAddress() const;
 
 private:
     // Timer callback is static because the timer API doesn't support capturing lambdas or std::function.

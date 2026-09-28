@@ -16,7 +16,7 @@ void OtaUpdater::onOtaRequested(std::string_view p_url) {
     }
 
     Serial.println("[OTA] Preparing for update...");
-    m_envSensor.requestModeChange(SensorMode::Disabled);
+    m_envSensor.enqueueModeChange(SensorMode::Disabled);
     m_displayController.disableDisplay();
 
     const size_t l_len = std::min(p_url.size(), m_url.size() - 1);
@@ -25,7 +25,7 @@ void OtaUpdater::onOtaRequested(std::string_view p_url) {
 
     if (xTaskCreate(taskEntry, "ota", TASK_STACK_SIZE, this, TASK_PRIORITY, nullptr) != pdPASS) {
         Serial.println("[OTA] Failed to create OTA task");
-        m_envSensor.requestModeChange(SensorMode::LowPower);
+        m_envSensor.enqueueModeChange(SensorMode::LowPower);
         m_displayController.enableDisplay();
         m_inProgress.store(false);
     }
@@ -57,7 +57,7 @@ void OtaUpdater::runUpdate() {
     if (l_result != HTTP_UPDATE_OK) {
         // Nothing was flashed (or there was no reboot), so undo the pre-update prep in
         // onOtaRequested instead of leaving the sensor disabled and display off.
-        m_envSensor.requestModeChange(SensorMode::LowPower);
+        m_envSensor.enqueueModeChange(SensorMode::LowPower);
         m_displayController.enableDisplay();
     }
 

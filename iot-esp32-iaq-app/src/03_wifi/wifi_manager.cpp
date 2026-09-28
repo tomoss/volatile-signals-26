@@ -14,13 +14,13 @@ bool WifiManager::init() {
     }
 
     m_adapter.setReconnectCallback([this] {
-        postQueueEvent(WifiQueueEventType::Connect);
+        enqueueEvent(WifiQueueEventType::Connect);
     });
 
     m_adapter.setWifiCallback([this](WiFiEvent_t event, WiFiEventInfo_t info) {
         switch (event) {
         case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-            postQueueEvent(WifiQueueEventType::Connected);
+            enqueueEvent(WifiQueueEventType::Connected);
             break;
 
         case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
@@ -37,7 +37,7 @@ bool WifiManager::init() {
                 break;
             }
             Serial.printf("WiFi disconnected (reason=%d)\n", reason);
-            postQueueEvent(WifiQueueEventType::Disconnected);
+            enqueueEvent(WifiQueueEventType::Disconnected);
             break;
         }
 
@@ -51,25 +51,25 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (!m_task.createAndStart("wifi_task", [this] {
-            loop();
-        })) {
-        return false;
-    }
-
     return true;
 }
 
 void WifiManager::start() {
-    postQueueEvent(WifiQueueEventType::Start);
+    m_task.createAndStart("wifi_task", [this] {
+        loop();
+    });
 }
 
-void WifiManager::stop() {
-    postQueueEvent(WifiQueueEventType::Stop);
+void WifiManager::enqueueWifiStart() {
+    enqueueEvent(WifiQueueEventType::Start);
 }
 
-void WifiManager::credentialsUpdated() {
-    postQueueEvent(WifiQueueEventType::CredentialsReceived);
+void WifiManager::enqueueWifiStop() {
+    enqueueEvent(WifiQueueEventType::Stop);
+}
+
+void WifiManager::enqueueCredentialsUpdated() {
+    enqueueEvent(WifiQueueEventType::CredentialsReceived);
 }
 
 void WifiManager::loop() {
@@ -126,6 +126,6 @@ void WifiManager::handleQueueEvent(WifiQueueEventType type) {
     }
 }
 
-void WifiManager::postQueueEvent(WifiQueueEventType type) {
+void WifiManager::enqueueEvent(WifiQueueEventType type) {
     m_queue.send(type);
 }

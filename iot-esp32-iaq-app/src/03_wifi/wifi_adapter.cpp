@@ -152,9 +152,3 @@ WifiTypes::IpAddr WifiAdapter::getIPAddress() const {
     WiFi.localIP().toString().toCharArray(l_ipAddr.data(), l_ipAddr.size());
     return l_ipAddr;
 }
-
-WifiTypes::MacAddr WifiAdapter::getMACAddress() const {
-    WifiTypes::MacAddr l_macAddr{};
-    WiFi.macAddress().toCharArray(l_macAddr.data(), l_macAddr.size());
-    return l_macAddr;
-}

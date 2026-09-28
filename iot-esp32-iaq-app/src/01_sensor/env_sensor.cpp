@@ -308,7 +308,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     return true;
 }
 
-void EnvSensor::requestModeChange(SensorMode p_mode) {
+void EnvSensor::enqueueModeChange(SensorMode p_mode) {
     m_modeRequestQueue.overwrite(p_mode);
 }
 

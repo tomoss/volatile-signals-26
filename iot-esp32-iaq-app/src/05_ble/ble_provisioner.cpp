@@ -39,20 +39,20 @@ bool BleProvisioner::init() {
         return false;
     }
 
-    if (!m_task.createAndStart("ble_task", [this] {
-            loop();
-        })) {
-        return false;
-    }
-
     return true;
 }
 
 void BleProvisioner::start() {
+    m_task.createAndStart("ble_task", [this] {
+        loop();
+    });
+}
+
+void BleProvisioner::enqueueProvisioningStart() {
     m_queue.send(BleAction::Start);
 }
 
-void BleProvisioner::stop() {
+void BleProvisioner::enqueueProvisioningStop() {
     m_queue.send(BleAction::Stop);
 }
 

@@ -14,15 +14,18 @@ bool DisplayController::init(WireWrapper& p_wire) {
         return false;
     }
 
-    if (!m_task.createAndStart("display_task", [this] {
-            loop();
-        })) {
-        Serial.println("Display task creation failed (continuing without display)");
-        return false;
-    }
-
     m_available = true;
     return true;
+}
+
+void DisplayController::start() {
+    if (!m_available) {
+        return;
+    }
+
+    m_task.createAndStart("display_task", [this] {
+        loop();
+    });
 }
 
 void DisplayController::enableDisplay() {

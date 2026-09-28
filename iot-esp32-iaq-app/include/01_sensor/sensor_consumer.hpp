@@ -25,7 +25,7 @@ public:
 
     void start();
 
-    void enqueue(const SensorEvent& p_event);
+    void enqueueSensorEvent(const SensorEvent& p_event);
 
 private:
     using SensorEventQueue = Queue<SensorEvent, SENSOR_EVENT_QUEUE_LENGTH>;

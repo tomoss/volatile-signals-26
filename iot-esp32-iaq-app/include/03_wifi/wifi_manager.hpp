@@ -33,8 +33,9 @@ public:
 
     [[nodiscard]] bool init();
     void start();
-    void stop();
-    void credentialsUpdated();
+    void enqueueWifiStart();
+    void enqueueWifiStop();
+    void enqueueCredentialsUpdated();
 
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
@@ -43,7 +44,7 @@ private:
     void loop();
 
     void handleQueueEvent(WifiQueueEventType type);
-    void postQueueEvent(WifiQueueEventType type);
+    void enqueueEvent(WifiQueueEventType type);
 
 private:
     WifiAdapter& m_adapter;

@@ -31,7 +31,7 @@ public:
     void start();
 
     // Thread-safe: queues a mode change to be applied on the next run() call
-    void requestModeChange(SensorMode p_mode);
+    void enqueueModeChange(SensorMode p_mode);
 
 private:
     std::optional<SensorState> getStateFromBsec();

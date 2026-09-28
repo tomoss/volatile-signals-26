@@ -28,14 +28,15 @@ public:
     void setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback);
 
     [[nodiscard]] bool init();
+    void start();
 
     // Request provisioning to start; the NimBLE init + advertising runs later on the worker
     // task, so this is safe to call from any context (e.g. an event callback).
-    void start();
+    void enqueueProvisioningStart();
 
     // Request provisioning to stop; the NimBLE teardown runs later on the worker task, so
     // this is safe to call from any context (e.g. an event callback).
-    void stop();
+    void enqueueProvisioningStop();
 
 private:
     enum class BleAction : uint8_t { Start = 0, Stop = 1 };

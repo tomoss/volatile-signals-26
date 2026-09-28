@@ -19,7 +19,7 @@ void SensorConsumer::start() {
     });
 }
 
-void SensorConsumer::enqueue(const SensorEvent& p_event) {
+void SensorConsumer::enqueueSensorEvent(const SensorEvent& p_event) {
     m_queue.send(p_event);
 }
 
