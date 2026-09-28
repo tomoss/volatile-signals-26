@@ -16,7 +16,7 @@ public:
     using StopProvisioningCallback = std::function<void()>;
     using ConnectedCallback = std::function<void()>;
     using DisconnectedCallback = std::function<void()>;
-    using ReconnectTimerCallback = std::function<void()>;
+    using ReconnectCallback = std::function<void()>;
 
     WifiAdapter(Storage& p_storage);
     ~WifiAdapter();
@@ -42,20 +42,17 @@ public:
     void notifyDisconnected() const;
 
     // Reconnect-attempt budget, checked by the SM's GuMaxAttemptsReached guard.
-    void recordReconnectAttempt();
-    bool maxReconnectAttemptsReached() const;
+    void increaseReconnectAttempts();
+    bool hasReachedMaxReconnectAttempts() const;
     void resetReconnectAttempts();
     uint8_t getReconnectAttempts() const { return m_reconnectAttempts; }
 
-    // Reconnect timer is created/owned here; setReconnectTimerCallback is the relay slot
+    // Reconnect timer is created/owned here; setReconnectCallback is the relay slot
     // WifiManager fills in (same shape as setWifiCallback) to react when it fires.
-    void setReconnectTimerCallback(ReconnectTimerCallback p_callback);
+    void setReconnectCallback(ReconnectCallback p_callback);
     bool startReconnectTimer() const;
 
     [[nodiscard]] bool connect();
-
-    // If p_wifiOff is true, the WiFi radio will be turned off. Otherwise, it will remain on.
-    //[[nodiscard]] bool disconnect(bool p_wifiOff = false);
 
     WifiTypes::Rssi getRSSI() const;
     WifiTypes::Ssid getSSID() const;
@@ -74,7 +71,7 @@ private:
     StopProvisioningCallback m_stopProvisioningCallback;
     ConnectedCallback m_connectedCallback;
     DisconnectedCallback m_disconnectedCallback;
-    ReconnectTimerCallback m_reconnectTimerCallback;
+    ReconnectCallback m_reconnectCallback;
 
     uint8_t m_reconnectAttempts = 0;
     TimerHandle_t m_reconnectTimer = nullptr;

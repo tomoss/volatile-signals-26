@@ -13,12 +13,11 @@ WifiAdapter::~WifiAdapter() {
 }
 
 bool WifiAdapter::init() {
-
     WiFi.onEvent([this](WiFiEvent_t p_event, WiFiEventInfo_t p_info) {
         if (m_wifiApiCallback != nullptr) {
             m_wifiApiCallback(p_event, p_info);
         } else {
-            Serial.println("WiFi API callback not set !");
+            Serial.println("WifiEventCallback not set");
         }
     });
 
@@ -29,6 +28,7 @@ bool WifiAdapter::init() {
 
     m_reconnectTimer = xTimerCreate("wifi_reconnect", pdMS_TO_TICKS(RECONNECT_DELAY_MS), pdFALSE, this, reconnectTimerTimeout);
     if (m_reconnectTimer == nullptr) {
+        Serial.println("Failed to create WiFi reconnect timer");
         return false;
     }
 
@@ -37,11 +37,11 @@ bool WifiAdapter::init() {
 
 void WifiAdapter::reconnectTimerTimeout(TimerHandle_t p_timer) {
     auto* l_self = static_cast<WifiAdapter*>(pvTimerGetTimerID(p_timer));
-    if (l_self->m_reconnectTimerCallback) {
-        Serial.println("Reconnect timer timeout, trying again...");
-        l_self->m_reconnectTimerCallback();
+    if (l_self->m_reconnectCallback) {
+        Serial.println("Reconnect timer timeout, trying again to reconnect");
+        l_self->m_reconnectCallback();
     } else {
-        Serial.println("No reconnect timer callback set");
+        Serial.println("ReconnectCallback not set");
     }
 }
 
@@ -70,7 +70,7 @@ void WifiAdapter::notifyStartProvisioning() const {
     if (m_startProvisioningCallback) {
         m_startProvisioningCallback();
     } else {
-        Serial.println("No start provisioning callback set");
+        Serial.println("StartProvisioningCallback not set");
     }
 }
 
@@ -82,7 +82,7 @@ void WifiAdapter::notifyStopProvisioning() const {
     if (m_stopProvisioningCallback) {
         m_stopProvisioningCallback();
     } else {
-        Serial.println("No stop provisioning callback set");
+        Serial.println("StopProvisioningCallback not set");
     }
 }
 
@@ -94,7 +94,7 @@ void WifiAdapter::notifyConnected() const {
     if (m_connectedCallback) {
         m_connectedCallback();
     } else {
-        Serial.println("No connected callback set");
+        Serial.println("ConnectedCallback not set");
     }
 }
 
@@ -106,15 +106,15 @@ void WifiAdapter::notifyDisconnected() const {
     if (m_disconnectedCallback) {
         m_disconnectedCallback();
     } else {
-        Serial.println("No disconnected callback set");
+        Serial.println("DisconnectedCallback not set");
     }
 }
 
-void WifiAdapter::recordReconnectAttempt() {
+void WifiAdapter::increaseReconnectAttempts() {
     m_reconnectAttempts++;
 }
 
-bool WifiAdapter::maxReconnectAttemptsReached() const {
+bool WifiAdapter::hasReachedMaxReconnectAttempts() const {
     return m_reconnectAttempts >= MAX_RECONNECT_ATTEMPTS;
 }
 
@@ -122,8 +122,8 @@ void WifiAdapter::resetReconnectAttempts() {
     m_reconnectAttempts = 0;
 }
 
-void WifiAdapter::setReconnectTimerCallback(ReconnectTimerCallback p_callback) {
-    m_reconnectTimerCallback = std::move(p_callback);
+void WifiAdapter::setReconnectCallback(ReconnectCallback p_callback) {
+    m_reconnectCallback = std::move(p_callback);
 }
 
 bool WifiAdapter::startReconnectTimer() const {
@@ -136,10 +136,6 @@ bool WifiAdapter::connect() {
     }
     return true;
 }
-
-// bool WifiAdapter::disconnect(bool p_wifiOff) {
-//     return WiFi.disconnect(p_wifiOff);
-// }
 
 WifiTypes::Rssi WifiAdapter::getRSSI() const {
     return WiFi.RSSI();

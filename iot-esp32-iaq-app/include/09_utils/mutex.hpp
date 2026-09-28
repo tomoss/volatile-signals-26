@@ -21,7 +21,11 @@ public:
 
     [[nodiscard]] bool init() {
         m_handle = xSemaphoreCreateMutex();
-        return m_handle != nullptr;
+        if (m_handle == nullptr) {
+            Serial.println("Mutex creation failed");
+            return false;
+        }
+        return true;
     }
 
 private:

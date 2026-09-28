@@ -3,16 +3,10 @@
 #include <cstring>
 
 constexpr uint32_t QUEUE_LENGTH = 10;
-constexpr uint32_t TASK_STACK_SIZE = 4096;
-constexpr UBaseType_t TASK_PRIORITY = 1;
 
 WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
 WifiManager::~WifiManager() {
-    if (m_task != nullptr) {
-        vTaskDelete(m_task);
-        m_task = nullptr;
-    }
     if (m_queue != nullptr) {
         vQueueDelete(m_queue);
         m_queue = nullptr;
@@ -23,10 +17,11 @@ bool WifiManager::init() {
     m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(WifiQueueEvent));
 
     if (m_queue == nullptr) {
+        Serial.println("WiFiManager queue creation failed");
         return false;
     }
 
-    m_adapter.setReconnectTimerCallback([this] {
+    m_adapter.setReconnectCallback([this] {
         postQueueEvent(WifiQueueEventType::Connect);
     });
 
@@ -60,10 +55,13 @@ bool WifiManager::init() {
     });
 
     if (!m_adapter.init()) {
+        Serial.println("WiFiAdapter init failed");
         return false;
     }
 
-    if (pdPASS != xTaskCreate(taskEntry, "wifi_manager", TASK_STACK_SIZE, this, TASK_PRIORITY, &m_task)) {
+    if (!m_task.createAndStart("wifi_task", [this] {
+            loop();
+        })) {
         return false;
     }
 
@@ -71,39 +69,18 @@ bool WifiManager::init() {
 }
 
 void WifiManager::start() {
-    WifiQueueEvent event{WifiQueueEventType::Start};
-    postQueueEvent(event);
+    postQueueEvent(WifiQueueEventType::Start);
 }
 
 void WifiManager::stop() {
     postQueueEvent(WifiQueueEventType::Stop);
 }
 
-int WifiManager::getRSSI() const {
-    return m_adapter.getRSSI();
-}
-
-WifiTypes::IpAddr WifiManager::getIPAddress() const {
-    return m_adapter.getIPAddress();
-}
-
-WifiTypes::MacAddr WifiManager::getMACAddress() const {
-    return m_adapter.getMACAddress();
-}
-
-WifiTypes::Ssid WifiManager::getSSID() const {
-    return m_adapter.getSSID();
-}
-
 void WifiManager::credentialsUpdated() {
     postQueueEvent(WifiQueueEventType::CredentialsReceived);
 }
 
-void WifiManager::taskEntry(void* parameter) {
-    static_cast<WifiManager*>(parameter)->taskLoop();
-}
-
-void WifiManager::taskLoop() {
+void WifiManager::loop() {
     for (;;) {
         WifiQueueEvent event;
         if (xQueueReceive(m_queue, &event, portMAX_DELAY) == pdTRUE) {
@@ -158,12 +135,10 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
 }
 
 void WifiManager::postQueueEvent(WifiQueueEventType type) {
-    postQueueEvent(WifiQueueEvent{type});
-}
-
-void WifiManager::postQueueEvent(const WifiQueueEvent& event) {
     if (m_queue == nullptr) {
+        Serial.println("WiFiManager queue is not initialized");
         return;
     }
-    xQueueSend(m_queue, &event, 0);
+    const WifiQueueEvent l_event{type};
+    xQueueSend(m_queue, &l_event, 0);
 }
