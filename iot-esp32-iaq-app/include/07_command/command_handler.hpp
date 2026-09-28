@@ -12,6 +12,8 @@
 #include "09_utils/claim_code_manager.hpp"
 #include "09_utils/task.hpp"
 
+constexpr std::size_t COMMAND_QUEUE_LENGTH = 8;
+
 // Executes the commands received over MQTT. The MQTT event callback (called on esp-mqtt's own
 // task) only parses and enqueues; the actual handling runs on this class's own task so it
 // never blocks the MQTT client task.
@@ -27,7 +29,7 @@ public:
         , m_storage(p_storage)
         , m_claimCodeManager(p_claimCodeManager)
         , m_displayController(p_displayController) {}
-    ~CommandHandler();
+    ~CommandHandler() = default;
     CommandHandler(const CommandHandler&) = delete;
     CommandHandler& operator=(const CommandHandler&) = delete;
     CommandHandler(CommandHandler&&) = delete;
@@ -44,6 +46,7 @@ public:
     void enqueue(std::string_view p_data);
 
 private:
+    using CommandQueue = Queue<Command, COMMAND_QUEUE_LENGTH>;
     void loop();
     void handle(Command p_cmd);
 
@@ -52,7 +55,7 @@ private:
     Storage& m_storage;
     const ClaimCodeManager& m_claimCodeManager;
     DisplayController& m_displayController;
-    QueueHandle_t m_queue = nullptr;
+    CommandQueue m_queue;
     Task m_task;
 };
 

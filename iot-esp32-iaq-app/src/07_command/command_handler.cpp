@@ -1,25 +1,13 @@
 #include "07_command/command_handler.hpp"
-
 #include "00_vendor/arduino.hpp"
 
 #include <esp_system.h>
 
-constexpr uint32_t QUEUE_LENGTH = 8;
-
-CommandHandler::~CommandHandler() {
-    if (m_queue != nullptr) {
-        vQueueDelete(m_queue);
-        m_queue = nullptr;
-    }
-}
-
 bool CommandHandler::init() {
-    m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(Command));
-    if (m_queue == nullptr) {
+    if (!m_queue.init()) {
         Serial.println("CommandHandler queue creation failed");
         return false;
     }
-
     return true;
 }
 
@@ -31,7 +19,7 @@ void CommandHandler::start() {
 
 void CommandHandler::enqueue(std::string_view p_data) {
     const Command l_cmd = parseCommand(p_data);
-    if (xQueueSend(m_queue, &l_cmd, 0) != pdTRUE) {
+    if (!m_queue.send(l_cmd)) {
         Serial.println("[CMD] Command queue full, dropping command");
     }
 }
@@ -39,10 +27,9 @@ void CommandHandler::enqueue(std::string_view p_data) {
 void CommandHandler::loop() {
     for (;;) {
         Command l_cmd;
-        if (xQueueReceive(m_queue, &l_cmd, portMAX_DELAY) != pdTRUE) {
+        if (!m_queue.receive(l_cmd)) {
             continue;
         }
-
         handle(l_cmd);
     }
 }
