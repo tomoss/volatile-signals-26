@@ -35,9 +35,11 @@ void setup() {
     delay(DELAY_UNTIL_STABLE); // Wait for board to stabilize
     Serial.println("Firmware version: " FIRMWARE_VERSION);
 
+    static SensorEventQueue sensorEventQueue;
+
     static WireWrapper wireWrapper;
     static Storage storage;
-    static EnvSensor envSensor(storage);
+    static EnvSensor envSensor(storage, sensorEventQueue);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
@@ -49,11 +51,11 @@ void setup() {
     static CommandHandler commandHandler(envSensor, mqttBridge, storage, claimCodeManager, displayController);
     static HealthReporter healthReporter(mqttBridge, wifiAdapter);
     static ClaimButtonHandler claimButtonHandler(displayController, storage, mqttBridge, claimCodeManager);
-    static SensorConsumer sensorConsumer(mqttBridge, displayController);
+    static SensorConsumer sensorConsumer(mqttBridge, displayController, sensorEventQueue);
     static OtaUpdater otaUpdater(envSensor, displayController);
 
     // Mandatory modules initialization
-    const bool l_initOk = wireWrapper.init() && storage.init() && sensorConsumer.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
+    const bool l_initOk = sensorEventQueue.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
                           bleProvisioner.init() && mqttBridge.init(true) && claimCodeManager.init() && commandHandler.init();
     if (!l_initOk) {
         Serial.println("Mandatory module init failed, restarting the board...");
@@ -61,8 +63,6 @@ void setup() {
         delay(DELAY_UNTIL_RESTART);
         esp_restart();
     }
-
-    envSensor.setConsumerQueue(sensorConsumer.getQueue());
 
     // Not mandatory, so not required to succeed
     rtc.init(wireWrapper);

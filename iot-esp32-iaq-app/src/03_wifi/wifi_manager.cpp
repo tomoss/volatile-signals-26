@@ -6,17 +6,9 @@ constexpr uint32_t QUEUE_LENGTH = 10;
 
 WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
-WifiManager::~WifiManager() {
-    if (m_queue != nullptr) {
-        vQueueDelete(m_queue);
-        m_queue = nullptr;
-    }
-}
-
 bool WifiManager::init() {
-    m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(WifiQueueEvent));
 
-    if (m_queue == nullptr) {
+    if (!m_queue.init()) {
         Serial.println("WiFiManager queue creation failed");
         return false;
     }
@@ -82,15 +74,15 @@ void WifiManager::credentialsUpdated() {
 
 void WifiManager::loop() {
     for (;;) {
-        WifiQueueEvent event;
-        if (xQueueReceive(m_queue, &event, portMAX_DELAY) == pdTRUE) {
-            handleQueueEvent(event);
+        WifiQueueEventType type;
+        if (m_queue.receive(type)) {
+            handleQueueEvent(type);
         }
     }
 }
 
-void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
-    switch (event.type) {
+void WifiManager::handleQueueEvent(WifiQueueEventType type) {
+    switch (type) {
     case WifiQueueEventType::Start:
         m_sm.process_event(EvReqStart{});
         break;
@@ -135,10 +127,5 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
 }
 
 void WifiManager::postQueueEvent(WifiQueueEventType type) {
-    if (m_queue == nullptr) {
-        Serial.println("WiFiManager queue is not initialized");
-        return;
-    }
-    const WifiQueueEvent l_event{type};
-    xQueueSend(m_queue, &l_event, 0);
+    m_queue.send(type);
 }

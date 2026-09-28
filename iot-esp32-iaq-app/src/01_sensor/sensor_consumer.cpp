@@ -5,25 +5,6 @@
 #include <cmath>
 #include <variant>
 
-constexpr uint32_t QUEUE_SIZE = 10;
-
-SensorConsumer::~SensorConsumer() {
-    if (m_queue != nullptr) {
-        vQueueDelete(m_queue);
-        m_queue = nullptr;
-    }
-}
-
-bool SensorConsumer::init() {
-    m_queue = xQueueCreate(QUEUE_SIZE, sizeof(SensorEvent));
-    if (m_queue == nullptr) {
-        Serial.println("SensorConsumer queue creation failed");
-        return false;
-    }
-
-    return true;
-}
-
 void SensorConsumer::start() {
     m_task.createAndStart("consumer_task", [this] {
         loop();
@@ -33,7 +14,7 @@ void SensorConsumer::start() {
 void SensorConsumer::loop() {
     for (;;) {
         SensorEvent l_event;
-        if (xQueueReceive(m_queue, &l_event, portMAX_DELAY) != pdTRUE) {
+        if (!m_queue.receive(l_event)) {
             continue;
         }
         handle(l_event);

@@ -4,9 +4,10 @@
 #include "00_vendor/arduino.hpp"
 #include "00_vendor/sml.hpp"
 #include "02_storage/storage.hpp"
+#include "03_wifi/wifi_adapter.hpp"
+#include "03_wifi/wifi_sm.hpp"
+#include "09_utils/queue.hpp"
 #include "09_utils/task.hpp"
-#include "wifi_adapter.hpp"
-#include "wifi_sm.hpp"
 
 enum class WifiQueueEventType : uint8_t {
     Start = 0,
@@ -20,14 +21,14 @@ enum class WifiQueueEventType : uint8_t {
     CredentialsReceived = 8
 };
 
-struct WifiQueueEvent {
-    WifiQueueEventType type;
-};
+constexpr std::size_t WIFI_EVENT_QUEUE_LENGTH = 10;
+
+using WifiEventQueue = Queue<WifiQueueEventType, WIFI_EVENT_QUEUE_LENGTH>;
 
 class WifiManager {
 public:
     WifiManager(WifiAdapter& p_adapter);
-    ~WifiManager();
+    ~WifiManager() = default;
     WifiManager(const WifiManager&) = delete;
     WifiManager& operator=(const WifiManager&) = delete;
     WifiManager(WifiManager&&) = delete;
@@ -43,15 +44,15 @@ private:
 
     void loop();
 
-    void handleQueueEvent(const WifiQueueEvent& event);
+    void handleQueueEvent(WifiQueueEventType type);
     void postQueueEvent(WifiQueueEventType type);
 
 private:
     WifiAdapter& m_adapter;
     WifiSmLogger m_logger{};
     StateMachine m_sm;
+    WifiEventQueue m_queue;
 
-    QueueHandle_t m_queue = nullptr;
     Task m_task;
 };
 

@@ -7,7 +7,6 @@
 
 #include <mqtt_client.h>
 
-#include "01_sensor/sensor_data.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
 #include "04_mqtt/mqtt_types.hpp"

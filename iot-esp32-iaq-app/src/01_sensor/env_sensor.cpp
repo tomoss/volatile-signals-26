@@ -1,10 +1,9 @@
 #include "01_sensor/env_sensor.hpp"
 
 #include "00_vendor/arduino.hpp"
-#include "01_sensor/sensor_data.hpp"
 #include "02_storage/storage.hpp"
 
-QueueHandle_t EnvSensor::s_consumerQueue = nullptr;
+SensorEventQueue* EnvSensor::s_sensorEventQueue = nullptr;
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -141,8 +140,7 @@ void EnvSensor::printMode() {
 }
 
 bool EnvSensor::init(WireWrapper& p_bus) {
-    m_modeRequestQueue = xQueueCreate(1, sizeof(SensorMode));
-    if (m_modeRequestQueue == nullptr) {
+    if (!m_modeRequestQueue.init()) {
         Serial.println("Mode request queue creation failed");
         return false;
     }
@@ -169,10 +167,7 @@ bool EnvSensor::init(WireWrapper& p_bus) {
             return;
         }
 
-        if (s_consumerQueue != nullptr) {
-            SensorEvent l_event{convertOutputs(p_outputs)};
-            xQueueSend(s_consumerQueue, &l_event, 0);
-        }
+        s_sensorEventQueue->send(SensorEvent{convertOutputs(p_outputs)});
     });
 
     return true;
@@ -189,7 +184,7 @@ void EnvSensor::start() {
 
 void EnvSensor::checkModeChangeRequest() {
     SensorMode l_requestedMode;
-    if (xQueueReceive(m_modeRequestQueue, &l_requestedMode, 0) == pdTRUE) {
+    if (m_modeRequestQueue.receive(l_requestedMode, 0)) {
         setMode(l_requestedMode);
     }
 }
@@ -302,19 +297,13 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_mode = p_mode;
     printMode();
 
-    if (s_consumerQueue != nullptr) {
-        SensorEvent l_event{m_mode};
-        xQueueSend(s_consumerQueue, &l_event, 0);
-    }
+    s_sensorEventQueue->send(SensorEvent{m_mode});
 
     return true;
 }
 
-bool EnvSensor::requestModeChange(SensorMode p_mode) {
-    if (m_modeRequestQueue == nullptr) {
-        return false;
-    }
-    return xQueueOverwrite(m_modeRequestQueue, &p_mode) == pdPASS;
+void EnvSensor::requestModeChange(SensorMode p_mode) {
+    m_modeRequestQueue.overwrite(p_mode);
 }
 
 void EnvSensor::maybeSaveStateToStorage() {
