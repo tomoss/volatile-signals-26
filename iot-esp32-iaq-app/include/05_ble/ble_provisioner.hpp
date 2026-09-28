@@ -7,7 +7,10 @@
 #include "00_vendor/freertos.hpp"
 #include "00_vendor/nimble.hpp"
 #include "03_wifi/wifi_types.hpp"
+#include "09_utils/queue.hpp"
 #include "09_utils/task.hpp"
+
+constexpr std::size_t BLE_ACTION_QUEUE_LENGTH = 2;
 
 class BleProvisioner : private NimBLECharacteristicCallbacks, private NimBLEServerCallbacks {
 public:
@@ -15,7 +18,7 @@ public:
     using PasskeyDisplayCallback = std::function<void(uint32_t p_passkey)>;
 
     BleProvisioner() = default;
-    ~BleProvisioner();
+    ~BleProvisioner() = default;
     BleProvisioner(const BleProvisioner&) = delete;
     const BleProvisioner& operator=(const BleProvisioner&) = delete;
     BleProvisioner(BleProvisioner&&) = delete;
@@ -36,10 +39,9 @@ public:
 
 private:
     enum class BleAction : uint8_t { Start = 0, Stop = 1 };
+    using BleActionQueue = Queue<BleAction, BLE_ACTION_QUEUE_LENGTH>;
 
     void loop();
-    void enqueueAction(BleAction action);
-
     void begin();
     void end();
 
@@ -61,7 +63,7 @@ private:
     NimBLECharacteristic* m_ssidChar = nullptr;
     NimBLECharacteristic* m_passwordChar = nullptr;
 
-    QueueHandle_t m_queue = nullptr;
+    BleActionQueue m_queue;
     Task m_task;
 
     WifiTypes::Ssid m_ssid{};

@@ -1,5 +1,4 @@
 #include "05_ble/ble_provisioner.hpp"
-
 #include "00_vendor/arduino.hpp"
 
 #include <algorithm>
@@ -19,20 +18,11 @@ constexpr char DEVICE_NAME[] = "ESP32-BLE-SETUP";
 // descriptor by this exact number (0x2902 would be the notify-config CCCD, etc.).
 constexpr char USER_DESCRIPTION_UUID[] = "2901";
 
-constexpr uint32_t QUEUE_LENGTH = 2;
-
 // Attaches a 0x2901 (Characteristic User Description) descriptor to the given
 // characteristic, so scanner apps display p_description as its human-readable label.
 static void addUserDescription(NimBLECharacteristic* p_characteristic, const char* p_description) {
     NimBLEDescriptor* l_descriptor = p_characteristic->createDescriptor(USER_DESCRIPTION_UUID, NIMBLE_PROPERTY::READ);
     l_descriptor->setValue(p_description);
-}
-
-BleProvisioner::~BleProvisioner() {
-    if (m_queue != nullptr) {
-        vQueueDelete(m_queue);
-        m_queue = nullptr;
-    }
 }
 
 void BleProvisioner::setCredentialsCallback(CredentialsCallback p_callback) {
@@ -44,9 +34,7 @@ void BleProvisioner::setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback
 }
 
 bool BleProvisioner::init() {
-    m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(BleAction));
-
-    if (m_queue == nullptr) {
+    if (!m_queue.init()) {
         Serial.println("BleProvisioner queue creation failed");
         return false;
     }
@@ -61,25 +49,17 @@ bool BleProvisioner::init() {
 }
 
 void BleProvisioner::start() {
-    enqueueAction(BleAction::Start);
+    m_queue.send(BleAction::Start);
 }
 
 void BleProvisioner::stop() {
-    enqueueAction(BleAction::Stop);
-}
-
-void BleProvisioner::enqueueAction(BleAction action) {
-    if (m_queue == nullptr) {
-        Serial.println("BleProvisioner queue is not initialized");
-        return;
-    }
-    xQueueSend(m_queue, &action, 0);
+    m_queue.send(BleAction::Stop);
 }
 
 void BleProvisioner::loop() {
     for (;;) {
         BleAction l_action;
-        if (xQueueReceive(m_queue, &l_action, portMAX_DELAY) == pdTRUE) {
+        if (m_queue.receive(l_action)) {
             switch (l_action) {
             case BleAction::Start:
                 begin();
@@ -169,7 +149,7 @@ void BleProvisioner::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_conn
     // The disconnect end() requested has now actually completed; re-enqueue Stop so
     // taskLoop() finishes the teardown on our own task instead of from this NimBLE callback.
     if (m_stopPending && p_server->getConnectedCount() == 0) {
-        enqueueAction(BleAction::Stop);
+        m_queue.send(BleAction::Stop);
     }
 }
 

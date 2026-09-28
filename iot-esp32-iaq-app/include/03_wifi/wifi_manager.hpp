@@ -22,9 +22,6 @@ enum class WifiQueueEventType : uint8_t {
 };
 
 constexpr std::size_t WIFI_EVENT_QUEUE_LENGTH = 10;
-
-using WifiEventQueue = Queue<WifiQueueEventType, WIFI_EVENT_QUEUE_LENGTH>;
-
 class WifiManager {
 public:
     WifiManager(WifiAdapter& p_adapter);
@@ -41,6 +38,7 @@ public:
 
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
+    using WifiEventQueue = Queue<WifiQueueEventType, WIFI_EVENT_QUEUE_LENGTH>;
 
     void loop();
 
