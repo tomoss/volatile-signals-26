@@ -99,7 +99,7 @@ class MessageHandler:
             topics.DEVICE_HEALTH_TOPIC_SUFFIX: self._handle_device_health,
             topics.DEVICE_INFO_TOPIC_SUFFIX: self._handle_device_info,
             topics.DEVICE_STATUS_TOPIC_SUFFIX: self._handle_device_status,
-            topics.DEVICE_CLAIM_TOPIC_SUFFIX: self._handle_device_claim,
+            topics.CLAIM_REQUEST_TOPIC_SUFFIX: self._handle_device_claim,
         }
 
     def on_message(self, client, userdata, message) -> None:
