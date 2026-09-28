@@ -1,6 +1,7 @@
 #ifndef ENV_SENSOR_HPP
 #define ENV_SENSOR_HPP
 
+#include <functional>
 #include <optional>
 
 #include "00_vendor/bsec2.hpp"
@@ -13,12 +14,16 @@
 
 class EnvSensor {
 public:
-    EnvSensor(Storage& p_storage, SensorEventQueue& p_sensorEventQueue) : m_storage(p_storage) { s_sensorEventQueue = &p_sensorEventQueue; }
+    using EventCallback = std::function<void(const SensorEvent& p_event)>;
+
+    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
+
+    void setEventCallback(EventCallback p_callback) { s_eventCallback = std::move(p_callback); }
 
     [[nodiscard]] bool init(WireWrapper& p_bus);
 
@@ -60,7 +65,7 @@ private:
     Task m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer
-    static SensorEventQueue* s_sensorEventQueue;
+    static EventCallback s_eventCallback;
 };
 
 #endif // ENV_SENSOR_HPP

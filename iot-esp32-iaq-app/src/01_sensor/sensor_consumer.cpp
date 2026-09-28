@@ -5,10 +5,22 @@
 #include <cmath>
 #include <variant>
 
+bool SensorConsumer::init() {
+    if (!m_queue.init()) {
+        Serial.println("SensorConsumer queue creation failed");
+        return false;
+    }
+    return true;
+}
+
 void SensorConsumer::start() {
     m_task.createAndStart("consumer_task", [this] {
         loop();
     });
+}
+
+void SensorConsumer::enqueue(const SensorEvent& p_event) {
+    m_queue.send(p_event);
 }
 
 void SensorConsumer::loop() {
