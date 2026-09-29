@@ -35,7 +35,7 @@ public:
     void start();
     void enqueueWifiStart();
     void enqueueWifiStop();
-    void enqueueCredentialsUpdated();
+    void saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
 
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;

@@ -28,6 +28,7 @@ public:
     [[nodiscard]] bool init();
     void setWifiCallback(WifiEventCallback p_callback);
     [[nodiscard]] bool loadCredentials();
+    [[nodiscard]] bool saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
 
     void setStartProvisioningCallback(StartProvisioningCallback p_callback);
     void notifyStartProvisioning() const;

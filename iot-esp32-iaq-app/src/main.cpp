@@ -84,16 +84,7 @@ void setup() {
     });
 
     bleProvisioner.setCredentialsCallback([](const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
-        if (!storage.saveWifiSSID(p_ssid)) {
-            Serial.println("[BLE] Failed to save SSID");
-            return;
-        }
-        if (!storage.saveWifiPass(p_password)) {
-            Serial.println("[BLE] Failed to save password");
-            return;
-        }
-        Serial.println("[BLE] New credentials saved");
-        wifiManager.enqueueCredentialsUpdated();
+        wifiManager.saveCredentialsAndEnqueueUpdate(p_ssid, p_password);
     });
 
     static const DeviceInfo deviceInfo = collectDeviceInfo();

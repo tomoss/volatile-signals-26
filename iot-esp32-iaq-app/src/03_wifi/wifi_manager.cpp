@@ -68,8 +68,10 @@ void WifiManager::enqueueWifiStop() {
     enqueueEvent(WifiQueueEventType::Stop);
 }
 
-void WifiManager::enqueueCredentialsUpdated() {
-    enqueueEvent(WifiQueueEventType::CredentialsReceived);
+void WifiManager::saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+    if (m_adapter.saveCredentials(p_ssid, p_password)) {
+        enqueueEvent(WifiQueueEventType::CredentialsReceived);
+    }
 }
 
 void WifiManager::loop() {

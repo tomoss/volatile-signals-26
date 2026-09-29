@@ -58,6 +58,19 @@ bool WifiAdapter::loadCredentials() {
     return true;
 }
 
+bool WifiAdapter::saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+    if (!m_storage.saveWifiSSID(p_ssid)) {
+        Serial.println("Failed to save WiFi SSID");
+        return false;
+    }
+    if (!m_storage.saveWifiPass(p_password)) {
+        Serial.println("Failed to save WiFi password");
+        return false;
+    }
+    Serial.println("Saved WiFi credentials to storage");
+    return true;
+}
+
 void WifiAdapter::setWifiCallback(WifiEventCallback p_callback) {
     m_wifiApiCallback = std::move(p_callback);
 }
