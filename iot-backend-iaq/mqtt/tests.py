@@ -220,7 +220,7 @@ class MessageHandlerTests(TestCase):
         mac = "11:22:33:44:55:66"
         payload = json.dumps({"code": "123456"})
         self.handler.on_message(
-            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+            None, None, FakeMessage(f"iaq/{mac}/claim_request", to_bytes(payload))
         )
 
         claim = DeviceClaim.objects.get(mac=mac)
@@ -232,7 +232,7 @@ class MessageHandlerTests(TestCase):
 
         payload = json.dumps({"code": "123456"})
         self.handler.on_message(
-            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+            None, None, FakeMessage(f"iaq/{mac}/claim_request", to_bytes(payload))
         )
 
         claim = DeviceClaim.objects.get(mac=mac)
@@ -244,7 +244,7 @@ class MessageHandlerTests(TestCase):
 
         payload = json.dumps({"code": ""})
         self.handler.on_message(
-            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+            None, None, FakeMessage(f"iaq/{mac}/claim_request", to_bytes(payload))
         )
 
         self.assertFalse(DeviceClaim.objects.filter(mac=mac).exists())
@@ -253,7 +253,7 @@ class MessageHandlerTests(TestCase):
         mac = "11:22:33:44:55:66"
         payload = json.dumps({"code": ""})
         self.handler.on_message(
-            None, None, FakeMessage(f"iaq/{mac}/device_claim", to_bytes(payload))
+            None, None, FakeMessage(f"iaq/{mac}/claim_request", to_bytes(payload))
         )
 
         self.assertFalse(DeviceClaim.objects.filter(mac=mac).exists())
@@ -264,7 +264,7 @@ class MessageHandlerTests(TestCase):
                 None,
                 None,
                 FakeMessage(
-                    f"iaq/{self.device.mac}/device_claim", to_bytes("not json")
+                    f"iaq/{self.device.mac}/claim_request", to_bytes("not json")
                 ),
             )
         self.assertFalse(DeviceClaim.objects.exists())

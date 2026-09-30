@@ -1,5 +1,6 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "00_vendor/arduino.hpp"
+#include "00_vendor/arduinojson.hpp"
 #include "04_mqtt/mqtt_types.hpp"
 
 #include <algorithm>
@@ -9,11 +10,14 @@
 #include <string_view>
 
 #include <esp_crt_bundle.h>
-#include <esp_mac.h>
 
 constexpr int DEFAULT_MQTT_RECONNECT_TIMEOUT_MS = 10000; // 10 seconds
 constexpr int DEFAULT_MQTT_PUB_QOS = 1;                  // QoS level 1
 constexpr int DEFAULT_MQTT_SUB_QOS = 1;                  // QoS level 1
+
+void MqttBridge::buildTopic(MqttTypes::Topic& p_topic, std::string_view p_suffix) const {
+    snprintf(p_topic.data(), p_topic.size(), "iaq/%s/%.*s", m_mac.data(), static_cast<int>(p_suffix.size()), p_suffix.data());
+}
 
 MqttBridge::~MqttBridge() {
     if (m_client) {
@@ -58,8 +62,8 @@ bool MqttBridge::init(bool p_enableTls) {
 
     // *** SESSION CONFIGURATION ***
     l_config.session.protocol_ver = MQTT_PROTOCOL_V_3_1_1;
-    // Disable clean session to allow the broker to store subscriptions and undelivered messages for the client
-    l_config.session.disable_clean_session = true;
+    l_config.session.disable_clean_session = false;
+    l_config.session.keepalive = 30;
 
     // *** CREDENTIALS CONFIGURATION ***
     l_config.credentials.username = l_username.value().data();
@@ -94,90 +98,16 @@ bool MqttBridge::init(bool p_enableTls) {
 
     // *** TOPICS CREATION ***
 
-    // esp_read_mac() reads the factory-burned MAC from eFuse directly, so it's valid
-    // immediately at boot - unlike WiFi.macAddress(), it doesn't need the STA netif to be up.
-    std::array<uint8_t, 6> l_mac{};
-    esp_read_mac(l_mac.data(), ESP_MAC_WIFI_STA);
-
-    snprintf(m_sensorDataPubTopic.data(),
-             m_sensorDataPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor_data",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_deviceHealthPubTopic.data(),
-             m_deviceHealthPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_health",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_deviceInfoPubTopic.data(),
-             m_deviceInfoPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_info",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_sensorInfoPubTopic.data(),
-             m_sensorInfoPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/sensor_info",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_deviceStatusPubTopic.data(),
-             m_deviceStatusPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_status",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_deviceClaimPubTopic.data(),
-             m_deviceClaimPubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/device_claim",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_commandSubTopic.data(),
-             m_commandSubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/command",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
-
-    snprintf(m_otaSubTopic.data(),
-             m_otaSubTopic.size(),
-             "iaq/%02X:%02X:%02X:%02X:%02X:%02X/ota",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
+    buildTopic(m_sensorDataPubTopic, "sensor_data");
+    buildTopic(m_deviceHealthPubTopic, "device_health");
+    buildTopic(m_deviceInfoPubTopic, "device_info");
+    buildTopic(m_sensorInfoPubTopic, "sensor_info");
+    buildTopic(m_deviceStatusPubTopic, "device_status");
+    buildTopic(m_claimRequestPubTopic, "claim_request");
+    buildTopic(m_commandSubTopic, "command");
+    buildTopic(m_sensorSubTopic, "sensor");
+    buildTopic(m_claimStatusSubTopic, "claim_status");
+    buildTopic(m_otaSubTopic, "ota");
 
     m_client = esp_mqtt_client_init(&l_config);
 
@@ -221,28 +151,23 @@ bool MqttBridge::connect() {
 }
 
 void MqttBridge::sendSensorData(const SensorData& p_data) {
-    MqttTypes::Payload l_payload{};
-    const int l_len =
-        snprintf(l_payload.data(),
-                 l_payload.size(),
-                 "{\"iaq\":%.2f,\"iaq_accuracy\":%d,\"co2\":%.2f,\"voc\":%.2f,\"temp\":%.2f,\"hum\":%.2f,\"pressure\":%.2f,\"timestamp\":%lld}",
-                 p_data.iaq,
-                 static_cast<int>(p_data.iaqAccuracy),
-                 p_data.co2,
-                 p_data.voc,
-                 p_data.temp,
-                 p_data.hum,
-                 p_data.pressure,
-                 static_cast<long long>(p_data.timestamp));
+    JsonDocument l_doc;
+    l_doc["iaq"] = p_data.iaq;
+    l_doc["iaq_accuracy"] = static_cast<int>(p_data.iaqAccuracy);
+    l_doc["co2"] = p_data.co2;
+    l_doc["voc"] = p_data.voc;
+    l_doc["temp"] = p_data.temp;
+    l_doc["hum"] = p_data.hum;
+    l_doc["pressure"] = p_data.pressure;
+    l_doc["timestamp"] = static_cast<long long>(p_data.timestamp);
 
-    if (l_len < 0) {
-        Serial.println("[MQTT] Failed to serialize sensor data");
+    MqttTypes::Payload l_payload{};
+    if (measureJson(l_doc) >= l_payload.size()) {
+        Serial.println("[MQTT] Sensor data payload too large");
         return;
     }
 
-    // snprintf returns the length it would have written even if truncated, so clamp to what
-    // actually fits in the buffer (size() - 1, since one byte is reserved for the null terminator).
-    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
     publish(m_sensorDataPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
@@ -252,22 +177,20 @@ void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
         return;
     }
 
-    MqttTypes::Payload l_payload{};
-    const int l_len = snprintf(l_payload.data(),
-                               l_payload.size(),
-                               "{\"rssi\":%d,\"heap\":%lu,\"min_heap\":%lu,\"uptime\":%lu,\"timestamp\":%lld}",
-                               p_health.rssi,
-                               static_cast<unsigned long>(p_health.heap),
-                               static_cast<unsigned long>(p_health.minHeap),
-                               static_cast<unsigned long>(p_health.uptime),
-                               static_cast<long long>(p_health.timestamp));
+    JsonDocument l_doc;
+    l_doc["rssi"] = p_health.rssi;
+    l_doc["heap"] = p_health.heap;
+    l_doc["min_heap"] = p_health.minHeap;
+    l_doc["uptime"] = p_health.uptime;
+    l_doc["timestamp"] = static_cast<long long>(p_health.timestamp);
 
-    if (l_len < 0) {
-        Serial.println("[MQTT] Failed to serialize device health");
+    MqttTypes::Payload l_payload{};
+    if (measureJson(l_doc) >= l_payload.size()) {
+        Serial.println("[MQTT] Device health payload too large");
         return;
     }
 
-    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
     publish(m_deviceHealthPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
@@ -277,39 +200,37 @@ void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
         return;
     }
 
-    MqttTypes::Payload l_payload{};
-    const int l_len = snprintf(l_payload.data(),
-                               l_payload.size(),
-                               "{\"firmware_version\":\"%s\",\"chip_model\":\"%s\",\"chip_revision\":%u,\"chip_cores\":%u,"
-                               "\"reset_reason\":%u,\"total_heap\":%lu}",
-                               p_info.firmwareVersion,
-                               p_info.chipModel,
-                               static_cast<unsigned int>(p_info.chipRevision),
-                               static_cast<unsigned int>(p_info.chipCores),
-                               static_cast<unsigned int>(p_info.resetReason),
-                               static_cast<unsigned long>(p_info.totalHeap));
+    JsonDocument l_doc;
+    l_doc["firmware_version"] = p_info.firmwareVersion;
+    l_doc["chip_model"] = p_info.chipModel;
+    l_doc["chip_revision"] = p_info.chipRevision;
+    l_doc["chip_cores"] = p_info.chipCores;
+    l_doc["reset_reason"] = p_info.resetReason;
+    l_doc["total_heap"] = p_info.totalHeap;
 
-    if (l_len < 0) {
-        Serial.println("[MQTT] Failed to serialize device info");
+    MqttTypes::Payload l_payload{};
+    if (measureJson(l_doc) >= l_payload.size()) {
+        Serial.println("[MQTT] Device info payload too large");
         return;
     }
 
-    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
     // Retained so the broker hands the last-known info to any late-subscribing client
     // (e.g. the backend restarting) without waiting for the device's next reconnect.
     publish(m_deviceInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
 }
 
 void MqttBridge::sendSensorInfo(SensorMode p_mode) {
-    MqttTypes::Payload l_payload{};
-    const int l_len = snprintf(l_payload.data(), l_payload.size(), "{\"mode\":%d}", static_cast<int>(p_mode));
+    JsonDocument l_doc;
+    l_doc["mode"] = static_cast<int>(p_mode);
 
-    if (l_len < 0) {
-        Serial.println("[MQTT] Failed to serialize sensor info");
+    MqttTypes::Payload l_payload{};
+    if (measureJson(l_doc) >= l_payload.size()) {
+        Serial.println("[MQTT] Sensor info payload too large");
         return;
     }
 
-    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
     // Retained so a late-subscribing client immediately learns the current mode instead of
     // waiting for it to change again.
     publish(m_sensorInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
@@ -322,18 +243,17 @@ void MqttBridge::sendClaimCode(const ClaimCode& p_code) {
         return;
     }
 
-    const size_t l_codeLen = strnlen(p_code.data(), p_code.size());
-    MqttTypes::Payload l_payload{};
-    const int l_len = snprintf(l_payload.data(), l_payload.size(), "{\"code\":\"%.*s\"}",
-                                static_cast<int>(l_codeLen), p_code.data());
+    JsonDocument l_doc;
+    l_doc["code"] = std::string_view(p_code.data(), strnlen(p_code.data(), p_code.size()));
 
-    if (l_len < 0) {
-        Serial.println("[MQTT] Failed to serialize claim code");
+    MqttTypes::Payload l_payload{};
+    if (measureJson(l_doc) >= l_payload.size()) {
+        Serial.println("[MQTT] Claim code payload too large");
         return;
     }
 
-    const size_t l_payloadLen = std::min(static_cast<size_t>(l_len), l_payload.size() - 1);
-    publish(m_deviceClaimPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
+    publish(m_claimRequestPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
 void MqttBridge::clearClaimCode() {
@@ -341,8 +261,12 @@ void MqttBridge::clearClaimCode() {
         return;
     }
 
-    static constexpr char l_emptyPayload[] = "{\"code\":\"\"}";
-    publish(m_deviceClaimPubTopic, l_emptyPayload, sizeof(l_emptyPayload) - 1);
+    JsonDocument l_doc;
+    l_doc["code"] = "";
+
+    MqttTypes::Payload l_payload{};
+    const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
+    publish(m_claimRequestPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
 void MqttBridge::publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain) {
@@ -404,11 +328,7 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
     case MQTT_EVENT_DATA: {
         const std::string_view l_topic{p_event->topic, static_cast<size_t>(p_event->topic_len)};
         const std::string_view l_payload{p_event->data, static_cast<size_t>(p_event->data_len)};
-        if (l_topic == m_commandSubTopic.data() && m_onCommandCallback) {
-            m_onCommandCallback(l_payload);
-        } else if (l_topic == m_otaSubTopic.data() && m_onOtaCallback) {
-            m_onOtaCallback(l_payload);
-        }
+        handleMessage(l_topic, l_payload);
         break;
     }
 
@@ -444,6 +364,91 @@ void MqttBridge::onEvent(esp_mqtt_event_handle_t p_event) {
     }
 }
 
+void MqttBridge::handleMessage(std::string_view p_topic, std::string_view p_payload) {
+    if (p_topic == m_commandSubTopic.data()) {
+        handleCommandMessage(p_payload);
+    } else if (p_topic == m_sensorSubTopic.data()) {
+        handleSensorMessage(p_payload);
+    } else if (p_topic == m_claimStatusSubTopic.data()) {
+        handleClaimStatusMessage(p_payload);
+    } else if (p_topic == m_otaSubTopic.data()) {
+        handleOtaMessage(p_payload);
+    }
+}
+
+void MqttBridge::handleCommandMessage(std::string_view p_payload) {
+    JsonDocument l_doc;
+    if (deserializeJson(l_doc, p_payload.data(), p_payload.size())) {
+        Serial.println("[MQTT] Invalid command payload");
+        return;
+    }
+
+    if (l_doc["device"] == "reboot") {
+        Serial.println("Rebooting...");
+        Serial.flush();
+        esp_restart();
+        return;
+    }
+
+    Serial.println("[MQTT] Unknown command");
+}
+
+void MqttBridge::handleSensorMessage(std::string_view p_payload) {
+    JsonDocument l_doc;
+    if (deserializeJson(l_doc, p_payload.data(), p_payload.size())) {
+        Serial.println("[MQTT] Invalid sensor payload");
+        return;
+    }
+
+    if (!m_onSensorModeCallback) {
+        return;
+    }
+
+    if (l_doc["mode"] == "lp") {
+        m_onSensorModeCallback(SensorMode::LowPower);
+    } else if (l_doc["mode"] == "ulp") {
+        m_onSensorModeCallback(SensorMode::UltraLowPower);
+    } else {
+        Serial.println("[MQTT] Unknown sensor mode");
+    }
+}
+
+void MqttBridge::handleClaimStatusMessage(std::string_view p_payload) {
+    JsonDocument l_doc;
+    if (deserializeJson(l_doc, p_payload.data(), p_payload.size())) {
+        Serial.println("[MQTT] Invalid claim status payload");
+        return;
+    }
+
+    const JsonVariant l_status = l_doc["status"];
+    if (!l_status.is<bool>()) {
+        Serial.println("[MQTT] Unknown claim status");
+        return;
+    }
+
+    if (m_onClaimStatusCallback) {
+        m_onClaimStatusCallback(l_status.as<bool>());
+    }
+}
+
+void MqttBridge::handleOtaMessage(std::string_view p_payload) {
+    JsonDocument l_doc;
+    if (deserializeJson(l_doc, p_payload.data(), p_payload.size())) {
+        Serial.println("[MQTT] Invalid OTA payload");
+        return;
+    }
+
+    const JsonVariant l_url = l_doc["url"];
+    if (!l_url.is<const char*>()) {
+        Serial.println("[MQTT] Missing OTA url");
+        return;
+    }
+
+    if (m_onOtaCallback) {
+        m_onOtaCallback(l_url.as<const char*>());
+    }
+}
+
 bool MqttBridge::disconnect() {
     if (m_client == nullptr) {
         Serial.println("[MQTT] disconnect failed: call init() first");
@@ -475,6 +480,8 @@ bool MqttBridge::disconnect() {
 void MqttBridge::handleConnected(bool /*p_sessionPresent*/) {
     m_connected.store(true);
     subscribe(m_commandSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
+    subscribe(m_sensorSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
+    subscribe(m_claimStatusSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
     subscribe(m_otaSubTopic.data(), DEFAULT_MQTT_SUB_QOS);
 
     constexpr char l_onlinePayload[] = "online";

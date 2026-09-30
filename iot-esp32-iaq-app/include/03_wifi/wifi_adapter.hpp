@@ -28,6 +28,7 @@ public:
     [[nodiscard]] bool init();
     void setWifiCallback(WifiEventCallback p_callback);
     [[nodiscard]] bool loadCredentials();
+    [[nodiscard]] bool saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
 
     void setStartProvisioningCallback(StartProvisioningCallback p_callback);
     void notifyStartProvisioning() const;
@@ -57,7 +58,6 @@ public:
     WifiTypes::Rssi getRSSI() const;
     WifiTypes::Ssid getSSID() const;
     WifiTypes::IpAddr getIPAddress() const;
-    WifiTypes::MacAddr getMACAddress() const;
 
 private:
     // Timer callback is static because the timer API doesn't support capturing lambdas or std::function.

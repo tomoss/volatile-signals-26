@@ -22,7 +22,12 @@ from django.views.generic import (
 )
 
 from iaq.models import Device, DeviceClaim, DeviceStatus
-from mqtt.publisher import publish_command
+from mqtt.publisher import publish
+from mqtt.topics import (
+    CLAIM_STATUS_TOPIC_SUFFIX,
+    COMMAND_TOPIC_SUFFIX,
+    SENSOR_TOPIC_SUFFIX,
+)
 
 from .forms import (
     DeviceClaimForm,
@@ -168,7 +173,7 @@ class IaqDeviceAddView(LoginRequiredMixin, FormView):
             form.add_error(None, "This device has already been claimed.")
             return self.form_invalid(form)
 
-        if publish_command(device.mac, "device_claimed"):
+        if publish(device.mac, CLAIM_STATUS_TOPIC_SUFFIX, {"status": True}):
             messages.success(self.request, f"Device '{device.name}' added.")
         else:
             messages.warning(
@@ -205,8 +210,9 @@ class IaqDeviceManagementView(LoginRequiredMixin, DetailView):
         )
 
 
-class IaqDeviceCommandView(LoginRequiredMixin, View):
-    command = None
+class IaqDevicePublishView(LoginRequiredMixin, View):
+    topic_suffix = None
+    payload = None
     success_message = None
     error_message = None
 
@@ -223,7 +229,7 @@ class IaqDeviceCommandView(LoginRequiredMixin, View):
             messages.error(request, "Device is offline.")
             return redirect("device_management", device_id=device_id)
 
-        if publish_command(device.mac, self.command):
+        if publish(device.mac, self.topic_suffix, self.payload):
             messages.success(request, self.success_message)
         else:
             messages.error(request, self.error_message)
@@ -256,19 +262,22 @@ class IaqDeviceSetVisibilityView(LoginRequiredMixin, View):
         return redirect("device_management", device_id=device_id)
 
 
-class IaqDeviceRebootView(IaqDeviceCommandView):
-    command = "reboot"
+class IaqDeviceRebootView(IaqDevicePublishView):
+    topic_suffix = COMMAND_TOPIC_SUFFIX
+    payload = {"device": "reboot"}
     success_message = "Reboot command sent."
     error_message = "Failed to send reboot command; broker unreachable."
 
 
-class IaqSensorLowPowerView(IaqDeviceCommandView):
-    command = "sensor_lp"
+class IaqSensorLowPowerView(IaqDevicePublishView):
+    topic_suffix = SENSOR_TOPIC_SUFFIX
+    payload = {"mode": "lp"}
     success_message = "Low power command sent."
     error_message = "Failed to send low power command; broker unreachable."
 
 
-class IaqSensorUltraLowPowerView(IaqDeviceCommandView):
-    command = "sensor_ulp"
+class IaqSensorUltraLowPowerView(IaqDevicePublishView):
+    topic_suffix = SENSOR_TOPIC_SUFFIX
+    payload = {"mode": "ulp"}
     success_message = "Ultra low power command sent."
     error_message = "Failed to send ultra low power command; broker unreachable."

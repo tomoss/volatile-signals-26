@@ -6,7 +6,7 @@ constexpr uint32_t RECONNECT_DELAY_MS = 30 * 1000; // 30 seconds
 WifiAdapter::WifiAdapter(Storage& p_storage) : m_storage(p_storage) {}
 
 WifiAdapter::~WifiAdapter() {
-    if (m_reconnectTimer != nullptr) {
+    if (m_reconnectTimer) {
         xTimerDelete(m_reconnectTimer, 0);
         m_reconnectTimer = nullptr;
     }
@@ -14,7 +14,7 @@ WifiAdapter::~WifiAdapter() {
 
 bool WifiAdapter::init() {
     WiFi.onEvent([this](WiFiEvent_t p_event, WiFiEventInfo_t p_info) {
-        if (m_wifiApiCallback != nullptr) {
+        if (m_wifiApiCallback) {
             m_wifiApiCallback(p_event, p_info);
         } else {
             Serial.println("WifiEventCallback not set");
@@ -55,6 +55,19 @@ bool WifiAdapter::loadCredentials() {
     Serial.println("Loaded WiFi credentials from storage");
     m_ssid = *l_ssid;
     m_password = *l_pass;
+    return true;
+}
+
+bool WifiAdapter::saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+    if (!m_storage.saveWifiSSID(p_ssid)) {
+        Serial.println("Failed to save WiFi SSID");
+        return false;
+    }
+    if (!m_storage.saveWifiPass(p_password)) {
+        Serial.println("Failed to save WiFi password");
+        return false;
+    }
+    Serial.println("Saved WiFi credentials to storage");
     return true;
 }
 
@@ -151,10 +164,4 @@ WifiTypes::IpAddr WifiAdapter::getIPAddress() const {
     WifiTypes::IpAddr l_ipAddr{};
     WiFi.localIP().toString().toCharArray(l_ipAddr.data(), l_ipAddr.size());
     return l_ipAddr;
-}
-
-WifiTypes::MacAddr WifiAdapter::getMACAddress() const {
-    WifiTypes::MacAddr l_macAddr{};
-    WiFi.macAddress().toCharArray(l_macAddr.data(), l_macAddr.size());
-    return l_macAddr;
 }

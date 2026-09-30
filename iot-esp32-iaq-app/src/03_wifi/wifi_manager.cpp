@@ -6,29 +6,21 @@ constexpr uint32_t QUEUE_LENGTH = 10;
 
 WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
-WifiManager::~WifiManager() {
-    if (m_queue != nullptr) {
-        vQueueDelete(m_queue);
-        m_queue = nullptr;
-    }
-}
-
 bool WifiManager::init() {
-    m_queue = xQueueCreate(QUEUE_LENGTH, sizeof(WifiQueueEvent));
 
-    if (m_queue == nullptr) {
+    if (!m_queue.init()) {
         Serial.println("WiFiManager queue creation failed");
         return false;
     }
 
     m_adapter.setReconnectCallback([this] {
-        postQueueEvent(WifiQueueEventType::Connect);
+        enqueueEvent(WifiQueueEvent::ConnectRequested);
     });
 
     m_adapter.setWifiCallback([this](WiFiEvent_t event, WiFiEventInfo_t info) {
         switch (event) {
         case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-            postQueueEvent(WifiQueueEventType::Connected);
+            enqueueEvent(WifiQueueEvent::Connected);
             break;
 
         case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
@@ -45,7 +37,7 @@ bool WifiManager::init() {
                 break;
             }
             Serial.printf("WiFi disconnected (reason=%d)\n", reason);
-            postQueueEvent(WifiQueueEventType::Disconnected);
+            enqueueEvent(WifiQueueEvent::Disconnected);
             break;
         }
 
@@ -59,74 +51,76 @@ bool WifiManager::init() {
         return false;
     }
 
-    if (!m_task.createAndStart("wifi_task", [this] {
-            loop();
-        })) {
-        return false;
-    }
-
     return true;
 }
 
 void WifiManager::start() {
-    postQueueEvent(WifiQueueEventType::Start);
+    m_task.createAndStart("wifi_task", [this] {
+        loop();
+    });
 }
 
-void WifiManager::stop() {
-    postQueueEvent(WifiQueueEventType::Stop);
+void WifiManager::enqueueWifiStart() {
+    enqueueEvent(WifiQueueEvent::StartRequested);
 }
 
-void WifiManager::credentialsUpdated() {
-    postQueueEvent(WifiQueueEventType::CredentialsReceived);
+void WifiManager::enqueueWifiStop() {
+    enqueueEvent(WifiQueueEvent::StopRequested);
+}
+
+void WifiManager::saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+    if (m_adapter.saveCredentials(p_ssid, p_password)) {
+        enqueueEvent(WifiQueueEvent::CredentialsReceived);
+    }
 }
 
 void WifiManager::loop() {
     for (;;) {
-        WifiQueueEvent event;
-        if (xQueueReceive(m_queue, &event, portMAX_DELAY) == pdTRUE) {
-            handleQueueEvent(event);
+        WifiQueueEvent type;
+        if (m_queue.receive(type)) {
+            handleQueueEvent(type);
         }
     }
 }
 
-void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
-    switch (event.type) {
-    case WifiQueueEventType::Start:
-        m_sm.process_event(EvReqStart{});
+void WifiManager::handleQueueEvent(WifiQueueEvent type) {
+    switch (type) {
+    case WifiQueueEvent::StartRequested:
+        m_sm.process_event(EvStartRequested{});
         break;
 
-    case WifiQueueEventType::Connect:
-        m_sm.process_event(EvReqConnect{});
+    case WifiQueueEvent::ConnectRequested:
+        m_sm.process_event(EvConnectRequested{});
         break;
 
-    case WifiQueueEventType::Connected:
-        m_sm.process_event(EvIsConnected{});
+    case WifiQueueEvent::Connected:
+        m_sm.process_event(EvConnected{});
         break;
 
-    case WifiQueueEventType::Disconnect:
-        m_sm.process_event(EvReqDisconnect{});
+    case WifiQueueEvent::DisconnectRequested:
+        m_sm.process_event(EvDisconnectRequested{});
         break;
 
-    case WifiQueueEventType::Reconnect:
-        m_sm.process_event(EvReqReconnect{});
+    case WifiQueueEvent::ReconnectRequested:
+        m_sm.process_event(EvReconnectRequested{});
         break;
 
-    case WifiQueueEventType::Disconnected:
-        m_sm.process_event(EvIsDisconnected{});
-        m_sm.process_event(EvReqReconnect{});
+    case WifiQueueEvent::Disconnected:
+        m_sm.process_event(EvDisconnected{});
+        m_sm.process_event(EvReconnectRequested{});
         break;
 
-    case WifiQueueEventType::Provisioning:
-        m_sm.process_event(EvReqProvisioning{});
+    case WifiQueueEvent::ProvisioningRequested:
+        m_sm.process_event(EvProvisioningRequested{});
         break;
 
-    case WifiQueueEventType::CredentialsReceived:
+    case WifiQueueEvent::CredentialsReceived:
         m_sm.process_event(EvCredentialsUpdated{});
         break;
 
     // User can requst just stop, not disconnect
-    case WifiQueueEventType::Stop:
-        m_sm.process_event(EvReqStop{});
+    case WifiQueueEvent::StopRequested:
+        m_sm.process_event(EvStopRequested{});
         break;
 
     default:
@@ -134,11 +128,6 @@ void WifiManager::handleQueueEvent(const WifiQueueEvent& event) {
     }
 }
 
-void WifiManager::postQueueEvent(WifiQueueEventType type) {
-    if (m_queue == nullptr) {
-        Serial.println("WiFiManager queue is not initialized");
-        return;
-    }
-    const WifiQueueEvent l_event{type};
-    xQueueSend(m_queue, &l_event, 0);
+void WifiManager::enqueueEvent(WifiQueueEvent type) {
+    m_queue.send(type);
 }

@@ -16,6 +16,7 @@ public:
     DisplayController& operator=(DisplayController&&) = delete;
 
     bool init(WireWrapper& p_wire);
+    void start();
 
     // Thread-safe: safe to call from any task context. No-ops if init() failed or wasn't called.
     void enableDisplay();

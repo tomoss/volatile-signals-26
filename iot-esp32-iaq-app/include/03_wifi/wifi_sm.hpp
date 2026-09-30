@@ -58,16 +58,16 @@ struct WifiSmLogger {
 
 // ****** EVENTS ******
 
-struct EvReqStart {};
-struct EvReqStop {};
+struct EvStartRequested {};
+struct EvStopRequested {};
 
-struct EvReqConnect {};
-struct EvReqDisconnect {};
-struct EvReqProvisioning {};
-struct EvReqReconnect {};
+struct EvConnectRequested {};
+struct EvDisconnectRequested {};
+struct EvProvisioningRequested {};
+struct EvReconnectRequested {};
 
-struct EvIsConnected {};
-struct EvIsDisconnected {};
+struct EvConnected {};
+struct EvDisconnected {};
 struct EvCredentialsUpdated {};
 struct EvReconnectScheduled {};
 struct EvReconnectTimeout {};
@@ -174,19 +174,19 @@ struct WifiSm {
         // TRANSITION TABLE: src_state + event [ guard ] / action = dst_state
         return make_transition_table(
             // Initial state -> StIdle
-            *state<StIdle> + event<EvReqStart>[guCredentialsLoad] / doAttemptConnect = state<StConnecting>,
-            state<StIdle> + event<EvReqStart>[!guCredentialsLoad] / doStartProvisioning = state<StProvisioning>,
+            *state<StIdle> + event<EvStartRequested>[guCredentialsLoad] / doAttemptConnect = state<StConnecting>,
+            state<StIdle> + event<EvStartRequested>[!guCredentialsLoad] / doStartProvisioning = state<StProvisioning>,
 
-            state<StConnecting> + event<EvIsConnected> / doNotifyConnect = state<StConnected>,
-            state<StConnecting> + event<EvIsDisconnected> / doNotifyDisconnect = state<StDisconnected>,
+            state<StConnecting> + event<EvConnected> / doNotifyConnect = state<StConnected>,
+            state<StConnecting> + event<EvDisconnected> / doNotifyDisconnect = state<StDisconnected>,
 
-            state<StConnected> + event<EvIsDisconnected> / doNotifyDisconnect = state<StDisconnected>,
+            state<StConnected> + event<EvDisconnected> / doNotifyDisconnect = state<StDisconnected>,
 
-            state<StDisconnected> + event<EvReqReconnect>[!guMaxAttemptsReached] / doStartTimer = state<StReconnectPending>,
-            state<StDisconnected> + event<EvReqReconnect>[guMaxAttemptsReached] / doStartProvisioning = state<StProvisioning>,
+            state<StDisconnected> + event<EvReconnectRequested>[!guMaxAttemptsReached] / doStartTimer = state<StReconnectPending>,
+            state<StDisconnected> + event<EvReconnectRequested>[guMaxAttemptsReached] / doStartProvisioning = state<StProvisioning>,
 
             // Reconnect timer fired; actually attempt the connection now.
-            state<StReconnectPending> + event<EvReqConnect> / doAttemptConnect = state<StConnecting>,
+            state<StReconnectPending> + event<EvConnectRequested> / doAttemptConnect = state<StConnecting>,
 
             state<StProvisioning> + event<EvCredentialsUpdated>[guCredentialsLoad] / (doStopProvisioning, doAttemptConnect) = state<StConnecting>,
             state<StProvisioning> + event<EvCredentialsUpdated>[!guCredentialsLoad] = state<StProvisioning>);
