@@ -124,6 +124,14 @@ bool MqttBridge::init(bool p_enableTls) {
     return true;
 }
 
+void MqttBridge::update(SensorEvent p_event) {
+    if (const auto* l_mode = std::get_if<SensorMode>(&p_event)) {
+        sendSensorInfo(*l_mode);
+    } else if (const auto* l_data = std::get_if<SensorData>(&p_event)) {
+        sendSensorData(*l_data);
+    }
+}
+
 bool MqttBridge::connect() {
     if (m_client == nullptr) {
         Serial.println("[MQTT] connect failed: call init() first");

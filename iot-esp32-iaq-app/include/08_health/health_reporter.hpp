@@ -4,7 +4,7 @@
 #include "00_vendor/freertos.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "04_mqtt/mqtt_bridge.hpp"
-#include "09_utils/task.hpp"
+#include "09_utils/freertos_task.hpp"
 
 // Periodically publishes device health (RSSI/heap/uptime) over MQTT from its own task.
 class HealthReporter {
@@ -23,7 +23,7 @@ private:
 
     MqttBridge& m_mqttBridge;
     WifiAdapter& m_wifiAdapter;
-    Task m_task;
+    FreeRtosTask m_task;
 };
 
 #endif // HEALTH_REPORTER_HPP

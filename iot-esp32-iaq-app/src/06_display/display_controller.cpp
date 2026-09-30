@@ -1,5 +1,8 @@
 #include "06_display/display_controller.hpp"
 
+#include <cmath>
+#include <variant>
+
 constexpr std::size_t FIRST_HALF_TEXT_SIZE = 32;
 constexpr std::size_t SECOND_HALF_TEXT_SIZE = 16;
 
@@ -26,6 +29,13 @@ void DisplayController::start() {
     m_task.createAndStart("display_task", [this] {
         loop();
     });
+}
+
+void DisplayController::update(SensorEvent p_event) {
+    if (const auto* l_data = std::get_if<SensorData>(&p_event)) {
+        setEnvironment(
+            static_cast<uint16_t>(std::round(l_data->iaq)), static_cast<int8_t>(std::round(l_data->temp)), static_cast<uint8_t>(l_data->iaqAccuracy));
+    }
 }
 
 void DisplayController::enableDisplay() {

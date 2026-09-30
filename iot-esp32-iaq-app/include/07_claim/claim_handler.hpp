@@ -8,7 +8,7 @@
 #include "04_mqtt/mqtt_bridge.hpp"
 #include "06_display/display_controller.hpp"
 #include "09_utils/claim_code.hpp"
-#include "09_utils/task.hpp"
+#include "09_utils/freertos_task.hpp"
 
 // Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
 constexpr int CLAIM_BUTTON_PIN = D1;
@@ -48,7 +48,7 @@ private:
     MqttBridge& m_mqttBridge;
     ClaimCode m_code{};
     std::atomic<bool> m_claimed{false};
-    Task m_task;
+    FreeRtosTask m_task;
 
     // The ISR (a plain function pointer, no user data) reaches the task through this.
     static TaskHandle_t s_taskHandle;

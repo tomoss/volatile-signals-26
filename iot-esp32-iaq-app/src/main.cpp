@@ -2,7 +2,8 @@
 #include "00_vendor/freertos.hpp"
 
 #include "01_sensor/env_sensor.hpp"
-#include "01_sensor/sensor_consumer.hpp"
+#include "01_sensor/event_queue.hpp"
+#include "01_sensor/sensor_data_processor.hpp"
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_manager.hpp"
@@ -12,6 +13,7 @@
 #include "07_claim/claim_handler.hpp"
 #include "08_health/health_reporter.hpp"
 #include "09_utils/device_info.hpp"
+#include "09_utils/freertos_task.hpp"
 #include "09_utils/mac_address.hpp"
 #include "09_utils/ota_updater.hpp"
 #include "09_utils/rtc.hpp"
@@ -26,6 +28,8 @@ constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 // Delay duration for reboot after failed init
 constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 
+constexpr std::size_t SENSOR_EVENT_QUEUE_LENGTH = 10;
+
 /*****************************************************************/
 /* Setup                                                         */
 /*****************************************************************/
@@ -36,7 +40,8 @@ void setup() {
 
     static WireWrapper wireWrapper;
     static Storage storage;
-    static EnvSensor envSensor(storage);
+    static EventQueue<SensorEvent, SENSOR_EVENT_QUEUE_LENGTH> sensorEventQueue;
+    static EnvSensor envSensor(storage, sensorEventQueue);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
@@ -46,12 +51,12 @@ void setup() {
     static RealTimeClock rtc;
     static ClaimHandler claimHandler(displayController, storage, mqttBridge);
     static HealthReporter healthReporter(mqttBridge, wifiAdapter);
-    static SensorConsumer sensorConsumer(mqttBridge, displayController);
+    static FreeRtosTask sensorDataProcessorTask;
+    static SensorDataProcessor sensorDataProcessor(sensorEventQueue, sensorDataProcessorTask);
     static OtaUpdater otaUpdater(envSensor, displayController);
 
-    envSensor.setEventCallback([](const SensorEvent& p_event) {
-        sensorConsumer.enqueueSensorEvent(p_event);
-    });
+    sensorDataProcessor.addConsumer(&mqttBridge);
+    sensorDataProcessor.addConsumer(&displayController);
 
     wifiAdapter.setConnectedCallback([] {
         Serial.println("WiFi ConnectedCallback called");
@@ -111,7 +116,7 @@ void setup() {
     });
 
     // Mandatory modules initialization
-    const bool l_initOk = sensorConsumer.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
+    const bool l_initOk = sensorEventQueue.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
                           bleProvisioner.init() && mqttBridge.init(true);
     if (!l_initOk) {
         Serial.println("Mandatory module init failed, restarting the board...");
@@ -129,7 +134,7 @@ void setup() {
 
     displayController.start();
     claimHandler.start();
-    sensorConsumer.start();
+    sensorDataProcessor.start();
     envSensor.start();
     wifiManager.start();
     bleProvisioner.start();

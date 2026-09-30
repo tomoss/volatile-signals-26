@@ -6,8 +6,8 @@
 #include "02_storage/storage.hpp"
 #include "03_wifi/wifi_adapter.hpp"
 #include "03_wifi/wifi_sm.hpp"
+#include "09_utils/freertos_task.hpp"
 #include "09_utils/queue.hpp"
-#include "09_utils/task.hpp"
 
 enum class WifiQueueEvent : uint8_t {
     StartRequested = 0,
@@ -52,7 +52,7 @@ private:
     StateMachine m_sm;
     WifiEventQueue m_queue;
 
-    Task m_task;
+    FreeRtosTask m_task;
 };
 
 #endif // WIFI_MANAGER_HPP

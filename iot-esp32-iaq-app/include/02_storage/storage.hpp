@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "00_vendor/preferences.hpp"
+#include "01_sensor/sensor_state.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "03_wifi/wifi_types.hpp"
 #include "04_mqtt/mqtt_types.hpp"

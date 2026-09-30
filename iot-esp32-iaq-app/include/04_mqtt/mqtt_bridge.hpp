@@ -7,6 +7,7 @@
 
 #include <mqtt_client.h>
 
+#include "01_sensor/consumer.hpp"
 #include "01_sensor/sensor_types.hpp"
 #include "02_storage/storage.hpp"
 #include "04_mqtt/mqtt_types.hpp"
@@ -15,7 +16,7 @@
 #include "09_utils/device_info.hpp"
 #include "09_utils/mac_address.hpp"
 
-class MqttBridge {
+class MqttBridge : public Consumer {
 public:
     using OnConnectedCallback = std::function<void()>;
     using OnDisconnectedCallback = std::function<void()>;
@@ -32,6 +33,8 @@ public:
     MqttBridge& operator=(MqttBridge&&) = delete;
 
     [[nodiscard]] bool init(bool p_enableTls = false);
+
+    void update(SensorEvent p_event) override;
 
     // Currently only called from wifi callback, so no need to be thread-safe. If called from multiple threads, make it thread-safe.
     bool connect();

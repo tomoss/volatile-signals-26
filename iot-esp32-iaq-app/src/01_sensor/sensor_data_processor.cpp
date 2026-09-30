@@ -1,40 +1,28 @@
-#include "01_sensor/sensor_consumer.hpp"
+#include "01_sensor/sensor_data_processor.hpp"
 
 #include "00_vendor/arduino.hpp"
 
 #include <cmath>
 #include <variant>
 
-bool SensorConsumer::init() {
-    if (!m_queue.init()) {
-        Serial.println("SensorConsumer queue creation failed");
-        return false;
-    }
-    return true;
-}
-
-void SensorConsumer::start() {
+void SensorDataProcessor::start() {
     m_task.createAndStart("consumer_task", [this] {
         loop();
     });
 }
 
-void SensorConsumer::enqueueSensorEvent(const SensorEvent& p_event) {
-    m_queue.send(p_event);
-}
-
-void SensorConsumer::loop() {
-    for (;;) {
+void SensorDataProcessor::loop() {
+    while (m_task.running()) {
         SensorEvent l_event;
-        if (m_queue.receive(l_event)) {
+        if (m_source.receive(l_event)) {
             handle(l_event);
         }
     }
 }
 
-void SensorConsumer::handle(const SensorEvent& p_event) {
+void SensorDataProcessor::handle(const SensorEvent& p_event) {
     if (const auto* l_mode = std::get_if<SensorMode>(&p_event)) {
-        m_mqttBridge.sendSensorInfo(*l_mode);
+        notify(*l_mode);
         return;
     }
 
@@ -64,8 +52,6 @@ void SensorConsumer::handle(const SensorEvent& p_event) {
     if (!std::isnan(l_data.iaq) && !std::isnan(l_data.temp) && !std::isnan(l_data.hum) && !std::isnan(l_data.pressure) && !std::isnan(l_data.co2) &&
         !std::isnan(l_data.voc)) {
 
-        m_mqttBridge.sendSensorData(l_data);
-        m_displayController.setEnvironment(
-            static_cast<uint16_t>(std::round(l_data.iaq)), static_cast<int8_t>(std::round(l_data.temp)), static_cast<uint8_t>(l_data.iaqAccuracy));
+        notify(l_data);
     }
 }

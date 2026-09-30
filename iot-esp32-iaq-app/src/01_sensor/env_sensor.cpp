@@ -3,7 +3,7 @@
 #include "00_vendor/arduino.hpp"
 #include "02_storage/storage.hpp"
 
-EnvSensor::EventCallback EnvSensor::s_eventCallback;
+EventSink<SensorEvent>* EnvSensor::s_eventSink = nullptr;
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -167,8 +167,8 @@ bool EnvSensor::init(WireWrapper& p_bus) {
             return;
         }
 
-        if (s_eventCallback) {
-            s_eventCallback(SensorEvent{convertOutputs(p_outputs)});
+        if (s_eventSink) {
+            s_eventSink->send(SensorEvent{convertOutputs(p_outputs)});
         }
     });
 
@@ -301,8 +301,8 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
 
     m_storage.saveSensorMode(m_mode);
 
-    if (s_eventCallback) {
-        s_eventCallback(SensorEvent{m_mode});
+    if (s_eventSink) {
+        s_eventSink->send(SensorEvent{m_mode});
     }
 
     return true;

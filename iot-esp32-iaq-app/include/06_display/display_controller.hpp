@@ -1,12 +1,13 @@
 #ifndef DISPLAY_CONTROLLER_HPP
 #define DISPLAY_CONTROLLER_HPP
 
+#include "01_sensor/consumer.hpp"
 #include "06_display/display.hpp"
 #include "06_display/display_types.hpp"
+#include "09_utils/freertos_task.hpp"
 #include "09_utils/mutex.hpp"
-#include "09_utils/task.hpp"
 
-class DisplayController {
+class DisplayController : public Consumer {
 public:
     DisplayController() = default;
     ~DisplayController() = default;
@@ -17,6 +18,8 @@ public:
 
     bool init(WireWrapper& p_wire);
     void start();
+
+    void update(SensorEvent p_event) override;
 
     // Thread-safe: safe to call from any task context. No-ops if init() failed or wasn't called.
     void enableDisplay();
@@ -52,7 +55,7 @@ private:
     void wait();
 
     Display m_display;
-    Task m_task;
+    FreeRtosTask m_task;
     Mutex m_mutex;
     bool m_available = false;
     bool m_enabled = false;

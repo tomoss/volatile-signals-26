@@ -7,8 +7,8 @@
 #include "00_vendor/freertos.hpp"
 #include "00_vendor/nimble.hpp"
 #include "03_wifi/wifi_types.hpp"
+#include "09_utils/freertos_task.hpp"
 #include "09_utils/queue.hpp"
-#include "09_utils/task.hpp"
 
 constexpr std::size_t BLE_ACTION_QUEUE_LENGTH = 2;
 
@@ -65,7 +65,7 @@ private:
     NimBLECharacteristic* m_passwordChar = nullptr;
 
     BleActionQueue m_queue;
-    Task m_task;
+    FreeRtosTask m_task;
 
     WifiTypes::Ssid m_ssid{};
     WifiTypes::Password m_password{};
