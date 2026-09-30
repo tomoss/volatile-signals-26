@@ -120,7 +120,7 @@ void BleProvisioner::end() {
 
     NimBLEDevice::getAdvertising()->stop();
 
-    if (m_server != nullptr && m_server->getConnectedCount() > 0) {
+    if (m_server && m_server->getConnectedCount() > 0) {
         m_stopPending = true;
         for (uint16_t l_connHandle : m_server->getPeerDevices()) {
             m_server->disconnect(l_connHandle);

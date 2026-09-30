@@ -59,7 +59,7 @@ protected:
 TEST_F(WifiSmTest, IdleStartWithCredentialsConnects) {
     adapter.credentialsAvailable = true;
 
-    sm.process_event(EvReqStart{});
+    sm.process_event(EvStartRequested{});
 
     EXPECT_TRUE(sm.is(sml::state<StConnecting>));
     EXPECT_EQ(1, adapter.connectCallCount);
@@ -68,7 +68,7 @@ TEST_F(WifiSmTest, IdleStartWithCredentialsConnects) {
 TEST_F(WifiSmTest, IdleStartWithoutCredentialsProvisions) {
     adapter.credentialsAvailable = false;
 
-    sm.process_event(EvReqStart{});
+    sm.process_event(EvStartRequested{});
 
     EXPECT_TRUE(sm.is(sml::state<StProvisioning>));
     EXPECT_EQ(0, adapter.connectCallCount);
@@ -81,9 +81,9 @@ TEST_F(WifiSmTest, IdleStartWithoutCredentialsProvisions) {
 
 TEST_F(WifiSmTest, ConnectingIsConnectedNotifies) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvReqStart{}); // -> StConnecting
+    sm.process_event(EvStartRequested{}); // -> StConnecting
 
-    sm.process_event(EvIsConnected{});
+    sm.process_event(EvConnected{});
 
     EXPECT_TRUE(sm.is(sml::state<StConnected>));
     EXPECT_EQ(1, adapter.notifyConnectedCallCount);
@@ -92,9 +92,9 @@ TEST_F(WifiSmTest, ConnectingIsConnectedNotifies) {
 
 TEST_F(WifiSmTest, ConnectingIsDisconnectedNotifies) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvReqStart{}); // -> StConnecting
+    sm.process_event(EvStartRequested{}); // -> StConnecting
 
-    sm.process_event(EvIsDisconnected{});
+    sm.process_event(EvDisconnected{});
 
     EXPECT_TRUE(sm.is(sml::state<StDisconnected>));
     EXPECT_EQ(1, adapter.notifyDisconnectedCallCount);
@@ -102,10 +102,10 @@ TEST_F(WifiSmTest, ConnectingIsDisconnectedNotifies) {
 
 TEST_F(WifiSmTest, ConnectedIsDisconnectedNotifies) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvReqStart{});    // -> StConnecting
-    sm.process_event(EvIsConnected{}); // -> StConnected
+    sm.process_event(EvStartRequested{});    // -> StConnecting
+    sm.process_event(EvConnected{}); // -> StConnected
 
-    sm.process_event(EvIsDisconnected{});
+    sm.process_event(EvDisconnected{});
 
     EXPECT_TRUE(sm.is(sml::state<StDisconnected>));
     EXPECT_EQ(1, adapter.notifyDisconnectedCallCount);
@@ -114,10 +114,10 @@ TEST_F(WifiSmTest, ConnectedIsDisconnectedNotifies) {
 TEST_F(WifiSmTest, DisconnectedReconnectUnderMaxStartsTimer) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = false;
-    sm.process_event(EvReqStart{});       // -> StConnecting
-    sm.process_event(EvIsDisconnected{}); // -> StDisconnected
+    sm.process_event(EvStartRequested{});       // -> StConnecting
+    sm.process_event(EvDisconnected{}); // -> StDisconnected
 
-    sm.process_event(EvReqReconnect{});
+    sm.process_event(EvReconnectRequested{});
 
     EXPECT_TRUE(sm.is(sml::state<StReconnectPending>));
     EXPECT_EQ(1, adapter.reconnectAttempts);
@@ -127,10 +127,10 @@ TEST_F(WifiSmTest, DisconnectedReconnectUnderMaxStartsTimer) {
 TEST_F(WifiSmTest, DisconnectedReconnectAtMaxProvisions) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = true;
-    sm.process_event(EvReqStart{});       // -> StConnecting
-    sm.process_event(EvIsDisconnected{}); // -> StDisconnected
+    sm.process_event(EvStartRequested{});       // -> StConnecting
+    sm.process_event(EvDisconnected{}); // -> StDisconnected
 
-    sm.process_event(EvReqReconnect{});
+    sm.process_event(EvReconnectRequested{});
 
     EXPECT_TRUE(sm.is(sml::state<StProvisioning>));
     EXPECT_EQ(1, adapter.notifyStartProvisioningCallCount);
@@ -140,11 +140,11 @@ TEST_F(WifiSmTest, DisconnectedReconnectAtMaxProvisions) {
 TEST_F(WifiSmTest, ReconnectPendingReqConnectReattempts) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = false;
-    sm.process_event(EvReqStart{});       // -> StConnecting, connect() #1
-    sm.process_event(EvIsDisconnected{}); // -> StDisconnected
-    sm.process_event(EvReqReconnect{});   // -> StReconnectPending
+    sm.process_event(EvStartRequested{});       // -> StConnecting, connect() #1
+    sm.process_event(EvDisconnected{}); // -> StDisconnected
+    sm.process_event(EvReconnectRequested{});   // -> StReconnectPending
 
-    sm.process_event(EvReqConnect{});
+    sm.process_event(EvConnectRequested{});
 
     EXPECT_TRUE(sm.is(sml::state<StConnecting>));
     EXPECT_EQ(2, adapter.connectCallCount);
@@ -152,7 +152,7 @@ TEST_F(WifiSmTest, ReconnectPendingReqConnectReattempts) {
 
 TEST_F(WifiSmTest, ProvisioningCredentialsUpdatedWithValidCredsConnects) {
     adapter.credentialsAvailable = false;
-    sm.process_event(EvReqStart{}); // -> StProvisioning
+    sm.process_event(EvStartRequested{}); // -> StProvisioning
 
     adapter.credentialsAvailable = true;
     sm.process_event(EvCredentialsUpdated{});
@@ -164,7 +164,7 @@ TEST_F(WifiSmTest, ProvisioningCredentialsUpdatedWithValidCredsConnects) {
 
 TEST_F(WifiSmTest, ProvisioningCredentialsUpdatedWithoutValidCredsStays) {
     adapter.credentialsAvailable = false;
-    sm.process_event(EvReqStart{}); // -> StProvisioning
+    sm.process_event(EvStartRequested{}); // -> StProvisioning
 
     sm.process_event(EvCredentialsUpdated{});
 
@@ -173,16 +173,16 @@ TEST_F(WifiSmTest, ProvisioningCredentialsUpdatedWithoutValidCredsStays) {
     EXPECT_EQ(0, adapter.notifyStopProvisioningCallCount);
 }
 
-// Informational: EvReqStop/EvReqDisconnect/EvReqProvisioning/EvReconnectScheduled/
+// Informational: EvStopRequested/EvDisconnectRequested/EvProvisioningRequested/EvReconnectScheduled/
 // EvReconnectTimeout are declared in wifi_sm.hpp but never appear in
 // make_transition_table(...). This test documents that, today, posting one of them is a
 // silent no-op rather than wired-up behavior.
 TEST_F(WifiSmTest, UnhandledEventIsNoop) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvReqStart{});    // -> StConnecting
-    sm.process_event(EvIsConnected{}); // -> StConnected
+    sm.process_event(EvStartRequested{});    // -> StConnecting
+    sm.process_event(EvConnected{}); // -> StConnected
 
-    const bool l_handled = sm.process_event(EvReqStop{});
+    const bool l_handled = sm.process_event(EvStopRequested{});
 
     EXPECT_FALSE(l_handled);
     EXPECT_TRUE(sm.is(sml::state<StConnected>));

@@ -9,15 +9,15 @@
 #include "09_utils/queue.hpp"
 #include "09_utils/task.hpp"
 
-enum class WifiQueueEventType : uint8_t {
-    Start = 0,
-    Stop = 1,
-    Connect = 2,
+enum class WifiQueueEvent : uint8_t {
+    StartRequested = 0,
+    StopRequested = 1,
+    ConnectRequested = 2,
     Connected = 3,
-    Disconnect = 4,
+    DisconnectRequested = 4,
     Disconnected = 5,
-    Reconnect = 6,
-    Provisioning = 7,
+    ReconnectRequested = 6,
+    ProvisioningRequested = 7,
     CredentialsReceived = 8
 };
 
@@ -39,12 +39,12 @@ public:
 
 private:
     using StateMachine = boost::sml::sm<WifiSm<WifiAdapter>, boost::sml::logger<WifiSmLogger>>;
-    using WifiEventQueue = Queue<WifiQueueEventType, WIFI_EVENT_QUEUE_LENGTH>;
+    using WifiEventQueue = Queue<WifiQueueEvent, WIFI_EVENT_QUEUE_LENGTH>;
 
     void loop();
 
-    void handleQueueEvent(WifiQueueEventType type);
-    void enqueueEvent(WifiQueueEventType type);
+    void handleQueueEvent(WifiQueueEvent type);
+    void enqueueEvent(WifiQueueEvent type);
 
 private:
     WifiAdapter& m_adapter;

@@ -10,7 +10,7 @@ class Mutex {
 public:
     Mutex() = default;
     ~Mutex() {
-        if (m_handle != nullptr) {
+        if (m_handle) {
             vSemaphoreDelete(m_handle);
         }
     }

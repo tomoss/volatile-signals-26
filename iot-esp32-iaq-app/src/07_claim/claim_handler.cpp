@@ -5,20 +5,11 @@
 #include <cstdio>
 #include <esp_random.h>
 
-constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 200;
+constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 50;
 
 TaskHandle_t ClaimHandler::s_taskHandle = nullptr;
 
-// Runs on the interrupt level: debounces in-place (via a static timestamp) and only wakes
-// taskLoop on an actual press, so nothing on the button path spins a polling loop.
 void IRAM_ATTR ClaimHandler::isr() {
-    static uint32_t s_lastIsrMs = 0;
-    const uint32_t l_now = millis();
-    if (l_now - s_lastIsrMs < CLAIM_BUTTON_DEBOUNCE_MS) {
-        return;
-    }
-    s_lastIsrMs = l_now;
-
     BaseType_t l_higherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR(s_taskHandle, &l_higherPriorityTaskWoken);
     portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
@@ -68,12 +59,19 @@ void ClaimHandler::loop() {
 
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
         l_showing = !l_showing;
         if (l_showing) {
             show();
         } else {
             hide();
         }
+
+        while (digitalRead(CLAIM_BUTTON_PIN) == LOW) {
+            vTaskDelay(pdMS_TO_TICKS(CLAIM_BUTTON_DEBOUNCE_MS));
+        }
+        vTaskDelay(pdMS_TO_TICKS(CLAIM_BUTTON_DEBOUNCE_MS));
+        ulTaskNotifyTake(pdTRUE, 0);
     }
 }
 

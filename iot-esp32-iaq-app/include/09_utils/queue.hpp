@@ -16,7 +16,7 @@ class Queue {
 public:
     Queue() = default;
     ~Queue() {
-        if (m_handle != nullptr) {
+        if (m_handle) {
             vQueueDelete(m_handle);
         }
     }
@@ -27,10 +27,7 @@ public:
 
     [[nodiscard]] bool init() {
         m_handle = xQueueCreate(static_cast<UBaseType_t>(N), static_cast<UBaseType_t>(sizeof(T)));
-        if (m_handle == nullptr) {
-            return false;
-        }
-        return true;
+        return bool(m_handle);
     }
 
     bool send(const T& p_item, TickType_t p_ticksToWait = 0) { return xQueueSend(m_handle, &p_item, p_ticksToWait) == pdTRUE; }

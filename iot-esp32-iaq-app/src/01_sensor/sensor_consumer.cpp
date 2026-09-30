@@ -26,10 +26,9 @@ void SensorConsumer::enqueueSensorEvent(const SensorEvent& p_event) {
 void SensorConsumer::loop() {
     for (;;) {
         SensorEvent l_event;
-        if (!m_queue.receive(l_event)) {
-            continue;
+        if (m_queue.receive(l_event)) {
+            handle(l_event);
         }
-        handle(l_event);
     }
 }
 

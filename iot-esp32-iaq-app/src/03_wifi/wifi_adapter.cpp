@@ -6,7 +6,7 @@ constexpr uint32_t RECONNECT_DELAY_MS = 30 * 1000; // 30 seconds
 WifiAdapter::WifiAdapter(Storage& p_storage) : m_storage(p_storage) {}
 
 WifiAdapter::~WifiAdapter() {
-    if (m_reconnectTimer != nullptr) {
+    if (m_reconnectTimer) {
         xTimerDelete(m_reconnectTimer, 0);
         m_reconnectTimer = nullptr;
     }
@@ -14,7 +14,7 @@ WifiAdapter::~WifiAdapter() {
 
 bool WifiAdapter::init() {
     WiFi.onEvent([this](WiFiEvent_t p_event, WiFiEventInfo_t p_info) {
-        if (m_wifiApiCallback != nullptr) {
+        if (m_wifiApiCallback) {
             m_wifiApiCallback(p_event, p_info);
         } else {
             Serial.println("WifiEventCallback not set");

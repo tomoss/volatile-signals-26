@@ -12,7 +12,7 @@ public:
 
     Task() = default;
     ~Task() {
-        if (m_handle != nullptr) {
+        if (m_handle) {
             vTaskDelete(m_handle);
             m_handle = nullptr;
         }
