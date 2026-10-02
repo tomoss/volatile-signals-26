@@ -8,14 +8,15 @@
 #include <mqtt_client.h>
 
 #include "health/device_health.hpp"
+#include "mqtt/mqtt_store.hpp"
 #include "mqtt/mqtt_types.hpp"
 #include "sensor/sensor_types.hpp"
-#include "storage/storage.hpp"
+#include "telemetry/consumer.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/device_info.hpp"
 #include "utils/mac_address.hpp"
 
-class MqttBridge {
+class MqttBridge : public TelemetryDataConsumer, public TelemetryInfoConsumer {
 public:
     using OnConnectedCallback = std::function<void()>;
     using OnDisconnectedCallback = std::function<void()>;
@@ -23,7 +24,7 @@ public:
     using OnClaimStatusCallback = std::function<void(bool p_claimed)>;
     using OnOtaCallback = std::function<void(std::string_view p_url)>;
 
-    MqttBridge(Storage& p_storage, const MacAddress& p_mac) : m_storage(p_storage), m_mac(p_mac) {}
+    MqttBridge(MqttStore& p_store, const MacAddress& p_mac) : m_store(p_store), m_mac(p_mac) {}
     ~MqttBridge();
 
     MqttBridge(const MqttBridge&) = delete;
@@ -32,6 +33,9 @@ public:
     MqttBridge& operator=(MqttBridge&&) = delete;
 
     [[nodiscard]] bool init(bool p_enableTls = false);
+
+    void update(const TelemetryData& p_data) override;
+    void update(const TelemetryInfo& p_info) override;
 
     // Currently only called from wifi callback, so no need to be thread-safe. If called from multiple threads, make it thread-safe.
     bool connect();
@@ -43,20 +47,21 @@ public:
     void setOnClaimStatusCallback(OnClaimStatusCallback p_callback) { m_onClaimStatusCallback = std::move(p_callback); }
     void setOnOtaCallback(OnOtaCallback p_callback) { m_onOtaCallback = std::move(p_callback); }
 
-    // Will be sent also if not connected, messages will be queued into the outbox and sent when connected.
-    void sendSensorData(const SensorData& p_data);
     // Will be sent only if connected, otherwise ignored. If not connected, no need to send device health data.
     void sendDeviceHealth(const DeviceHealth& p_health);
     // Static device metadata, sent retained once per connection instead of on the health timer.
     void sendDeviceInfo(const DeviceInfo& p_info);
-    // Sent retained whenever the sensor's mode actually changes, so a late subscriber immediately
-    // learns the current mode instead of waiting for the next reading.
-    void sendSensorInfo(SensorMode p_mode);
     // Sent only in direct response to a claim-button press, not on any timer or retained state.
     void sendClaimCode(const ClaimCode& p_code);
     void clearClaimCode();
 
 private:
+    // Will be sent also if not connected, messages will be queued into the outbox and sent when connected.
+    void sendTelemetryData(const TelemetryData& p_data);
+    // Sent retained whenever the sensor's mode actually changes, so a late subscriber immediately
+    // learns the current mode instead of waiting for the next reading.
+    void sendTelemetryInfo(const TelemetryInfo& p_info);
+
     void publish(const MqttTypes::Topic& p_topic, const char* p_data, int p_len, int p_retain = 0);
     void subscribe(const char* p_topic, int p_qos = 0);
     void buildTopic(MqttTypes::Topic& p_topic, std::string_view p_suffix) const;
@@ -73,13 +78,13 @@ private:
     void handleDisconnected();
 
     esp_mqtt_client_handle_t m_client = nullptr;
-    Storage& m_storage;
+    MqttStore& m_store;
     const MacAddress m_mac;
 
-    MqttTypes::Topic m_sensorDataPubTopic{};
+    MqttTypes::Topic m_telemetryDataPubTopic{};
     MqttTypes::Topic m_deviceHealthPubTopic{};
     MqttTypes::Topic m_deviceInfoPubTopic{};
-    MqttTypes::Topic m_sensorInfoPubTopic{};
+    MqttTypes::Topic m_telemetryInfoPubTopic{};
     MqttTypes::Topic m_deviceStatusPubTopic{};
     MqttTypes::Topic m_claimRequestPubTopic{};
     MqttTypes::Topic m_commandSubTopic{};

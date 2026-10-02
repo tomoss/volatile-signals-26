@@ -1,9 +1,10 @@
 #ifndef WIFI_ADAPTER_HPP
 #define WIFI_ADAPTER_HPP
 
-#include "storage/storage.hpp"
 #include "vendor/arduino.hpp"
+#include "vendor/freertos.hpp"
 #include "vendor/wifi.hpp"
+#include "wifi/wifi_store.hpp"
 #include "wifi/wifi_types.hpp"
 
 #include <array>
@@ -18,7 +19,7 @@ public:
     using DisconnectedCallback = std::function<void()>;
     using ReconnectCallback = std::function<void()>;
 
-    WifiAdapter(Storage& p_storage);
+    WifiAdapter(WifiStore& p_store);
     ~WifiAdapter();
     WifiAdapter(const WifiAdapter&) = delete;
     WifiAdapter& operator=(const WifiAdapter&) = delete;
@@ -75,7 +76,7 @@ private:
 
     uint8_t m_reconnectAttempts = 0;
     TimerHandle_t m_reconnectTimer = nullptr;
-    Storage& m_storage;
+    WifiStore& m_store;
 };
 
 #endif // WIFI_ADAPTER_HPP

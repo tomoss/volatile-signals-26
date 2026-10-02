@@ -34,25 +34,25 @@ bool MqttBridge::init(bool p_enableTls) {
         return false;
     }
 
-    auto l_host = m_storage.loadMqttHost();
+    auto l_host = m_store.loadMqttHost();
     if (!l_host) {
         Serial.println("[MQTT] Failed to load MQTT host from storage");
         return false;
     }
 
-    auto l_port = m_storage.loadMqttPort();
+    auto l_port = m_store.loadMqttPort();
     if (!l_port) {
         Serial.println("[MQTT] Failed to load MQTT port from storage");
         return false;
     }
 
-    auto l_username = m_storage.loadMqttUsername();
+    auto l_username = m_store.loadMqttUsername();
     if (!l_username) {
         Serial.println("[MQTT] Failed to load MQTT username from storage");
         return false;
     }
 
-    auto l_password = m_storage.loadMqttPassword();
+    auto l_password = m_store.loadMqttPassword();
     if (!l_password) {
         Serial.println("[MQTT] Failed to load MQTT password from storage");
         return false;
@@ -98,10 +98,10 @@ bool MqttBridge::init(bool p_enableTls) {
 
     // *** TOPICS CREATION ***
 
-    buildTopic(m_sensorDataPubTopic, "sensor_data");
+    buildTopic(m_telemetryDataPubTopic, "sensor_data");
     buildTopic(m_deviceHealthPubTopic, "device_health");
     buildTopic(m_deviceInfoPubTopic, "device_info");
-    buildTopic(m_sensorInfoPubTopic, "sensor_info");
+    buildTopic(m_telemetryInfoPubTopic, "sensor_info");
     buildTopic(m_deviceStatusPubTopic, "device_status");
     buildTopic(m_claimRequestPubTopic, "claim_request");
     buildTopic(m_commandSubTopic, "command");
@@ -122,6 +122,14 @@ bool MqttBridge::init(bool p_enableTls) {
     }
 
     return true;
+}
+
+void MqttBridge::update(const TelemetryData& p_data) {
+    sendTelemetryData(p_data);
+}
+
+void MqttBridge::update(const TelemetryInfo& p_info) {
+    sendTelemetryInfo(p_info);
 }
 
 bool MqttBridge::connect() {
@@ -150,10 +158,10 @@ bool MqttBridge::connect() {
     return false;
 }
 
-void MqttBridge::sendSensorData(const SensorData& p_data) {
+void MqttBridge::sendTelemetryData(const TelemetryData& p_data) {
     JsonDocument l_doc;
     l_doc["iaq"] = p_data.iaq;
-    l_doc["iaq_accuracy"] = static_cast<int>(p_data.iaqAccuracy);
+    l_doc["iaq_accuracy"] = p_data.iaqAccuracy;
     l_doc["co2"] = p_data.co2;
     l_doc["voc"] = p_data.voc;
     l_doc["temp"] = p_data.temp;
@@ -163,12 +171,12 @@ void MqttBridge::sendSensorData(const SensorData& p_data) {
 
     MqttTypes::Payload l_payload{};
     if (measureJson(l_doc) >= l_payload.size()) {
-        Serial.println("[MQTT] Sensor data payload too large");
+        Serial.println("[MQTT] Telemetry data payload too large");
         return;
     }
 
     const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
-    publish(m_sensorDataPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
+    publish(m_telemetryDataPubTopic, l_payload.data(), static_cast<int>(l_payloadLen));
 }
 
 void MqttBridge::sendDeviceHealth(const DeviceHealth& p_health) {
@@ -220,20 +228,20 @@ void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
     publish(m_deviceInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
 }
 
-void MqttBridge::sendSensorInfo(SensorMode p_mode) {
+void MqttBridge::sendTelemetryInfo(const TelemetryInfo& p_info) {
     JsonDocument l_doc;
-    l_doc["mode"] = static_cast<int>(p_mode);
+    l_doc["mode"] = p_info.sensorMode;
 
     MqttTypes::Payload l_payload{};
     if (measureJson(l_doc) >= l_payload.size()) {
-        Serial.println("[MQTT] Sensor info payload too large");
+        Serial.println("[MQTT] Telemetry info payload too large");
         return;
     }
 
     const size_t l_payloadLen = serializeJson(l_doc, l_payload.data(), l_payload.size());
     // Retained so a late-subscribing client immediately learns the current mode instead of
     // waiting for it to change again.
-    publish(m_sensorInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
+    publish(m_telemetryInfoPubTopic, l_payload.data(), static_cast<int>(l_payloadLen), 1);
 }
 
 void MqttBridge::sendClaimCode(const ClaimCode& p_code) {
