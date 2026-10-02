@@ -6,13 +6,13 @@
 class TelemetryDataConsumer {
 public:
     virtual ~TelemetryDataConsumer() = default;
-    virtual void update(const TelemetryData& data) = 0;
+    virtual void update(const TelemetryData& p_data) = 0;
 };
 
 class TelemetryInfoConsumer {
 public:
     virtual ~TelemetryInfoConsumer() = default;
-    virtual void update(const TelemetryInfo& info) = 0;
+    virtual void update(const TelemetryInfo& p_info) = 0;
 };
 
 #endif // CONSUMER_HPP
