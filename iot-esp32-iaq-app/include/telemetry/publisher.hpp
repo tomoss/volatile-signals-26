@@ -8,23 +8,23 @@
 
 class Publisher {
 public:
-    void addDataConsumer(TelemetryDataConsumer& observer) { m_dataObservers.push_back(&observer); }
-    void addInfoConsumer(TelemetryInfoConsumer& observer) { m_modeObservers.push_back(&observer); }
+    void addDataConsumer(TelemetryDataConsumer& p_consumer) { m_dataConsumers.push_back(&p_consumer); }
+    void addInfoConsumer(TelemetryInfoConsumer& p_consumer) { m_infoConsumers.push_back(&p_consumer); }
 
 protected:
-    void notify(const TelemetryData& data) {
-        for (auto* observer : m_dataObservers)
-            observer->update(data);
+    void notify(const TelemetryData& p_data) {
+        for (auto* l_consumer : m_dataConsumers)
+            l_consumer->update(p_data);
     }
 
-    void notify(const TelemetryInfo& info) {
-        for (auto* observer : m_modeObservers)
-            observer->update(info);
+    void notify(const TelemetryInfo& p_info) {
+        for (auto* l_consumer : m_infoConsumers)
+            l_consumer->update(p_info);
     }
 
 private:
-    std::list<TelemetryDataConsumer*> m_dataObservers;
-    std::list<TelemetryInfoConsumer*> m_modeObservers;
+    std::list<TelemetryDataConsumer*> m_dataConsumers;
+    std::list<TelemetryInfoConsumer*> m_infoConsumers;
 };
 
 #endif // PUBLISHER_HPP
