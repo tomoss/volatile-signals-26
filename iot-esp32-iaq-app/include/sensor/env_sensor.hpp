@@ -4,8 +4,8 @@
 #include <optional>
 
 #include "sensor/sensor_state.hpp"
+#include "sensor/sensor_store.hpp"
 #include "sensor/sensor_types.hpp"
-#include "storage/storage.hpp"
 #include "telemetry/telemetry_sink.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
@@ -18,7 +18,7 @@ using SensorModeRequestQueue = Queue<SensorMode, 1>;
 
 class EnvSensor {
 public:
-    EnvSensor(Storage& p_storage, TelemetrySink& p_telemetrySink) : m_storage(p_storage) { s_telemetrySink = &p_telemetrySink; }
+    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink) : m_store(p_store) { s_telemetrySink = &p_telemetrySink; }
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
@@ -60,7 +60,7 @@ private:
     SensorMode m_mode = SensorMode::LowPower;
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
-    Storage& m_storage;
+    SensorStore& m_store;
     SensorModeRequestQueue m_modeRequestQueue;
     Task m_task;
 

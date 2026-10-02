@@ -34,25 +34,25 @@ bool MqttBridge::init(bool p_enableTls) {
         return false;
     }
 
-    auto l_host = m_storage.loadMqttHost();
+    auto l_host = m_store.loadMqttHost();
     if (!l_host) {
         Serial.println("[MQTT] Failed to load MQTT host from storage");
         return false;
     }
 
-    auto l_port = m_storage.loadMqttPort();
+    auto l_port = m_store.loadMqttPort();
     if (!l_port) {
         Serial.println("[MQTT] Failed to load MQTT port from storage");
         return false;
     }
 
-    auto l_username = m_storage.loadMqttUsername();
+    auto l_username = m_store.loadMqttUsername();
     if (!l_username) {
         Serial.println("[MQTT] Failed to load MQTT username from storage");
         return false;
     }
 
-    auto l_password = m_storage.loadMqttPassword();
+    auto l_password = m_store.loadMqttPassword();
     if (!l_password) {
         Serial.println("[MQTT] Failed to load MQTT password from storage");
         return false;
@@ -161,7 +161,7 @@ bool MqttBridge::connect() {
 void MqttBridge::sendTelemetryData(const TelemetryData& p_data) {
     JsonDocument l_doc;
     l_doc["iaq"] = p_data.iaq;
-    l_doc["iaq_accuracy"] = static_cast<int>(p_data.iaqAccuracy);
+    l_doc["iaq_accuracy"] = p_data.iaqAccuracy;
     l_doc["co2"] = p_data.co2;
     l_doc["voc"] = p_data.voc;
     l_doc["temp"] = p_data.temp;
@@ -230,7 +230,7 @@ void MqttBridge::sendDeviceInfo(const DeviceInfo& p_info) {
 
 void MqttBridge::sendTelemetryInfo(const TelemetryInfo& p_info) {
     JsonDocument l_doc;
-    l_doc["mode"] = static_cast<int>(p_info.sensorMode);
+    l_doc["mode"] = p_info.sensorMode;
 
     MqttTypes::Payload l_payload{};
     if (measureJson(l_doc) >= l_payload.size()) {
