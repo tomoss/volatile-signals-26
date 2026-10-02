@@ -1,12 +1,12 @@
 #ifndef SENSOR_CONSUMER_HPP
 #define SENSOR_CONSUMER_HPP
 
-#include "vendor/freertos.hpp"
-#include "sensor/sensor_types.hpp"
-#include "mqtt/mqtt_bridge.hpp"
 #include "display/display_controller.hpp"
+#include "mqtt/mqtt_bridge.hpp"
+#include "sensor/sensor_types.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
+#include "vendor/freertos.hpp"
 
 constexpr std::size_t SENSOR_EVENT_QUEUE_LENGTH = 10;
 

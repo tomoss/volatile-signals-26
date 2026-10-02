@@ -1,7 +1,7 @@
 #include "mqtt/mqtt_bridge.hpp"
+#include "mqtt/mqtt_types.hpp"
 #include "vendor/arduino.hpp"
 #include "vendor/arduinojson.hpp"
-#include "mqtt/mqtt_types.hpp"
 
 #include <algorithm>
 #include <array>

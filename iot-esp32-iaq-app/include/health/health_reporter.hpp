@@ -1,10 +1,10 @@
 #ifndef HEALTH_REPORTER_HPP
 #define HEALTH_REPORTER_HPP
 
-#include "vendor/freertos.hpp"
-#include "wifi/wifi_adapter.hpp"
 #include "mqtt/mqtt_bridge.hpp"
 #include "utils/task.hpp"
+#include "vendor/freertos.hpp"
+#include "wifi/wifi_adapter.hpp"
 
 // Periodically publishes device health (RSSI/heap/uptime) over MQTT from its own task.
 class HealthReporter {

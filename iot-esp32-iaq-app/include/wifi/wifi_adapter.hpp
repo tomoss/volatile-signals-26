@@ -1,9 +1,9 @@
 #ifndef WIFI_ADAPTER_HPP
 #define WIFI_ADAPTER_HPP
 
+#include "storage/storage.hpp"
 #include "vendor/arduino.hpp"
 #include "vendor/wifi.hpp"
-#include "storage/storage.hpp"
 #include "wifi/wifi_types.hpp"
 
 #include <array>

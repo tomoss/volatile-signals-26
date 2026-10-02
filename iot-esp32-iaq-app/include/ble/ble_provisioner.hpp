@@ -4,11 +4,11 @@
 #include <array>
 #include <functional>
 
+#include "utils/queue.hpp"
+#include "utils/task.hpp"
 #include "vendor/freertos.hpp"
 #include "vendor/nimble.hpp"
 #include "wifi/wifi_types.hpp"
-#include "utils/queue.hpp"
-#include "utils/task.hpp"
 
 constexpr std::size_t BLE_ACTION_QUEUE_LENGTH = 2;
 

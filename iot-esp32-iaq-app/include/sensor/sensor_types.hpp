@@ -7,8 +7,8 @@
 #include <ctime>
 #include <variant>
 
-#include "vendor/bsec2.hpp"
 #include "utils/queue.hpp"
+#include "vendor/bsec2.hpp"
 
 using SensorState = std::array<uint8_t, BSEC_MAX_STATE_BLOB_SIZE>;
 

@@ -7,10 +7,10 @@
 
 #include <mqtt_client.h>
 
+#include "health/device_health.hpp"
+#include "mqtt/mqtt_types.hpp"
 #include "sensor/sensor_types.hpp"
 #include "storage/storage.hpp"
-#include "mqtt/mqtt_types.hpp"
-#include "health/device_health.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/device_info.hpp"
 #include "utils/mac_address.hpp"

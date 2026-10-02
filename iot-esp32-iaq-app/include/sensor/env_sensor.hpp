@@ -4,13 +4,13 @@
 #include <functional>
 #include <optional>
 
-#include "vendor/bsec2.hpp"
-#include "vendor/freertos.hpp"
 #include "sensor/sensor_types.hpp"
 #include "storage/storage.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
 #include "utils/wire_wrapper.hpp"
+#include "vendor/bsec2.hpp"
+#include "vendor/freertos.hpp"
 
 class EnvSensor {
 public:

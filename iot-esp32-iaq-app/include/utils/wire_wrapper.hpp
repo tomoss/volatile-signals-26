@@ -2,6 +2,7 @@
 #define WIRE_WRAPPER_HPP
 
 #include "vendor/arduino.hpp"
+#include "vendor/wire.hpp"
 
 // I2C Fast-mode clock for the bus shared by the display and sensor. 400 kHz keeps each
 // display refresh's bus-hold short so it barely perturbs sensor reads.

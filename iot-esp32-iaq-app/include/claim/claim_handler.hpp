@@ -3,12 +3,12 @@
 
 #include <atomic>
 
-#include "vendor/freertos.hpp"
-#include "storage/storage.hpp"
-#include "mqtt/mqtt_bridge.hpp"
 #include "display/display_controller.hpp"
+#include "mqtt/mqtt_bridge.hpp"
+#include "storage/storage.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/task.hpp"
+#include "vendor/freertos.hpp"
 
 // Seeed XIAO Expansion Base user button - wired active-low to GND, needs the internal pull-up.
 constexpr int CLAIM_BUTTON_PIN = D1;
@@ -33,7 +33,6 @@ public:
 
     // Creates the task and wires up the button pin/interrupt.
     void start();
-
 
     void setClaimed(bool p_claimed);
 

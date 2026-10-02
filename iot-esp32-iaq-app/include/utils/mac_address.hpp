@@ -16,15 +16,7 @@ inline MacAddress readMacAddress() {
     esp_read_mac(l_mac.data(), ESP_MAC_WIFI_STA);
 
     MacAddress l_macAddress{};
-    snprintf(l_macAddress.data(),
-             l_macAddress.size(),
-             "%02X:%02X:%02X:%02X:%02X:%02X",
-             l_mac[0],
-             l_mac[1],
-             l_mac[2],
-             l_mac[3],
-             l_mac[4],
-             l_mac[5]);
+    snprintf(l_macAddress.data(), l_macAddress.size(), "%02X:%02X:%02X:%02X:%02X:%02X", l_mac[0], l_mac[1], l_mac[2], l_mac[3], l_mac[4], l_mac[5]);
     return l_macAddress;
 }
 

@@ -5,12 +5,12 @@
 #include <cstdint>
 #include <optional>
 
-#include "vendor/preferences.hpp"
-#include "sensor/sensor_types.hpp"
-#include "wifi/wifi_types.hpp"
 #include "mqtt/mqtt_types.hpp"
+#include "sensor/sensor_types.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/mutex.hpp"
+#include "vendor/preferences.hpp"
+#include "wifi/wifi_types.hpp"
 
 class Storage {
 public:

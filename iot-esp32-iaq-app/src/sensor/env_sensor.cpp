@@ -1,7 +1,7 @@
 #include "sensor/env_sensor.hpp"
 
-#include "vendor/arduino.hpp"
 #include "storage/storage.hpp"
+#include "vendor/arduino.hpp"
 
 EnvSensor::EventCallback EnvSensor::s_eventCallback;
 

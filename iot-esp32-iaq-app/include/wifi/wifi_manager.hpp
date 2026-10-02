@@ -1,13 +1,13 @@
 #ifndef WIFI_MANAGER_HPP
 #define WIFI_MANAGER_HPP
 
-#include "vendor/arduino.hpp"
-#include "vendor/sml.hpp"
 #include "storage/storage.hpp"
-#include "wifi/wifi_adapter.hpp"
-#include "wifi/wifi_sm.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
+#include "vendor/arduino.hpp"
+#include "vendor/sml.hpp"
+#include "wifi/wifi_adapter.hpp"
+#include "wifi/wifi_sm.hpp"
 
 enum class WifiQueueEvent : uint8_t {
     StartRequested = 0,

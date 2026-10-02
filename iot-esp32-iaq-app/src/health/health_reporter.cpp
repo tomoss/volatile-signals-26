@@ -1,13 +1,15 @@
 #include "health/health_reporter.hpp"
 
-#include "vendor/arduino.hpp"
 #include "health/device_health.hpp"
+#include "vendor/arduino.hpp"
 
 // How often to publish device health (RSSI/heap/uptime) - diagnostic data
 constexpr uint32_t PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 
 void HealthReporter::start() {
-    m_task.createAndStart("health_task", [this] { taskLoop(); });
+    m_task.createAndStart("health_task", [this] {
+        taskLoop();
+    });
 }
 
 void HealthReporter::taskLoop() {

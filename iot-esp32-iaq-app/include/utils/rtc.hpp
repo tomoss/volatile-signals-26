@@ -4,8 +4,8 @@
 #include <ctime>
 #include <optional>
 
-#include "vendor/rtclib.hpp"
 #include "utils/wire_wrapper.hpp"
+#include "vendor/rtclib.hpp"
 
 // PCF8563 RTC on the Seeed XIAO Expansion Base, battery-backed so it holds time across power loss/reset.
 class RealTimeClock {

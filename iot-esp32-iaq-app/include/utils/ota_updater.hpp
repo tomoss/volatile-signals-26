@@ -4,17 +4,16 @@
 #include <atomic>
 #include <string_view>
 
-#include "sensor/env_sensor.hpp"
-#include "mqtt/mqtt_types.hpp"
 #include "display/display_controller.hpp"
+#include "mqtt/mqtt_types.hpp"
+#include "sensor/env_sensor.hpp"
 
 // Runs a firmware update in its own task, on request. Meant to be wired into
 // MqttBridge::setOnOtaCallback via onOtaRequested(). Only one update may run at a time; a
 // request received while one is already in flight is ignored.
 class OtaUpdater {
 public:
-    OtaUpdater(EnvSensor& p_envSensor, DisplayController& p_displayController)
-        : m_envSensor(p_envSensor), m_displayController(p_displayController) {}
+    OtaUpdater(EnvSensor& p_envSensor, DisplayController& p_displayController) : m_envSensor(p_envSensor), m_displayController(p_displayController) {}
     ~OtaUpdater() = default;
     OtaUpdater(const OtaUpdater&) = delete;
     OtaUpdater& operator=(const OtaUpdater&) = delete;
