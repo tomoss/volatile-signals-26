@@ -317,7 +317,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_store.saveSensorMode(m_mode);
 
     if (s_telemetrySink) {
-        s_telemetrySink->enqueue(TelemetryEvent{TelemetryInfo{static_cast<uint8_t>(m_mode)}});
+        s_telemetrySink->enqueue(TelemetryInfo{static_cast<uint8_t>(m_mode)});
     }
 
     return true;
