@@ -16,9 +16,9 @@ void IRAM_ATTR ClaimHandler::isr() {
 }
 
 bool ClaimHandler::init() {
-    m_claimed.store(m_storage.loadDeviceClaimStatus());
+    m_claimed.store(m_store.loadDeviceClaimStatus());
 
-    if (const auto l_saved = m_storage.loadClaimCode()) {
+    if (const auto l_saved = m_store.loadClaimCode()) {
         m_code = *l_saved;
         m_displayController.setClaimingCode(m_code);
         return true;
@@ -26,7 +26,7 @@ bool ClaimHandler::init() {
 
     const uint32_t l_random = esp_random() % 1000000;
     snprintf(m_code.data(), m_code.size(), "%06lu", static_cast<unsigned long>(l_random));
-    if (!m_storage.saveClaimCode(m_code)) {
+    if (!m_store.saveClaimCode(m_code)) {
         Serial.println("Failed to save claim code");
         return false;
     }
@@ -37,7 +37,7 @@ bool ClaimHandler::init() {
 
 void ClaimHandler::setClaimed(bool p_claimed) {
     if (m_claimed.exchange(p_claimed) != p_claimed) {
-        m_storage.saveDeviceClaimStatus(p_claimed);
+        m_store.saveDeviceClaimStatus(p_claimed);
     }
     m_displayController.setClaimedStatus(p_claimed);
 }

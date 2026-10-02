@@ -3,9 +3,9 @@
 
 #include <atomic>
 
+#include "claim/claim_store.hpp"
 #include "display/display_controller.hpp"
 #include "mqtt/mqtt_bridge.hpp"
-#include "storage/storage.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/task.hpp"
 #include "vendor/freertos.hpp"
@@ -18,9 +18,9 @@ constexpr int CLAIM_BUTTON_PIN = D1;
 // ISR reaches the task through a single static handle.
 class ClaimHandler {
 public:
-    ClaimHandler(DisplayController& p_displayController, Storage& p_storage, MqttBridge& p_mqttBridge)
+    ClaimHandler(DisplayController& p_displayController, ClaimStore& p_store, MqttBridge& p_mqttBridge)
         : m_displayController(p_displayController)
-        , m_storage(p_storage)
+        , m_store(p_store)
         , m_mqttBridge(p_mqttBridge) {}
     ~ClaimHandler() = default;
     ClaimHandler(const ClaimHandler&) = delete;
@@ -43,7 +43,7 @@ private:
     void hide();
 
     DisplayController& m_displayController;
-    Storage& m_storage;
+    ClaimStore& m_store;
     MqttBridge& m_mqttBridge;
     ClaimCode m_code{};
     std::atomic<bool> m_claimed{false};

@@ -8,8 +8,9 @@
 #include <mqtt_client.h>
 
 #include "health/device_health.hpp"
+#include "mqtt/mqtt_store.hpp"
 #include "mqtt/mqtt_types.hpp"
-#include "storage/storage.hpp"
+#include "sensor/sensor_types.hpp"
 #include "telemetry/consumer.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/device_info.hpp"
@@ -23,7 +24,7 @@ public:
     using OnClaimStatusCallback = std::function<void(bool p_claimed)>;
     using OnOtaCallback = std::function<void(std::string_view p_url)>;
 
-    MqttBridge(Storage& p_storage, const MacAddress& p_mac) : m_storage(p_storage), m_mac(p_mac) {}
+    MqttBridge(MqttStore& p_store, const MacAddress& p_mac) : m_store(p_store), m_mac(p_mac) {}
     ~MqttBridge();
 
     MqttBridge(const MqttBridge&) = delete;
@@ -77,7 +78,7 @@ private:
     void handleDisconnected();
 
     esp_mqtt_client_handle_t m_client = nullptr;
-    Storage& m_storage;
+    MqttStore& m_store;
     const MacAddress m_mac;
 
     MqttTypes::Topic m_telemetryDataPubTopic{};

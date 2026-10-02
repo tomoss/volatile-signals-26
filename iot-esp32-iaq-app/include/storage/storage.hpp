@@ -5,15 +5,14 @@
 #include <cstdint>
 #include <optional>
 
-#include "mqtt/mqtt_types.hpp"
-#include "sensor/sensor_state.hpp"
-#include "sensor/sensor_types.hpp"
-#include "utils/claim_code.hpp"
+#include "claim/claim_store.hpp"
+#include "mqtt/mqtt_store.hpp"
+#include "sensor/sensor_store.hpp"
 #include "utils/mutex.hpp"
 #include "vendor/preferences.hpp"
-#include "wifi/wifi_types.hpp"
+#include "wifi/wifi_store.hpp"
 
-class Storage {
+class Storage : public SensorStore, public WifiStore, public MqttStore, public ClaimStore {
 public:
     Storage() = default;
     ~Storage() = default;
@@ -30,35 +29,35 @@ public:
         return true;
     }
 
-    std::optional<SensorState> loadBsecState(SensorMode p_mode);
-    bool saveBsecState(SensorMode p_mode, const SensorState& p_state);
+    std::optional<SensorState> loadBsecState(SensorMode p_mode) override;
+    bool saveBsecState(SensorMode p_mode, const SensorState& p_state) override;
 
-    std::optional<SensorMode> loadSensorMode();
-    bool saveSensorMode(SensorMode p_mode);
+    std::optional<SensorMode> loadSensorMode() override;
+    bool saveSensorMode(SensorMode p_mode) override;
 
-    std::optional<WifiTypes::Ssid> loadWifiSSID();
-    bool saveWifiSSID(const WifiTypes::Ssid& p_ssid);
+    std::optional<WifiTypes::Ssid> loadWifiSSID() override;
+    bool saveWifiSSID(const WifiTypes::Ssid& p_ssid) override;
 
-    std::optional<WifiTypes::Password> loadWifiPass();
-    bool saveWifiPass(const WifiTypes::Password& p_password);
+    std::optional<WifiTypes::Password> loadWifiPass() override;
+    bool saveWifiPass(const WifiTypes::Password& p_password) override;
 
-    std::optional<MqttTypes::Host> loadMqttHost();
+    std::optional<MqttTypes::Host> loadMqttHost() override;
     bool saveMqttHost(const MqttTypes::Host& p_host);
 
-    std::optional<MqttTypes::Port> loadMqttPort();
+    std::optional<MqttTypes::Port> loadMqttPort() override;
     bool saveMqttPort(MqttTypes::Port p_port);
 
-    std::optional<MqttTypes::Username> loadMqttUsername();
+    std::optional<MqttTypes::Username> loadMqttUsername() override;
     bool saveMqttUsername(const MqttTypes::Username& p_username);
 
-    std::optional<MqttTypes::Password> loadMqttPassword();
+    std::optional<MqttTypes::Password> loadMqttPassword() override;
     bool saveMqttPassword(const MqttTypes::Password& p_password);
 
-    bool loadDeviceClaimStatus();
-    bool saveDeviceClaimStatus(bool p_claimed);
+    bool loadDeviceClaimStatus() override;
+    bool saveDeviceClaimStatus(bool p_claimed) override;
 
-    std::optional<ClaimCode> loadClaimCode();
-    bool saveClaimCode(const ClaimCode& p_code);
+    std::optional<ClaimCode> loadClaimCode() override;
+    bool saveClaimCode(const ClaimCode& p_code) override;
 
 private:
     template<typename Func>
