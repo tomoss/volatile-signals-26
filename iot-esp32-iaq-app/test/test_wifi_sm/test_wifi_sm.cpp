@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "03_wifi/wifi_sm.hpp"
-#include "03_wifi/wifi_types.hpp"
+#include "wifi/wifi_sm.hpp"
+#include "wifi/wifi_types.hpp"
 
 // Plain test double - no inheritance, no vendor types. WifiSm<TAdapter> is templated on
 // the adapter type precisely so this can stand in for the real WifiAdapter (see

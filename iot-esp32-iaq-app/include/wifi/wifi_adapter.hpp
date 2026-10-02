@@ -1,0 +1,81 @@
+#ifndef WIFI_ADAPTER_HPP
+#define WIFI_ADAPTER_HPP
+
+#include "vendor/arduino.hpp"
+#include "vendor/wifi.hpp"
+#include "storage/storage.hpp"
+#include "wifi/wifi_types.hpp"
+
+#include <array>
+#include <functional>
+
+class WifiAdapter {
+public:
+    using WifiEventCallback = std::function<void(WiFiEvent_t, WiFiEventInfo_t)>;
+    using StartProvisioningCallback = std::function<void()>;
+    using StopProvisioningCallback = std::function<void()>;
+    using ConnectedCallback = std::function<void()>;
+    using DisconnectedCallback = std::function<void()>;
+    using ReconnectCallback = std::function<void()>;
+
+    WifiAdapter(Storage& p_storage);
+    ~WifiAdapter();
+    WifiAdapter(const WifiAdapter&) = delete;
+    WifiAdapter& operator=(const WifiAdapter&) = delete;
+    WifiAdapter(WifiAdapter&&) = delete;
+    WifiAdapter& operator=(WifiAdapter&&) = delete;
+
+    [[nodiscard]] bool init();
+    void setWifiCallback(WifiEventCallback p_callback);
+    [[nodiscard]] bool loadCredentials();
+    [[nodiscard]] bool saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password);
+
+    void setStartProvisioningCallback(StartProvisioningCallback p_callback);
+    void notifyStartProvisioning() const;
+
+    void setStopProvisioningCallback(StopProvisioningCallback p_callback);
+    void notifyStopProvisioning() const;
+
+    void setConnectedCallback(ConnectedCallback p_callback);
+    void notifyConnected() const;
+
+    void setDisconnectedCallback(DisconnectedCallback p_callback);
+    void notifyDisconnected() const;
+
+    // Reconnect-attempt budget, checked by the SM's GuMaxAttemptsReached guard.
+    void increaseReconnectAttempts();
+    bool hasReachedMaxReconnectAttempts() const;
+    void resetReconnectAttempts();
+    uint8_t getReconnectAttempts() const { return m_reconnectAttempts; }
+
+    // Reconnect timer is created/owned here; setReconnectCallback is the relay slot
+    // WifiManager fills in (same shape as setWifiCallback) to react when it fires.
+    void setReconnectCallback(ReconnectCallback p_callback);
+    bool startReconnectTimer() const;
+
+    [[nodiscard]] bool connect();
+
+    WifiTypes::Rssi getRSSI() const;
+    WifiTypes::Ssid getSSID() const;
+    WifiTypes::IpAddr getIPAddress() const;
+
+private:
+    // Timer callback is static because the timer API doesn't support capturing lambdas or std::function.
+    static void reconnectTimerTimeout(TimerHandle_t p_timer);
+
+    WifiTypes::Ssid m_ssid = {};
+    WifiTypes::Password m_password = {};
+
+    WifiEventCallback m_wifiApiCallback;
+    StartProvisioningCallback m_startProvisioningCallback;
+    StopProvisioningCallback m_stopProvisioningCallback;
+    ConnectedCallback m_connectedCallback;
+    DisconnectedCallback m_disconnectedCallback;
+    ReconnectCallback m_reconnectCallback;
+
+    uint8_t m_reconnectAttempts = 0;
+    TimerHandle_t m_reconnectTimer = nullptr;
+    Storage& m_storage;
+};
+
+#endif // WIFI_ADAPTER_HPP
