@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "mqtt/mqtt_types.hpp"
+#include "sensor/sensor_state.hpp"
 #include "sensor/sensor_types.hpp"
 #include "utils/claim_code.hpp"
 #include "utils/mutex.hpp"
