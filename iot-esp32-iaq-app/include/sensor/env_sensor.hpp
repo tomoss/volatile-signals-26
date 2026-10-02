@@ -1,0 +1,71 @@
+#ifndef ENV_SENSOR_HPP
+#define ENV_SENSOR_HPP
+
+#include <functional>
+#include <optional>
+
+#include "sensor/sensor_types.hpp"
+#include "storage/storage.hpp"
+#include "utils/queue.hpp"
+#include "utils/task.hpp"
+#include "utils/wire_wrapper.hpp"
+#include "vendor/bsec2.hpp"
+#include "vendor/freertos.hpp"
+
+class EnvSensor {
+public:
+    using EventCallback = std::function<void(const SensorEvent& p_event)>;
+
+    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
+    ~EnvSensor() = default;
+    EnvSensor(const EnvSensor&) = delete;
+    const EnvSensor& operator=(const EnvSensor&) = delete;
+    EnvSensor(EnvSensor&&) = delete;
+    EnvSensor& operator=(EnvSensor&&) = delete;
+
+    void setEventCallback(EventCallback p_callback) { s_eventCallback = std::move(p_callback); }
+
+    [[nodiscard]] bool init(WireWrapper& p_bus);
+
+    // Starts the background task
+    void start();
+
+    // Thread-safe: queues a mode change to be applied on the next run() call
+    void enqueueModeChange(SensorMode p_mode);
+
+private:
+    std::optional<SensorState> getStateFromBsec();
+    bool setStateToBsec(const SensorState& p_state);
+
+    bool setMode(SensorMode p_mode);
+    // Applies config/subscription/state-restore for p_mode and updates m_mode.
+    bool applyMode(SensorMode p_mode);
+
+    // Picks the bundled AI config for p_mode and sets it on m_bsec.
+    bool setConfig(SensorMode p_mode);
+
+    void run();
+    void checkModeChangeRequest();
+
+    // Save state to storage once accuracy first reaches High for this mode, then every STATE_SAVE_PERIOD_MS as long as
+    // accuracy remains High
+    void maybeSaveStateToStorage();
+
+    void checkBsecStatus();
+    void printMode();
+
+    void loop();
+
+    Bsec2 m_bsec;
+    SensorMode m_mode = SensorMode::LowPower;
+    bool m_hasSavedStateForMode{false};
+    uint64_t m_lastStateSaveMs = 0ULL;
+    Storage& m_storage;
+    SensorModeRequestQueue m_modeRequestQueue;
+    Task m_task;
+
+    // Static because Bsec2::attachCallback only takes a plain function pointer
+    static EventCallback s_eventCallback;
+};
+
+#endif // ENV_SENSOR_HPP

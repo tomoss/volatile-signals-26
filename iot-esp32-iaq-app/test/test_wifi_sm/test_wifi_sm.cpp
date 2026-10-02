@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "03_wifi/wifi_sm.hpp"
-#include "03_wifi/wifi_types.hpp"
+#include "wifi/wifi_sm.hpp"
+#include "wifi/wifi_types.hpp"
 
 // Plain test double - no inheritance, no vendor types. WifiSm<TAdapter> is templated on
 // the adapter type precisely so this can stand in for the real WifiAdapter (see
@@ -102,8 +102,8 @@ TEST_F(WifiSmTest, ConnectingIsDisconnectedNotifies) {
 
 TEST_F(WifiSmTest, ConnectedIsDisconnectedNotifies) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvStartRequested{});    // -> StConnecting
-    sm.process_event(EvConnected{}); // -> StConnected
+    sm.process_event(EvStartRequested{}); // -> StConnecting
+    sm.process_event(EvConnected{});      // -> StConnected
 
     sm.process_event(EvDisconnected{});
 
@@ -114,8 +114,8 @@ TEST_F(WifiSmTest, ConnectedIsDisconnectedNotifies) {
 TEST_F(WifiSmTest, DisconnectedReconnectUnderMaxStartsTimer) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = false;
-    sm.process_event(EvStartRequested{});       // -> StConnecting
-    sm.process_event(EvDisconnected{}); // -> StDisconnected
+    sm.process_event(EvStartRequested{}); // -> StConnecting
+    sm.process_event(EvDisconnected{});   // -> StDisconnected
 
     sm.process_event(EvReconnectRequested{});
 
@@ -127,8 +127,8 @@ TEST_F(WifiSmTest, DisconnectedReconnectUnderMaxStartsTimer) {
 TEST_F(WifiSmTest, DisconnectedReconnectAtMaxProvisions) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = true;
-    sm.process_event(EvStartRequested{});       // -> StConnecting
-    sm.process_event(EvDisconnected{}); // -> StDisconnected
+    sm.process_event(EvStartRequested{}); // -> StConnecting
+    sm.process_event(EvDisconnected{});   // -> StDisconnected
 
     sm.process_event(EvReconnectRequested{});
 
@@ -140,9 +140,9 @@ TEST_F(WifiSmTest, DisconnectedReconnectAtMaxProvisions) {
 TEST_F(WifiSmTest, ReconnectPendingReqConnectReattempts) {
     adapter.credentialsAvailable = true;
     adapter.maxAttemptsReached = false;
-    sm.process_event(EvStartRequested{});       // -> StConnecting, connect() #1
-    sm.process_event(EvDisconnected{}); // -> StDisconnected
-    sm.process_event(EvReconnectRequested{});   // -> StReconnectPending
+    sm.process_event(EvStartRequested{});     // -> StConnecting, connect() #1
+    sm.process_event(EvDisconnected{});       // -> StDisconnected
+    sm.process_event(EvReconnectRequested{}); // -> StReconnectPending
 
     sm.process_event(EvConnectRequested{});
 
@@ -179,8 +179,8 @@ TEST_F(WifiSmTest, ProvisioningCredentialsUpdatedWithoutValidCredsStays) {
 // silent no-op rather than wired-up behavior.
 TEST_F(WifiSmTest, UnhandledEventIsNoop) {
     adapter.credentialsAvailable = true;
-    sm.process_event(EvStartRequested{});    // -> StConnecting
-    sm.process_event(EvConnected{}); // -> StConnected
+    sm.process_event(EvStartRequested{}); // -> StConnecting
+    sm.process_event(EvConnected{});      // -> StConnected
 
     const bool l_handled = sm.process_event(EvStopRequested{});
 
