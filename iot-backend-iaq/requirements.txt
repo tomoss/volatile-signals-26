@@ -1,5 +1,5 @@
 asgiref==3.11.1
-Django==6.0.7
+Django==6.0.8
 paho-mqtt==2.1.0
 psycopg[c]==3.2.10
 sqlparse==0.6.0
