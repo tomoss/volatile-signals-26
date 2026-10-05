@@ -13,7 +13,7 @@ void HealthReporter::start() {
 }
 
 void HealthReporter::taskLoop() {
-    for (;;) {
+    while (m_task.running()) {
         DeviceHealth l_health;
         l_health.rssi = m_wifiAdapter.getRSSI();
         l_health.heap = ESP.getFreeHeap();

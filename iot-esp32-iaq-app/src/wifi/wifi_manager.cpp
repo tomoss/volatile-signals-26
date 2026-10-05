@@ -4,7 +4,7 @@
 
 constexpr uint32_t QUEUE_LENGTH = 10;
 
-WifiManager::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
+WifiManager::WifiManager(WifiAdapter& p_adapter, Task& p_task) : m_adapter(p_adapter), m_sm(m_adapter, m_logger), m_task(p_task) {}
 
 bool WifiManager::init() {
 
@@ -75,7 +75,7 @@ void WifiManager::saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid,
 }
 
 void WifiManager::loop() {
-    for (;;) {
+    while (m_task.running()) {
         WifiQueueEvent type;
         if (m_queue.receive(type)) {
             handleQueueEvent(type);

@@ -3,13 +3,14 @@
 
 #include "display/display.hpp"
 #include "display/display_types.hpp"
+#include "task/task.hpp"
 #include "telemetry/consumer.hpp"
+#include "utils/binary_semaphore.hpp"
 #include "utils/mutex.hpp"
-#include "utils/task.hpp"
 
 class DisplayController : public TelemetryDataConsumer {
 public:
-    DisplayController() = default;
+    explicit DisplayController(Task& p_task) : m_task(p_task) {}
     ~DisplayController() = default;
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;
@@ -56,8 +57,9 @@ private:
     void wait();
 
     Display m_display;
-    Task m_task;
+    Task& m_task;
     Mutex m_mutex;
+    BinarySemaphore m_renderSignal;
     bool m_available = false;
     bool m_enabled = false;
     DisplayOverlay m_overlay = DisplayOverlay::None;

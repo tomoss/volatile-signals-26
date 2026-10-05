@@ -4,8 +4,8 @@
 #include <array>
 #include <functional>
 
+#include "task/task.hpp"
 #include "utils/queue.hpp"
-#include "utils/task.hpp"
 #include "vendor/freertos.hpp"
 #include "vendor/nimble.hpp"
 #include "wifi/wifi_types.hpp"
@@ -17,7 +17,7 @@ public:
     using CredentialsCallback = std::function<void(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password)>;
     using PasskeyDisplayCallback = std::function<void(uint32_t p_passkey)>;
 
-    BleProvisioner() = default;
+    explicit BleProvisioner(Task& p_task) : m_task(p_task) {}
     ~BleProvisioner() = default;
     BleProvisioner(const BleProvisioner&) = delete;
     const BleProvisioner& operator=(const BleProvisioner&) = delete;
@@ -65,7 +65,7 @@ private:
     NimBLECharacteristic* m_passwordChar = nullptr;
 
     BleActionQueue m_queue;
-    Task m_task;
+    Task& m_task;
 
     WifiTypes::Ssid m_ssid{};
     WifiTypes::Password m_password{};

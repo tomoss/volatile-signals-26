@@ -57,7 +57,7 @@ void BleProvisioner::enqueueProvisioningStop() {
 }
 
 void BleProvisioner::loop() {
-    for (;;) {
+    while (m_task.running()) {
         BleAction l_action;
         if (m_queue.receive(l_action)) {
             switch (l_action) {

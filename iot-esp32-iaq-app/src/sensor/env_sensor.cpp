@@ -214,7 +214,7 @@ void EnvSensor::run() {
 }
 
 void EnvSensor::loop() {
-    for (;;) {
+    while (m_task.running()) {
         checkModeChangeRequest();
         run();
         maybeSaveStateToStorage();

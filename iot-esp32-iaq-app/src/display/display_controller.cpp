@@ -16,6 +16,11 @@ bool DisplayController::init(WireWrapper& p_wire) {
         return false;
     }
 
+    if (!m_renderSignal.init()) {
+        Serial.println("Display render signal init failed (continuing without display)");
+        return false;
+    }
+
     m_available = true;
     return true;
 }
@@ -113,18 +118,18 @@ void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
 }
 
 void DisplayController::notify() {
-    xTaskNotifyGive(m_task.handle());
+    m_renderSignal.give();
 }
 
 void DisplayController::wait() {
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    m_renderSignal.take();
 }
 
 void DisplayController::loop() {
     // Initial render
     render();
 
-    for (;;) {
+    while (m_task.running()) {
         wait();
         render();
     }

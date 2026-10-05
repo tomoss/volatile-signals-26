@@ -1,37 +1,30 @@
 #ifndef TELEMETRY_PUBLISHER_HPP
 #define TELEMETRY_PUBLISHER_HPP
 
+#include "task/task.hpp"
 #include "telemetry/publisher.hpp"
 #include "telemetry/telemetry_data.hpp"
-#include "telemetry/telemetry_sink.hpp"
-#include "utils/queue.hpp"
-#include "utils/task.hpp"
-#include "vendor/freertos.hpp"
+#include "telemetry/telemetry_source.hpp"
 
-constexpr std::size_t TELEMETRY_EVENT_QUEUE_LENGTH = 10;
-
-class TelemetryPublisher : public Publisher, public TelemetrySink {
+class TelemetryPublisher : public Publisher {
 public:
-    TelemetryPublisher() {};
+    TelemetryPublisher(TelemetrySource& p_source, Task& p_task)
+        : m_source(p_source)
+        , m_task(p_task) {}
     ~TelemetryPublisher() = default;
     TelemetryPublisher(const TelemetryPublisher&) = delete;
     TelemetryPublisher& operator=(const TelemetryPublisher&) = delete;
     TelemetryPublisher(TelemetryPublisher&&) = delete;
     TelemetryPublisher& operator=(TelemetryPublisher&&) = delete;
 
-    [[nodiscard]] bool init();
-
     void start();
 
-    void enqueue(const TelemetryEvent& p_event) override;
-
 private:
-    using TelemetryEventQueue = Queue<TelemetryEvent, TELEMETRY_EVENT_QUEUE_LENGTH>;
     void loop();
     void handle(const TelemetryEvent& p_event);
 
-    TelemetryEventQueue m_queue;
-    Task m_task;
+    TelemetrySource& m_source;
+    Task& m_task;
 };
 
 #endif // TELEMETRY_PUBLISHER_HPP

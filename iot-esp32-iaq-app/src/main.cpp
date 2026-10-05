@@ -8,6 +8,8 @@
 #include "mqtt/mqtt_bridge.hpp"
 #include "sensor/env_sensor.hpp"
 #include "storage/storage.hpp"
+#include "task/freertos_task.hpp"
+#include "telemetry/freertos_telemetry_queue.hpp"
 #include "telemetry/telemetry_publisher.hpp"
 #include "utils/device_info.hpp"
 #include "utils/mac_address.hpp"
@@ -26,6 +28,8 @@ constexpr uint32_t DELAY_UNTIL_STABLE = 2000; // milliseconds
 // Delay duration for reboot after failed init
 constexpr uint32_t DELAY_UNTIL_RESTART = 6000; // milliseconds
 
+constexpr std::size_t TELEMETRY_EVENT_QUEUE_LENGTH = 10;
+
 /*****************************************************************/
 /* Setup                                                         */
 /*****************************************************************/
@@ -36,17 +40,25 @@ void setup() {
 
     static WireWrapper wireWrapper;
     static Storage storage;
-    static TelemetryPublisher telemetryPublisher;
-    static EnvSensor envSensor(storage, telemetryPublisher);
+    static FreeRtosTelemetryQueue<TELEMETRY_EVENT_QUEUE_LENGTH> telemetryQueue;
+    static FreeRtosTask telemetryTask;
+    static TelemetryPublisher telemetryPublisher(telemetryQueue, telemetryTask);
+    static FreeRtosTask sensorTask;
+    static EnvSensor envSensor(storage, telemetryQueue, sensorTask);
     static WifiAdapter wifiAdapter(storage);
-    static WifiManager wifiManager(wifiAdapter);
-    static BleProvisioner bleProvisioner;
-    static DisplayController displayController;
+    static FreeRtosTask wifiTask;
+    static WifiManager wifiManager(wifiAdapter, wifiTask);
+    static FreeRtosTask bleTask;
+    static BleProvisioner bleProvisioner(bleTask);
+    static FreeRtosTask displayTask;
+    static DisplayController displayController(displayTask);
     static MqttBridge mqttBridge(storage, readMacAddress());
     static TimeSync timeSync;
     static RealTimeClock rtc;
-    static ClaimHandler claimHandler(displayController, storage, mqttBridge);
-    static HealthReporter healthReporter(mqttBridge, wifiAdapter);
+    static FreeRtosTask claimTask;
+    static ClaimHandler claimHandler(displayController, storage, mqttBridge, claimTask);
+    static FreeRtosTask healthTask;
+    static HealthReporter healthReporter(mqttBridge, wifiAdapter, healthTask);
     static OtaUpdater otaUpdater(envSensor, displayController);
 
     telemetryPublisher.addDataConsumer(displayController);
@@ -111,7 +123,7 @@ void setup() {
     });
 
     // Mandatory modules initialization
-    const bool l_initOk = telemetryPublisher.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
+    const bool l_initOk = telemetryQueue.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
                           bleProvisioner.init() && mqttBridge.init(true);
     if (!l_initOk) {
         Serial.println("Mandatory module init failed, restarting the board...");

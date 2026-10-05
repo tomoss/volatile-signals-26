@@ -5,9 +5,9 @@
 
 #include "sensor/sensor_store.hpp"
 #include "sensor/sensor_types.hpp"
+#include "task/task.hpp"
 #include "telemetry/telemetry_sink.hpp"
 #include "utils/queue.hpp"
-#include "utils/task.hpp"
 #include "utils/wire_wrapper.hpp"
 #include "vendor/bsec2.hpp"
 #include "vendor/freertos.hpp"
@@ -17,7 +17,7 @@ using SensorModeRequestQueue = Queue<SensorMode, 1>;
 
 class EnvSensor {
 public:
-    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink) : m_store(p_store) { s_telemetrySink = &p_telemetrySink; }
+    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink, Task& p_task) : m_store(p_store), m_task(p_task) { s_telemetrySink = &p_telemetrySink; }
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
@@ -61,7 +61,7 @@ private:
     uint64_t m_lastStateSaveMs = 0ULL;
     SensorStore& m_store;
     SensorModeRequestQueue m_modeRequestQueue;
-    Task m_task;
+    Task& m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer
     static TelemetrySink* s_telemetrySink;

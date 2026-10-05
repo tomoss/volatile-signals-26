@@ -12,6 +12,9 @@ public:
     void addInfoConsumer(TelemetryInfoConsumer& p_consumer) { m_infoConsumers.push_back(&p_consumer); }
 
 protected:
+    Publisher() = default;
+    ~Publisher() = default;
+
     void notify(const TelemetryData& p_data) {
         for (auto* l_consumer : m_dataConsumers)
             l_consumer->update(p_data);

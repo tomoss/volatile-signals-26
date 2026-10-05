@@ -5,28 +5,16 @@
 #include <cmath>
 #include <variant>
 
-bool TelemetryPublisher::init() {
-    if (!m_queue.init()) {
-        Serial.println("TelemetryPublisher queue creation failed");
-        return false;
-    }
-    return true;
-}
-
 void TelemetryPublisher::start() {
     m_task.createAndStart("telemetry_task", [this] {
         loop();
     });
 }
 
-void TelemetryPublisher::enqueue(const TelemetryEvent& p_event) {
-    m_queue.send(p_event);
-}
-
 void TelemetryPublisher::loop() {
-    for (;;) {
+    while (m_task.running()) {
         TelemetryEvent l_event;
-        if (m_queue.receive(l_event)) {
+        if (m_source.receive(l_event)) {
             handle(l_event);
         }
     }

@@ -7,15 +7,20 @@
 
 constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 50;
 
-TaskHandle_t ClaimHandler::s_taskHandle = nullptr;
+SemaphoreHandle_t ClaimHandler::s_buttonSignal = nullptr;
 
 void IRAM_ATTR ClaimHandler::isr() {
     BaseType_t l_higherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(s_taskHandle, &l_higherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(s_buttonSignal, &l_higherPriorityTaskWoken);
     portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
 }
 
 bool ClaimHandler::init() {
+    if (!m_buttonSignal.init()) {
+        Serial.println("Claim button signal init failed");
+        return false;
+    }
+
     m_claimed.store(m_store.loadDeviceClaimStatus());
 
     if (const auto l_saved = m_store.loadClaimCode()) {
@@ -43,12 +48,16 @@ void ClaimHandler::setClaimed(bool p_claimed) {
 }
 
 void ClaimHandler::start() {
+    if (m_buttonSignal.handle() == nullptr) {
+        return;
+    }
+
     if (!m_task.createAndStart("claim_button_task", [this] {
             loop();
         })) {
         return;
     }
-    s_taskHandle = m_task.handle();
+    s_buttonSignal = m_buttonSignal.handle();
 
     pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), isr, FALLING);
@@ -57,8 +66,8 @@ void ClaimHandler::start() {
 void ClaimHandler::loop() {
     bool l_showing = false;
 
-    for (;;) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    while (m_task.running()) {
+        m_buttonSignal.take();
 
         l_showing = !l_showing;
         if (l_showing) {
@@ -71,7 +80,7 @@ void ClaimHandler::loop() {
             vTaskDelay(pdMS_TO_TICKS(CLAIM_BUTTON_DEBOUNCE_MS));
         }
         vTaskDelay(pdMS_TO_TICKS(CLAIM_BUTTON_DEBOUNCE_MS));
-        ulTaskNotifyTake(pdTRUE, 0);
+        m_buttonSignal.take(0);
     }
 }
 

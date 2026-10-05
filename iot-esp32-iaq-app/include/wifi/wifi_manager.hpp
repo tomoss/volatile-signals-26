@@ -1,8 +1,8 @@
 #ifndef WIFI_MANAGER_HPP
 #define WIFI_MANAGER_HPP
 
+#include "task/task.hpp"
 #include "utils/queue.hpp"
-#include "utils/task.hpp"
 #include "vendor/arduino.hpp"
 #include "vendor/sml.hpp"
 #include "wifi/wifi_adapter.hpp"
@@ -23,7 +23,7 @@ enum class WifiQueueEvent : uint8_t {
 constexpr std::size_t WIFI_EVENT_QUEUE_LENGTH = 10;
 class WifiManager {
 public:
-    WifiManager(WifiAdapter& p_adapter);
+    WifiManager(WifiAdapter& p_adapter, Task& p_task);
     ~WifiManager() = default;
     WifiManager(const WifiManager&) = delete;
     WifiManager& operator=(const WifiManager&) = delete;
@@ -51,7 +51,7 @@ private:
     StateMachine m_sm;
     WifiEventQueue m_queue;
 
-    Task m_task;
+    Task& m_task;
 };
 
 #endif // WIFI_MANAGER_HPP
