@@ -3,10 +3,11 @@
 
 #include "display/display.hpp"
 #include "display/display_types.hpp"
+#include "telemetry/consumer.hpp"
 #include "utils/mutex.hpp"
 #include "utils/task.hpp"
 
-class DisplayController {
+class DisplayController : public TelemetryDataConsumer {
 public:
     DisplayController() = default;
     ~DisplayController() = default;
@@ -18,12 +19,13 @@ public:
     bool init(WireWrapper& p_wire);
     void start();
 
+    void update(const TelemetryData& p_data) override;
+
     // Thread-safe: safe to call from any task context. No-ops if init() failed or wasn't called.
     void enableDisplay();
     void disableDisplay();
     void setWifiStatus(bool p_connected);
     void setMqttStatus(bool p_connected);
-    void setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy);
     void setProvisioningStatus(uint32_t p_passkey);
     void setClaimingCode(const ClaimCode& p_code);
     void setClaimedStatus(bool p_claimed);
@@ -45,6 +47,8 @@ private:
             notify();
         }
     }
+
+    void setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy);
 
     void loop();
     void render();

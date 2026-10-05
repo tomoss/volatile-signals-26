@@ -7,8 +7,8 @@
 #include "health/health_reporter.hpp"
 #include "mqtt/mqtt_bridge.hpp"
 #include "sensor/env_sensor.hpp"
-#include "sensor/sensor_consumer.hpp"
 #include "storage/storage.hpp"
+#include "telemetry/telemetry_publisher.hpp"
 #include "utils/device_info.hpp"
 #include "utils/mac_address.hpp"
 #include "utils/ota_updater.hpp"
@@ -36,7 +36,8 @@ void setup() {
 
     static WireWrapper wireWrapper;
     static Storage storage;
-    static EnvSensor envSensor(storage);
+    static TelemetryPublisher telemetryPublisher;
+    static EnvSensor envSensor(storage, telemetryPublisher);
     static WifiAdapter wifiAdapter(storage);
     static WifiManager wifiManager(wifiAdapter);
     static BleProvisioner bleProvisioner;
@@ -46,12 +47,11 @@ void setup() {
     static RealTimeClock rtc;
     static ClaimHandler claimHandler(displayController, storage, mqttBridge);
     static HealthReporter healthReporter(mqttBridge, wifiAdapter);
-    static SensorConsumer sensorConsumer(mqttBridge, displayController);
     static OtaUpdater otaUpdater(envSensor, displayController);
 
-    envSensor.setEventCallback([](const SensorEvent& p_event) {
-        sensorConsumer.enqueueSensorEvent(p_event);
-    });
+    telemetryPublisher.addDataConsumer(displayController);
+    telemetryPublisher.addDataConsumer(mqttBridge);
+    telemetryPublisher.addInfoConsumer(mqttBridge);
 
     wifiAdapter.setConnectedCallback([] {
         Serial.println("WiFi ConnectedCallback called");
@@ -111,7 +111,7 @@ void setup() {
     });
 
     // Mandatory modules initialization
-    const bool l_initOk = sensorConsumer.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
+    const bool l_initOk = telemetryPublisher.init() && wireWrapper.init() && storage.init() && envSensor.init(wireWrapper) && wifiManager.init() &&
                           bleProvisioner.init() && mqttBridge.init(true);
     if (!l_initOk) {
         Serial.println("Mandatory module init failed, restarting the board...");
@@ -129,7 +129,7 @@ void setup() {
 
     displayController.start();
     claimHandler.start();
-    sensorConsumer.start();
+    telemetryPublisher.start();
     envSensor.start();
     wifiManager.start();
     bleProvisioner.start();

@@ -1,9 +1,8 @@
 #include "sensor/env_sensor.hpp"
 
-#include "storage/storage.hpp"
 #include "vendor/arduino.hpp"
 
-EnvSensor::EventCallback EnvSensor::s_eventCallback;
+TelemetrySink* EnvSensor::s_telemetrySink = nullptr;
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -108,6 +107,19 @@ static const SensorData convertOutputs(const bsecOutputs& p_outputs) {
     return l_data;
 }
 
+static TelemetryData toTelemetryData(const SensorData& p_data) {
+    TelemetryData l_telemetry;
+    l_telemetry.iaq = p_data.iaq;
+    l_telemetry.co2 = p_data.co2;
+    l_telemetry.voc = p_data.voc;
+    l_telemetry.temp = p_data.temp;
+    l_telemetry.hum = p_data.hum;
+    l_telemetry.pressure = p_data.pressure;
+    l_telemetry.iaqAccuracy = static_cast<uint8_t>(p_data.iaqAccuracy);
+    l_telemetry.timestamp = p_data.timestamp;
+    return l_telemetry;
+}
+
 void EnvSensor::checkBsecStatus() {
     if (m_bsec.status < BSEC_OK) {
         Serial.printf("BSEC error code: %d\n", m_bsec.status);
@@ -153,7 +165,7 @@ bool EnvSensor::init(WireWrapper& p_bus) {
 
     m_bsec.setTemperatureOffset(BME68X_TEMPERATURE_OFFSET);
 
-    SensorMode l_mode = m_storage.loadSensorMode().value_or(SensorMode::LowPower);
+    SensorMode l_mode = m_store.loadSensorMode().value_or(SensorMode::LowPower);
 
     if (!applyMode(l_mode)) {
         Serial.println("Applying sensor mode failed");
@@ -167,8 +179,11 @@ bool EnvSensor::init(WireWrapper& p_bus) {
             return;
         }
 
-        if (s_eventCallback) {
-            s_eventCallback(SensorEvent{convertOutputs(p_outputs)});
+        const SensorData l_data = convertOutputs(p_outputs);
+        const TelemetryData l_telemetry = toTelemetryData(l_data);
+
+        if (s_telemetrySink) {
+            s_telemetrySink->enqueue(l_telemetry);
         }
     });
 
@@ -284,7 +299,7 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
 
     // Don't restore any state from storage if mode is Disabled
     if (p_mode != SensorMode::Disabled) {
-        if (auto state = m_storage.loadBsecState(p_mode)) {
+        if (auto state = m_store.loadBsecState(p_mode)) {
             if (!setStateToBsec(*state))
                 Serial.println("Failed to restore BME688 state from storage");
             else {
@@ -299,10 +314,10 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     m_mode = p_mode;
     printMode();
 
-    m_storage.saveSensorMode(m_mode);
+    m_store.saveSensorMode(m_mode);
 
-    if (s_eventCallback) {
-        s_eventCallback(SensorEvent{m_mode});
+    if (s_telemetrySink) {
+        s_telemetrySink->enqueue(TelemetryInfo{static_cast<uint8_t>(m_mode)});
     }
 
     return true;
@@ -332,7 +347,7 @@ void EnvSensor::maybeSaveStateToStorage() {
 
     if (l_shouldSave) {
         if (auto state = this->getStateFromBsec()) {
-            if (m_storage.saveBsecState(m_mode, *state)) {
+            if (m_store.saveBsecState(m_mode, *state)) {
                 Serial.println("BME688 state saved in storage");
                 m_hasSavedStateForMode = true;
             } else

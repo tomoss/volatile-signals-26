@@ -1,7 +1,6 @@
 #ifndef WIFI_MANAGER_HPP
 #define WIFI_MANAGER_HPP
 
-#include "storage/storage.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
 #include "vendor/arduino.hpp"

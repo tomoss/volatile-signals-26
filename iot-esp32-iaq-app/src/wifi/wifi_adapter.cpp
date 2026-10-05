@@ -3,7 +3,7 @@
 constexpr uint32_t MAX_RECONNECT_ATTEMPTS = 5;     // Max number of reconnect before provisioning is triggered
 constexpr uint32_t RECONNECT_DELAY_MS = 30 * 1000; // 30 seconds
 
-WifiAdapter::WifiAdapter(Storage& p_storage) : m_storage(p_storage) {}
+WifiAdapter::WifiAdapter(WifiStore& p_store) : m_store(p_store) {}
 
 WifiAdapter::~WifiAdapter() {
     if (m_reconnectTimer) {
@@ -46,8 +46,8 @@ void WifiAdapter::reconnectTimerTimeout(TimerHandle_t p_timer) {
 }
 
 bool WifiAdapter::loadCredentials() {
-    auto l_ssid = m_storage.loadWifiSSID();
-    auto l_pass = m_storage.loadWifiPass();
+    auto l_ssid = m_store.loadWifiSSID();
+    auto l_pass = m_store.loadWifiPass();
     if (!l_ssid || !l_pass) {
         Serial.println("No WiFi credentials in storage");
         return false;
@@ -59,11 +59,11 @@ bool WifiAdapter::loadCredentials() {
 }
 
 bool WifiAdapter::saveCredentials(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
-    if (!m_storage.saveWifiSSID(p_ssid)) {
+    if (!m_store.saveWifiSSID(p_ssid)) {
         Serial.println("Failed to save WiFi SSID");
         return false;
     }
-    if (!m_storage.saveWifiPass(p_password)) {
+    if (!m_store.saveWifiPass(p_password)) {
         Serial.println("Failed to save WiFi password");
         return false;
     }

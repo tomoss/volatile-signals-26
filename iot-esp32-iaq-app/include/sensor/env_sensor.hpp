@@ -1,29 +1,28 @@
 #ifndef ENV_SENSOR_HPP
 #define ENV_SENSOR_HPP
 
-#include <functional>
 #include <optional>
 
+#include "sensor/sensor_store.hpp"
 #include "sensor/sensor_types.hpp"
-#include "storage/storage.hpp"
+#include "telemetry/telemetry_sink.hpp"
 #include "utils/queue.hpp"
 #include "utils/task.hpp"
 #include "utils/wire_wrapper.hpp"
 #include "vendor/bsec2.hpp"
 #include "vendor/freertos.hpp"
 
+// Length 1 so a newer request overwrites one not yet applied
+using SensorModeRequestQueue = Queue<SensorMode, 1>;
+
 class EnvSensor {
 public:
-    using EventCallback = std::function<void(const SensorEvent& p_event)>;
-
-    explicit EnvSensor(Storage& p_storage) : m_storage(p_storage) {}
+    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink) : m_store(p_store) { s_telemetrySink = &p_telemetrySink; }
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
     EnvSensor(EnvSensor&&) = delete;
     EnvSensor& operator=(EnvSensor&&) = delete;
-
-    void setEventCallback(EventCallback p_callback) { s_eventCallback = std::move(p_callback); }
 
     [[nodiscard]] bool init(WireWrapper& p_bus);
 
@@ -60,12 +59,12 @@ private:
     SensorMode m_mode = SensorMode::LowPower;
     bool m_hasSavedStateForMode{false};
     uint64_t m_lastStateSaveMs = 0ULL;
-    Storage& m_storage;
+    SensorStore& m_store;
     SensorModeRequestQueue m_modeRequestQueue;
     Task m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer
-    static EventCallback s_eventCallback;
+    static TelemetrySink* s_telemetrySink;
 };
 
 #endif // ENV_SENSOR_HPP
