@@ -1,10 +1,14 @@
 #ifndef SENSOR_STORE_HPP
 #define SENSOR_STORE_HPP
 
+#include <array>
+#include <cstdint>
 #include <optional>
 
-#include "sensor/sensor_state.hpp"
 #include "sensor/sensor_types.hpp"
+#include "vendor/bsec2.hpp"
+
+using SensorState = std::array<uint8_t, BSEC_MAX_STATE_BLOB_SIZE>;
 
 class SensorStore {
 public:

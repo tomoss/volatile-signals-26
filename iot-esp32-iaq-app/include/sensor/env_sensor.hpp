@@ -3,7 +3,6 @@
 
 #include <optional>
 
-#include "sensor/sensor_state.hpp"
 #include "sensor/sensor_store.hpp"
 #include "sensor/sensor_types.hpp"
 #include "telemetry/telemetry_sink.hpp"
