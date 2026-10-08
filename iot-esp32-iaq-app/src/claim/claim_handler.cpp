@@ -1,5 +1,6 @@
 #include "claim/claim_handler.hpp"
 
+#include "task/freertos_task.hpp"
 #include "vendor/arduino.hpp"
 
 #include <cstdio>
@@ -7,15 +8,17 @@
 
 constexpr uint32_t CLAIM_BUTTON_DEBOUNCE_MS = 50;
 
-SemaphoreHandle_t ClaimHandler::s_buttonSignal = nullptr;
+// The ISR (a plain function pointer, no user data) reaches the task through this.
+static SemaphoreHandle_t s_buttonSignal = nullptr;
 
-void IRAM_ATTR ClaimHandler::isr() {
+static void IRAM_ATTR claimButtonIsr() {
     BaseType_t l_higherPriorityTaskWoken = pdFALSE;
     xSemaphoreGiveFromISR(s_buttonSignal, &l_higherPriorityTaskWoken);
     portYIELD_FROM_ISR(l_higherPriorityTaskWoken);
 }
 
-bool ClaimHandler::init() {
+template<TaskLike TTask>
+bool ClaimHandler<TTask>::init() {
     if (!m_buttonSignal.init()) {
         Serial.println("Claim button signal init failed");
         return false;
@@ -40,14 +43,16 @@ bool ClaimHandler::init() {
     return true;
 }
 
-void ClaimHandler::setClaimed(bool p_claimed) {
+template<TaskLike TTask>
+void ClaimHandler<TTask>::setClaimed(bool p_claimed) {
     if (m_claimed.exchange(p_claimed) != p_claimed) {
         m_store.saveDeviceClaimStatus(p_claimed);
     }
     m_displayController.setClaimedStatus(p_claimed);
 }
 
-void ClaimHandler::start() {
+template<TaskLike TTask>
+void ClaimHandler<TTask>::start() {
     if (m_buttonSignal.handle() == nullptr) {
         return;
     }
@@ -60,10 +65,11 @@ void ClaimHandler::start() {
     s_buttonSignal = m_buttonSignal.handle();
 
     pinMode(CLAIM_BUTTON_PIN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), isr, FALLING);
+    attachInterrupt(digitalPinToInterrupt(CLAIM_BUTTON_PIN), claimButtonIsr, FALLING);
 }
 
-void ClaimHandler::loop() {
+template<TaskLike TTask>
+void ClaimHandler<TTask>::loop() {
     bool l_showing = false;
 
     while (m_task.running()) {
@@ -84,7 +90,8 @@ void ClaimHandler::loop() {
     }
 }
 
-void ClaimHandler::show() {
+template<TaskLike TTask>
+void ClaimHandler<TTask>::show() {
     const bool l_claimed = m_claimed.load();
     m_displayController.setClaimedStatus(l_claimed);
     m_displayController.setActiveOverlay(DisplayOverlay::Claim);
@@ -99,8 +106,11 @@ void ClaimHandler::show() {
     Serial.printf("Claim code: %s\n", m_code.data());
 }
 
-void ClaimHandler::hide() {
+template<TaskLike TTask>
+void ClaimHandler<TTask>::hide() {
     m_displayController.setActiveOverlay(DisplayOverlay::None);
     m_mqttBridge.clearClaimCode();
     Serial.println("Stopped claiming process on server");
 }
+
+template class ClaimHandler<FreeRtosTask>;

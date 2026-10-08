@@ -1,16 +1,18 @@
 #ifndef FREERTOS_TASK_HPP
 #define FREERTOS_TASK_HPP
 
-#include "task/task.hpp"
 #include "vendor/arduino.hpp"
 #include "vendor/freertos.hpp"
 
 #include <cstdint>
+#include <functional>
 
-class FreeRtosTask : public Task {
+class FreeRtosTask {
 public:
+    using TaskLoop = std::function<void()>;
+
     FreeRtosTask() = default;
-    ~FreeRtosTask() override {
+    ~FreeRtosTask() {
         if (m_handle) {
             vTaskDelete(m_handle);
             m_handle = nullptr;
@@ -21,7 +23,7 @@ public:
     FreeRtosTask(FreeRtosTask&&) = delete;
     FreeRtosTask& operator=(FreeRtosTask&&) = delete;
 
-    bool createAndStart(const char* p_name, TaskLoop p_taskLoop, uint32_t p_priority = 1, uint32_t p_stackSize = 4096) override {
+    bool createAndStart(const char* p_name, TaskLoop p_taskLoop, uint32_t p_priority = 1, uint32_t p_stackSize = 4096) {
         m_taskLoop = std::move(p_taskLoop);
         if (pdPASS != xTaskCreate(taskEntry, p_name, p_stackSize, this, static_cast<UBaseType_t>(p_priority), &m_handle)) {
             Serial.printf("%s task creation failed\n", p_name);
@@ -30,7 +32,7 @@ public:
         return true;
     }
 
-    bool running() const override { return true; }
+    bool running() const { return true; }
 
     TaskHandle_t handle() const { return m_handle; }
 

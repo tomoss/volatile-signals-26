@@ -1,4 +1,5 @@
 #include "ble/ble_provisioner.hpp"
+#include "task/freertos_task.hpp"
 #include "vendor/arduino.hpp"
 
 #include <algorithm>
@@ -25,15 +26,18 @@ static void addUserDescription(NimBLECharacteristic* p_characteristic, const cha
     l_descriptor->setValue(p_description);
 }
 
-void BleProvisioner::setCredentialsCallback(CredentialsCallback p_callback) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::setCredentialsCallback(CredentialsCallback p_callback) {
     m_callback = std::move(p_callback);
 }
 
-void BleProvisioner::setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::setPasskeyDisplayCallback(PasskeyDisplayCallback p_callback) {
     m_passkeyDisplayCallback = std::move(p_callback);
 }
 
-bool BleProvisioner::init() {
+template<TaskLike TTask>
+bool BleProvisioner<TTask>::init() {
     if (!m_queue.init()) {
         Serial.println("BleProvisioner queue creation failed");
         return false;
@@ -42,21 +46,25 @@ bool BleProvisioner::init() {
     return true;
 }
 
-void BleProvisioner::start() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::start() {
     m_task.createAndStart("ble_task", [this] {
         loop();
     });
 }
 
-void BleProvisioner::enqueueProvisioningStart() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::enqueueProvisioningStart() {
     m_queue.send(BleAction::Start);
 }
 
-void BleProvisioner::enqueueProvisioningStop() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::enqueueProvisioningStop() {
     m_queue.send(BleAction::Stop);
 }
 
-void BleProvisioner::loop() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::loop() {
     while (m_task.running()) {
         BleAction l_action;
         if (m_queue.receive(l_action)) {
@@ -72,7 +80,8 @@ void BleProvisioner::loop() {
     }
 }
 
-void BleProvisioner::begin() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::begin() {
     if (m_running)
         return;
 
@@ -114,7 +123,8 @@ void BleProvisioner::begin() {
     Serial.println("[BLE] Provisioning started, advertising...");
 }
 
-void BleProvisioner::end() {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::end() {
     if (!m_running)
         return;
 
@@ -139,11 +149,13 @@ void BleProvisioner::end() {
     Serial.println("[BLE] Provisioning stopped");
 }
 
-void BleProvisioner::onConnect(NimBLEServer* /*p_server*/, NimBLEConnInfo& p_connInfo) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::onConnect(NimBLEServer* /*p_server*/, NimBLEConnInfo& p_connInfo) {
     Serial.printf("[BLE] Client connected: %s\n", p_connInfo.getAddress().toString().c_str());
 }
 
-void BleProvisioner::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_connInfo, int p_reason) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_connInfo, int p_reason) {
     Serial.printf("[BLE] Client disconnected: %s (reason=%d)\n", p_connInfo.getAddress().toString().c_str(), p_reason);
 
     // The disconnect end() requested has now actually completed; re-enqueue Stop so
@@ -153,7 +165,8 @@ void BleProvisioner::onDisconnect(NimBLEServer* p_server, NimBLEConnInfo& p_conn
     }
 }
 
-uint32_t BleProvisioner::onPassKeyDisplay() {
+template<TaskLike TTask>
+uint32_t BleProvisioner<TTask>::onPassKeyDisplay() {
     uint32_t l_passkey = esp_random() % 1000000;
     if (m_passkeyDisplayCallback) {
         m_passkeyDisplayCallback(l_passkey);
@@ -161,7 +174,8 @@ uint32_t BleProvisioner::onPassKeyDisplay() {
     return l_passkey;
 }
 
-void BleProvisioner::onAuthenticationComplete(NimBLEConnInfo& p_connInfo) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::onAuthenticationComplete(NimBLEConnInfo& p_connInfo) {
     if (!p_connInfo.isAuthenticated()) {
         Serial.println("[BLE] Pairing failed (not authenticated)");
         return;
@@ -169,7 +183,8 @@ void BleProvisioner::onAuthenticationComplete(NimBLEConnInfo& p_connInfo) {
     Serial.println("[BLE] Pairing authenticated, credential writes allowed");
 }
 
-void BleProvisioner::onWrite(NimBLECharacteristic* p_characteristic, NimBLEConnInfo& /*p_connInfo*/) {
+template<TaskLike TTask>
+void BleProvisioner<TTask>::onWrite(NimBLECharacteristic* p_characteristic, NimBLEConnInfo& /*p_connInfo*/) {
     NimBLEAttValue l_value = p_characteristic->getValue();
 
     if (p_characteristic == m_ssidChar) {
@@ -199,3 +214,5 @@ void BleProvisioner::onWrite(NimBLECharacteristic* p_characteristic, NimBLEConnI
         m_callback(m_ssid, m_password);
     }
 }
+
+template class BleProvisioner<FreeRtosTask>;

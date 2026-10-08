@@ -1,5 +1,5 @@
-#ifndef QUEUE_HPP
-#define QUEUE_HPP
+#ifndef FREERTOS_QUEUE_HPP
+#define FREERTOS_QUEUE_HPP
 
 #include "vendor/arduino.hpp"
 #include "vendor/freertos.hpp"
@@ -8,22 +8,22 @@
 #include <type_traits>
 
 template<typename T, std::size_t N>
-class Queue {
+class FreeRtosQueue {
     // FreeRTOS copies items with memcpy.
     static_assert(std::is_trivially_copyable_v<T>, "Queue items must be trivially copyable");
     static_assert(N > 0, "Queue length must be at least 1");
 
 public:
-    Queue() = default;
-    ~Queue() {
+    FreeRtosQueue() = default;
+    ~FreeRtosQueue() {
         if (m_handle) {
             vQueueDelete(m_handle);
         }
     }
-    Queue(const Queue&) = delete;
-    Queue& operator=(const Queue&) = delete;
-    Queue(Queue&&) = delete;
-    Queue& operator=(Queue&&) = delete;
+    FreeRtosQueue(const FreeRtosQueue&) = delete;
+    FreeRtosQueue& operator=(const FreeRtosQueue&) = delete;
+    FreeRtosQueue(FreeRtosQueue&&) = delete;
+    FreeRtosQueue& operator=(FreeRtosQueue&&) = delete;
 
     [[nodiscard]] bool init() {
         m_handle = xQueueCreate(static_cast<UBaseType_t>(N), static_cast<UBaseType_t>(sizeof(T)));
@@ -46,4 +46,4 @@ private:
     QueueHandle_t m_handle = nullptr;
 };
 
-#endif // QUEUE_HPP
+#endif // FREERTOS_QUEUE_HPP

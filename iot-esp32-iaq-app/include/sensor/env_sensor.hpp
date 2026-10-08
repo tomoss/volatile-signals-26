@@ -3,21 +3,22 @@
 
 #include <optional>
 
+#include "queue/freertos_queue.hpp"
 #include "sensor/sensor_store.hpp"
 #include "sensor/sensor_types.hpp"
 #include "task/task.hpp"
 #include "telemetry/telemetry_sink.hpp"
-#include "utils/queue.hpp"
 #include "utils/wire_wrapper.hpp"
 #include "vendor/bsec2.hpp"
 #include "vendor/freertos.hpp"
 
 // Length 1 so a newer request overwrites one not yet applied
-using SensorModeRequestQueue = Queue<SensorMode, 1>;
+using SensorModeRequestQueue = FreeRtosQueue<SensorMode, 1>;
 
+template<TaskLike TTask>
 class EnvSensor {
 public:
-    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink, Task& p_task) : m_store(p_store), m_task(p_task) { s_telemetrySink = &p_telemetrySink; }
+    EnvSensor(SensorStore& p_store, TelemetrySink& p_telemetrySink) : m_store(p_store) { s_telemetrySink = &p_telemetrySink; }
     ~EnvSensor() = default;
     EnvSensor(const EnvSensor&) = delete;
     const EnvSensor& operator=(const EnvSensor&) = delete;
@@ -61,10 +62,10 @@ private:
     uint64_t m_lastStateSaveMs = 0ULL;
     SensorStore& m_store;
     SensorModeRequestQueue m_modeRequestQueue;
-    Task& m_task;
+    TTask m_task;
 
     // Static because Bsec2::attachCallback only takes a plain function pointer
-    static TelemetrySink* s_telemetrySink;
+    static inline TelemetrySink* s_telemetrySink = nullptr;
 };
 
 #endif // ENV_SENSOR_HPP

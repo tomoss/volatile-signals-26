@@ -8,9 +8,10 @@
 #include "utils/binary_semaphore.hpp"
 #include "utils/mutex.hpp"
 
+template<TaskLike TTask>
 class DisplayController : public TelemetryDataConsumer {
 public:
-    explicit DisplayController(Task& p_task) : m_task(p_task) {}
+    DisplayController() = default;
     ~DisplayController() = default;
     DisplayController(const DisplayController&) = delete;
     DisplayController& operator=(const DisplayController&) = delete;
@@ -57,7 +58,7 @@ private:
     void wait();
 
     Display m_display;
-    Task& m_task;
+    TTask m_task;
     Mutex m_mutex;
     BinarySemaphore m_renderSignal;
     bool m_available = false;

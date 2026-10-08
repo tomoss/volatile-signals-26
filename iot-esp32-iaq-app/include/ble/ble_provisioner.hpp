@@ -4,20 +4,21 @@
 #include <array>
 #include <functional>
 
+#include "queue/freertos_queue.hpp"
 #include "task/task.hpp"
-#include "utils/queue.hpp"
 #include "vendor/freertos.hpp"
 #include "vendor/nimble.hpp"
 #include "wifi/wifi_types.hpp"
 
 constexpr std::size_t BLE_ACTION_QUEUE_LENGTH = 2;
 
+template<TaskLike TTask>
 class BleProvisioner : private NimBLECharacteristicCallbacks, private NimBLEServerCallbacks {
 public:
     using CredentialsCallback = std::function<void(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password)>;
     using PasskeyDisplayCallback = std::function<void(uint32_t p_passkey)>;
 
-    explicit BleProvisioner(Task& p_task) : m_task(p_task) {}
+    BleProvisioner() = default;
     ~BleProvisioner() = default;
     BleProvisioner(const BleProvisioner&) = delete;
     const BleProvisioner& operator=(const BleProvisioner&) = delete;
@@ -40,7 +41,7 @@ public:
 
 private:
     enum class BleAction : uint8_t { Start = 0, Stop = 1 };
-    using BleActionQueue = Queue<BleAction, BLE_ACTION_QUEUE_LENGTH>;
+    using BleActionQueue = FreeRtosQueue<BleAction, BLE_ACTION_QUEUE_LENGTH>;
 
     void loop();
     void begin();
@@ -65,7 +66,7 @@ private:
     NimBLECharacteristic* m_passwordChar = nullptr;
 
     BleActionQueue m_queue;
-    Task& m_task;
+    TTask m_task;
 
     WifiTypes::Ssid m_ssid{};
     WifiTypes::Password m_password{};

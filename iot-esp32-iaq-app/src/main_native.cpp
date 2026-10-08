@@ -1,6 +1,6 @@
+#include "queue/std_queue.hpp"
 #include "task/jthread_task.hpp"
 #include "telemetry/consumer.hpp"
-#include "telemetry/std_telemetry_queue.hpp"
 #include "telemetry/telemetry_publisher.hpp"
 
 #include <chrono>
@@ -41,22 +41,22 @@ static TelemetryData makeFakeReading(int p_index) {
 }
 
 int main() {
-    StdTelemetryQueue<TELEMETRY_EVENT_QUEUE_LENGTH> telemetryQueue;
-    JThreadTask telemetryTask;
-    TelemetryPublisher telemetryPublisher(telemetryQueue, telemetryTask);
     ConsoleConsumer console;
+    TelemetryPublisher<StdQueue<TelemetryEvent, TELEMETRY_EVENT_QUEUE_LENGTH>, JThreadTask> telemetryPublisher;
+
+    if (!telemetryPublisher.init()) {
+        return 1;
+    }
 
     telemetryPublisher.addDataConsumer(console);
     telemetryPublisher.addInfoConsumer(console);
     telemetryPublisher.start();
 
-    telemetryQueue.enqueue(TelemetryInfo{2});
+    telemetryPublisher.enqueue(TelemetryInfo{2});
     for (int i = 0; i < FAKE_READING_COUNT; ++i) {
-        telemetryQueue.enqueue(makeFakeReading(i));
+        telemetryPublisher.enqueue(makeFakeReading(i));
         std::this_thread::sleep_for(FAKE_READING_PERIOD);
     }
 
-    telemetryQueue.close();
-    telemetryTask.stop();
     return 0;
 }

@@ -1,11 +1,14 @@
 #include "display/display_controller.hpp"
 
+#include "task/freertos_task.hpp"
+
 #include <cmath>
 
 constexpr std::size_t FIRST_HALF_TEXT_SIZE = 32;
 constexpr std::size_t SECOND_HALF_TEXT_SIZE = 16;
 
-bool DisplayController::init(WireWrapper& p_wire) {
+template<TaskLike TTask>
+bool DisplayController<TTask>::init(WireWrapper& p_wire) {
     if (!m_display.init(p_wire)) {
         Serial.println("Display init failed (continuing without display)");
         return false;
@@ -25,7 +28,8 @@ bool DisplayController::init(WireWrapper& p_wire) {
     return true;
 }
 
-void DisplayController::start() {
+template<TaskLike TTask>
+void DisplayController<TTask>::start() {
     if (!m_available) {
         return;
     }
@@ -35,11 +39,13 @@ void DisplayController::start() {
     });
 }
 
-void DisplayController::update(const TelemetryData& p_data) {
+template<TaskLike TTask>
+void DisplayController<TTask>::update(const TelemetryData& p_data) {
     setEnvironment(static_cast<uint16_t>(std::round(p_data.iaq)), static_cast<int8_t>(std::round(p_data.temp)), p_data.iaqAccuracy);
 }
 
-void DisplayController::enableDisplay() {
+template<TaskLike TTask>
+void DisplayController<TTask>::enableDisplay() {
     if (!m_available) {
         return;
     }
@@ -54,7 +60,8 @@ void DisplayController::enableDisplay() {
     notify();
 }
 
-void DisplayController::disableDisplay() {
+template<TaskLike TTask>
+void DisplayController<TTask>::disableDisplay() {
     if (!m_available) {
         return;
     }
@@ -66,19 +73,22 @@ void DisplayController::disableDisplay() {
     m_display.setMode(DisplayMode::Off);
 }
 
-void DisplayController::setWifiStatus(bool p_connected) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setWifiStatus(bool p_connected) {
     updateState([p_connected](DisplayState& p_outState) {
         p_outState.wifiConnected = p_connected;
     });
 }
 
-void DisplayController::setMqttStatus(bool p_connected) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setMqttStatus(bool p_connected) {
     updateState([p_connected](DisplayState& p_outState) {
         p_outState.mqttConnected = p_connected;
     });
 }
 
-void DisplayController::setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, uint8_t p_accuracy) {
     updateState([p_iaq, p_temperatureC, p_accuracy](DisplayState& p_outState) {
         p_outState.iaq = p_iaq;
         p_outState.temperatureC = p_temperatureC;
@@ -86,25 +96,29 @@ void DisplayController::setEnvironment(uint16_t p_iaq, int8_t p_temperatureC, ui
     });
 }
 
-void DisplayController::setProvisioningStatus(uint32_t p_passkey) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setProvisioningStatus(uint32_t p_passkey) {
     updateState([p_passkey](DisplayState& p_outState) {
         p_outState.provisionPasskey = p_passkey;
     });
 }
 
-void DisplayController::setClaimingCode(const ClaimCode& p_code) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setClaimingCode(const ClaimCode& p_code) {
     updateState([p_code](DisplayState& p_outState) {
         p_outState.claimCode = p_code;
     });
 }
 
-void DisplayController::setClaimedStatus(bool p_claimed) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setClaimedStatus(bool p_claimed) {
     updateState([p_claimed](DisplayState& p_outState) {
         p_outState.claimed = p_claimed;
     });
 }
 
-void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
+template<TaskLike TTask>
+void DisplayController<TTask>::setActiveOverlay(DisplayOverlay p_overlay) {
     if (!m_available) {
         return;
     }
@@ -117,15 +131,18 @@ void DisplayController::setActiveOverlay(DisplayOverlay p_overlay) {
     }
 }
 
-void DisplayController::notify() {
+template<TaskLike TTask>
+void DisplayController<TTask>::notify() {
     m_renderSignal.give();
 }
 
-void DisplayController::wait() {
+template<TaskLike TTask>
+void DisplayController<TTask>::wait() {
     m_renderSignal.take();
 }
 
-void DisplayController::loop() {
+template<TaskLike TTask>
+void DisplayController<TTask>::loop() {
     // Initial render
     render();
 
@@ -135,7 +152,8 @@ void DisplayController::loop() {
     }
 }
 
-void DisplayController::render() {
+template<TaskLike TTask>
+void DisplayController<TTask>::render() {
     const MutexGuard l_guard(m_mutex);
 
     switch (m_overlay) {
@@ -183,3 +201,5 @@ void DisplayController::render() {
     }
     }
 }
+
+template class DisplayController<FreeRtosTask>;

@@ -1,12 +1,16 @@
 #include "wifi/wifi_manager.hpp"
 
+#include "task/freertos_task.hpp"
+
 #include <cstring>
 
 constexpr uint32_t QUEUE_LENGTH = 10;
 
-WifiManager::WifiManager(WifiAdapter& p_adapter, Task& p_task) : m_adapter(p_adapter), m_sm(m_adapter, m_logger), m_task(p_task) {}
+template<TaskLike TTask>
+WifiManager<TTask>::WifiManager(WifiAdapter& p_adapter) : m_adapter(p_adapter), m_sm(m_adapter, m_logger) {}
 
-bool WifiManager::init() {
+template<TaskLike TTask>
+bool WifiManager<TTask>::init() {
 
     if (!m_queue.init()) {
         Serial.println("WiFiManager queue creation failed");
@@ -54,27 +58,32 @@ bool WifiManager::init() {
     return true;
 }
 
-void WifiManager::start() {
+template<TaskLike TTask>
+void WifiManager<TTask>::start() {
     m_task.createAndStart("wifi_task", [this] {
         loop();
     });
 }
 
-void WifiManager::enqueueWifiStart() {
+template<TaskLike TTask>
+void WifiManager<TTask>::enqueueWifiStart() {
     enqueueEvent(WifiQueueEvent::StartRequested);
 }
 
-void WifiManager::enqueueWifiStop() {
+template<TaskLike TTask>
+void WifiManager<TTask>::enqueueWifiStop() {
     enqueueEvent(WifiQueueEvent::StopRequested);
 }
 
-void WifiManager::saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
+template<TaskLike TTask>
+void WifiManager<TTask>::saveCredentialsAndEnqueueUpdate(const WifiTypes::Ssid& p_ssid, const WifiTypes::Password& p_password) {
     if (m_adapter.saveCredentials(p_ssid, p_password)) {
         enqueueEvent(WifiQueueEvent::CredentialsReceived);
     }
 }
 
-void WifiManager::loop() {
+template<TaskLike TTask>
+void WifiManager<TTask>::loop() {
     while (m_task.running()) {
         WifiQueueEvent type;
         if (m_queue.receive(type)) {
@@ -83,7 +92,8 @@ void WifiManager::loop() {
     }
 }
 
-void WifiManager::handleQueueEvent(WifiQueueEvent type) {
+template<TaskLike TTask>
+void WifiManager<TTask>::handleQueueEvent(WifiQueueEvent type) {
     switch (type) {
     case WifiQueueEvent::StartRequested:
         m_sm.process_event(EvStartRequested{});
@@ -128,6 +138,9 @@ void WifiManager::handleQueueEvent(WifiQueueEvent type) {
     }
 }
 
-void WifiManager::enqueueEvent(WifiQueueEvent type) {
+template<TaskLike TTask>
+void WifiManager<TTask>::enqueueEvent(WifiQueueEvent type) {
     m_queue.send(type);
 }
+
+template class WifiManager<FreeRtosTask>;

@@ -1,8 +1,7 @@
 #include "sensor/env_sensor.hpp"
 
+#include "task/freertos_task.hpp"
 #include "vendor/arduino.hpp"
-
-TelemetrySink* EnvSensor::s_telemetrySink = nullptr;
 
 constexpr uint64_t STATE_SAVE_PERIOD_MS = 4ULL * 60ULL * 60ULL * 1000ULL; // 4 hours
 
@@ -120,7 +119,8 @@ static TelemetryData toTelemetryData(const SensorData& p_data) {
     return l_telemetry;
 }
 
-void EnvSensor::checkBsecStatus() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::checkBsecStatus() {
     if (m_bsec.status < BSEC_OK) {
         Serial.printf("BSEC error code: %d\n", m_bsec.status);
     } else if (m_bsec.status > BSEC_OK) {
@@ -134,7 +134,8 @@ void EnvSensor::checkBsecStatus() {
     }
 }
 
-void EnvSensor::printMode() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::printMode() {
     switch (m_mode) {
     case SensorMode::Disabled:
         Serial.println("BME688 - Disabled mode");
@@ -151,7 +152,8 @@ void EnvSensor::printMode() {
     }
 }
 
-bool EnvSensor::init(WireWrapper& p_bus) {
+template<TaskLike TTask>
+bool EnvSensor<TTask>::init(WireWrapper& p_bus) {
     if (!m_modeRequestQueue.init()) {
         Serial.println("Mode request queue creation failed");
         return false;
@@ -190,7 +192,8 @@ bool EnvSensor::init(WireWrapper& p_bus) {
     return true;
 }
 
-void EnvSensor::start() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::start() {
     m_task.createAndStart(
         "sensor_task",
         [this] {
@@ -199,21 +202,24 @@ void EnvSensor::start() {
         TASK_PRIORITY);
 }
 
-void EnvSensor::checkModeChangeRequest() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::checkModeChangeRequest() {
     SensorMode l_requestedMode;
     if (m_modeRequestQueue.receive(l_requestedMode, 0)) {
         setMode(l_requestedMode);
     }
 }
 
-void EnvSensor::run() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::run() {
     if (!m_bsec.run()) {
         Serial.println("BSEC run failed..");
         checkBsecStatus();
     }
 }
 
-void EnvSensor::loop() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::loop() {
     while (m_task.running()) {
         checkModeChangeRequest();
         run();
@@ -222,7 +228,8 @@ void EnvSensor::loop() {
     }
 }
 
-std::optional<SensorState> EnvSensor::getStateFromBsec() {
+template<TaskLike TTask>
+std::optional<SensorState> EnvSensor<TTask>::getStateFromBsec() {
     SensorState buf{};
     if (!m_bsec.getState(buf.data())) {
         Serial.printf("Failed to get BME688 state from BSEC: (%d)\n", m_bsec.status);
@@ -231,7 +238,8 @@ std::optional<SensorState> EnvSensor::getStateFromBsec() {
     return buf;
 }
 
-bool EnvSensor::setStateToBsec(const SensorState& p_state) {
+template<TaskLike TTask>
+bool EnvSensor<TTask>::setStateToBsec(const SensorState& p_state) {
     if (!m_bsec.setState(const_cast<uint8_t*>(p_state.data()))) {
         Serial.printf("Failed to set BME688 state to BSEC: (%d)\n", m_bsec.status);
         return false;
@@ -239,7 +247,8 @@ bool EnvSensor::setStateToBsec(const SensorState& p_state) {
     return true;
 }
 
-bool EnvSensor::setMode(SensorMode p_mode) {
+template<TaskLike TTask>
+bool EnvSensor<TTask>::setMode(SensorMode p_mode) {
 
     // If the desired mode is already set, no need to do anything
     if (p_mode == m_mode)
@@ -257,7 +266,8 @@ bool EnvSensor::setMode(SensorMode p_mode) {
     return applyMode(p_mode);
 }
 
-bool EnvSensor::setConfig(SensorMode p_mode) {
+template<TaskLike TTask>
+bool EnvSensor<TTask>::setConfig(SensorMode p_mode) {
     const uint8_t* l_config = s_bsecConfigLp;
     switch (p_mode) {
     case SensorMode::UltraLowPower:
@@ -284,7 +294,8 @@ bool EnvSensor::setConfig(SensorMode p_mode) {
     return true;
 }
 
-bool EnvSensor::applyMode(SensorMode p_mode) {
+template<TaskLike TTask>
+bool EnvSensor<TTask>::applyMode(SensorMode p_mode) {
     if (!setConfig(p_mode)) {
         return false;
     }
@@ -323,11 +334,13 @@ bool EnvSensor::applyMode(SensorMode p_mode) {
     return true;
 }
 
-void EnvSensor::enqueueModeChange(SensorMode p_mode) {
+template<TaskLike TTask>
+void EnvSensor<TTask>::enqueueModeChange(SensorMode p_mode) {
     m_modeRequestQueue.overwrite(p_mode);
 }
 
-void EnvSensor::maybeSaveStateToStorage() {
+template<TaskLike TTask>
+void EnvSensor<TTask>::maybeSaveStateToStorage() {
     bool l_shouldSave = false;
 
     if (s_currentAccuracy == IAQAccuracy::High) {
@@ -357,3 +370,5 @@ void EnvSensor::maybeSaveStateToStorage() {
         }
     }
 }
+
+template class EnvSensor<FreeRtosTask>;

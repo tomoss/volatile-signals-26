@@ -1,22 +1,23 @@
 #ifndef JTHREAD_TASK_HPP
 #define JTHREAD_TASK_HPP
 
-#include "task/task.hpp"
-
 #include <cstdint>
+#include <functional>
 #include <stop_token>
 #include <thread>
 
-class JThreadTask : public Task {
+class JThreadTask {
 public:
+    using TaskLoop = std::function<void()>;
+
     JThreadTask() = default;
-    ~JThreadTask() override { stop(); }
+    ~JThreadTask() { stop(); }
     JThreadTask(const JThreadTask&) = delete;
     JThreadTask& operator=(const JThreadTask&) = delete;
     JThreadTask(JThreadTask&&) = delete;
     JThreadTask& operator=(JThreadTask&&) = delete;
 
-    bool createAndStart(const char* /*p_name*/, TaskLoop p_taskLoop, uint32_t /*p_priority*/ = 1, uint32_t /*p_stackSize*/ = 4096) override {
+    bool createAndStart(const char* /*p_name*/, TaskLoop p_taskLoop, uint32_t /*p_priority*/ = 1, uint32_t /*p_stackSize*/ = 4096) {
         if (m_thread.joinable()) {
             return false;
         }
@@ -24,7 +25,7 @@ public:
         return true;
     }
 
-    bool running() const override { return !m_stopSource.stop_requested(); }
+    bool running() const { return !m_stopSource.stop_requested(); }
 
     void stop() {
         m_stopSource.request_stop();

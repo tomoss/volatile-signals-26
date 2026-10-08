@@ -1,5 +1,6 @@
 #include "utils/ota_updater.hpp"
 
+#include "task/freertos_task.hpp"
 #include "vendor/arduino.hpp"
 #include "vendor/http_update.hpp"
 
@@ -9,7 +10,8 @@
 constexpr uint32_t TASK_STACK_SIZE = 8192;
 constexpr UBaseType_t TASK_PRIORITY = 1;
 
-void OtaUpdater::onOtaRequested(std::string_view p_url) {
+template<TaskLike TTask>
+void OtaUpdater<TTask>::onOtaRequested(std::string_view p_url) {
     if (m_inProgress.exchange(true)) {
         Serial.println("[OTA] Update already in progress, ignoring");
         return;
@@ -31,12 +33,14 @@ void OtaUpdater::onOtaRequested(std::string_view p_url) {
     }
 }
 
-void OtaUpdater::taskEntry(void* p_parameter) {
+template<TaskLike TTask>
+void OtaUpdater<TTask>::taskEntry(void* p_parameter) {
     static_cast<OtaUpdater*>(p_parameter)->runUpdate();
     vTaskDelete(nullptr);
 }
 
-void OtaUpdater::runUpdate() {
+template<TaskLike TTask>
+void OtaUpdater<TTask>::runUpdate() {
     WiFiClient l_client;
     Serial.printf("[OTA] Starting update from %s\n", m_url.data());
 
@@ -63,3 +67,5 @@ void OtaUpdater::runUpdate() {
 
     m_inProgress.store(false);
 }
+
+template class OtaUpdater<FreeRtosTask>;

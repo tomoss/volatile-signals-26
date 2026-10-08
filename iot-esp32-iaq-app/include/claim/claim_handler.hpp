@@ -17,13 +17,13 @@ constexpr int CLAIM_BUTTON_PIN = D1;
 // Toggles the device claiming flow (start/stop showing the claim code and notifying the
 // server) each time the user button is pressed. Only one instance may exist per program: the
 // ISR reaches the task through a single static semaphore handle.
+template<TaskLike TTask>
 class ClaimHandler {
 public:
-    ClaimHandler(DisplayController& p_displayController, ClaimStore& p_store, MqttBridge& p_mqttBridge, Task& p_task)
+    ClaimHandler(DisplayController<TTask>& p_displayController, ClaimStore& p_store, MqttBridge& p_mqttBridge)
         : m_displayController(p_displayController)
         , m_store(p_store)
-        , m_mqttBridge(p_mqttBridge)
-        , m_task(p_task) {}
+        , m_mqttBridge(p_mqttBridge) {}
     ~ClaimHandler() = default;
     ClaimHandler(const ClaimHandler&) = delete;
     ClaimHandler& operator=(const ClaimHandler&) = delete;
@@ -39,21 +39,17 @@ public:
     void setClaimed(bool p_claimed);
 
 private:
-    static void IRAM_ATTR isr();
     void loop();
     void show();
     void hide();
 
-    DisplayController& m_displayController;
+    DisplayController<TTask>& m_displayController;
     ClaimStore& m_store;
     MqttBridge& m_mqttBridge;
     ClaimCode m_code{};
     std::atomic<bool> m_claimed{false};
-    Task& m_task;
+    TTask m_task;
     BinarySemaphore m_buttonSignal;
-
-    // The ISR (a plain function pointer, no user data) reaches the task through this.
-    static SemaphoreHandle_t s_buttonSignal;
 };
 
 #endif // CLAIM_HANDLER_HPP

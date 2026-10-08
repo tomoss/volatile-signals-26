@@ -1,18 +1,21 @@
 #include "health/health_reporter.hpp"
 
 #include "health/device_health.hpp"
+#include "task/freertos_task.hpp"
 #include "vendor/arduino.hpp"
 
 // How often to publish device health (RSSI/heap/uptime) - diagnostic data
 constexpr uint32_t PUBLISH_INTERVAL_MS = 60000; // 60 seconds
 
-void HealthReporter::start() {
+template<TaskLike TTask>
+void HealthReporter<TTask>::start() {
     m_task.createAndStart("health_task", [this] {
         taskLoop();
     });
 }
 
-void HealthReporter::taskLoop() {
+template<TaskLike TTask>
+void HealthReporter<TTask>::taskLoop() {
     while (m_task.running()) {
         DeviceHealth l_health;
         l_health.rssi = m_wifiAdapter.getRSSI();
@@ -25,3 +28,5 @@ void HealthReporter::taskLoop() {
         vTaskDelay(pdMS_TO_TICKS(PUBLISH_INTERVAL_MS));
     }
 }
+
+template class HealthReporter<FreeRtosTask>;
