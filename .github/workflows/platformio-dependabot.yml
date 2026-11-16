@@ -14,7 +14,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: peterus/platformio_dependabot@v1.2.0
+      - uses: peterus/platformio_dependabot@v1.3.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           project_path: iot-esp32-iaq-app
